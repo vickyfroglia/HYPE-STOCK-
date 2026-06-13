@@ -1,6 +1,7 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import Login from './login';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,9 +15,15 @@ export default function Home() {
   const [ingresos, setIngresos] = useState<any[]>([]);
   const [egresos, setEgresos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [logueado, setLogueado] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
-    cargarTodo();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setLogueado(!!session);
+      setCheckingAuth(false);
+      if (session) cargarTodo();
+    });
   }, []);
 
   async function cargarTodo() {
@@ -33,6 +40,14 @@ export default function Home() {
     if (egs) setEgresos(egs);
     setLoading(false);
   }
+
+  async function cerrarSesion() {
+    await supabase.auth.signOut();
+    setLogueado(false);
+  }
+
+  if (checkingAuth) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a1a2e', color: '#fff' }}>Cargando...</div>;
+  if (!logueado) return <Login onLogin={() => { setLogueado(true); cargarTodo(); }} />;
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '▦' },
@@ -57,7 +72,6 @@ export default function Home() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'Arial, sans-serif' }}>
-      {/* SIDEBAR */}
       <div style={{ width: 200, background: '#1a1a2e', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, height: '100vh' }}>
         <div style={{ padding: '18px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
           <div style={{ fontSize: 22, fontWeight: 700, color: '#fff', letterSpacing: 2 }}>HYPE</div>
@@ -73,9 +87,13 @@ export default function Home() {
             <span>{n.icon}</span>{n.label}
           </div>
         ))}
+        <div style={{ marginTop: 'auto', padding: 16 }}>
+          <button onClick={cerrarSesion} style={{ width: '100%', padding: '8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: 'rgba(255,255,255,0.55)', fontSize: 12, cursor: 'pointer' }}>
+            Cerrar sesión
+          </button>
+        </div>
       </div>
 
-      {/* MAIN */}
       <div style={{ marginLeft: 200, padding: 24, flex: 1, background: '#f5f5f7', minHeight: '100vh' }}>
         {loading && <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>Cargando...</div>}
         {!loading && (
@@ -211,10 +229,10 @@ function Ingresos({ clientes, telas, onGuardar }: any) {
       <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #eee', marginBottom: 16 }}>
         <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>Encabezado</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}>
-          <div><label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 4 }}>Fecha</label><input type="date" value={fecha} onChange={e => setFecha(e.target.value)} style={inp} /></div>
-          <div><label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 4 }}>Nro. remito</label><input type="number" value={remito} onChange={e => setRemito(e.target.value)} placeholder="00145" style={inp} /></div>
+          <div><label style={lbl}>Fecha</label><input type="date" value={fecha} onChange={e => setFecha(e.target.value)} style={inp} /></div>
+          <div><label style={lbl}>Nro. remito</label><input type="number" value={remito} onChange={e => setRemito(e.target.value)} placeholder="00145" style={inp} /></div>
           <div style={{ position: 'relative' }}>
-            <label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 4 }}>Cliente</label>
+            <label style={lbl}>Cliente</label>
             <input value={busqCli} onChange={e => { setBusqCli(e.target.value); setShowCli(true); }} placeholder="Escribí para buscar..." style={inp} />
             {showCli && busqCli && (
               <div style={dropdown}>
@@ -224,8 +242,8 @@ function Ingresos({ clientes, telas, onGuardar }: any) {
               </div>
             )}
           </div>
-          <div><label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 4 }}>Cód. cliente</label><input value={codCliente} readOnly style={{ ...inp, background: '#f5f5f7' }} /></div>
-          <div><label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 4 }}>Recibido por</label><input value={recibido} onChange={e => setRecibido(e.target.value)} placeholder="Nombre" style={inp} /></div>
+          <div><label style={lbl}>Cód. cliente</label><input value={codCliente} readOnly style={{ ...inp, background: '#f5f5f7' }} /></div>
+          <div><label style={lbl}>Recibido por</label><input value={recibido} onChange={e => setRecibido(e.target.value)} placeholder="Nombre" style={inp} /></div>
         </div>
       </div>
 
@@ -473,7 +491,7 @@ function Clientes({ clientes, onGuardar }: any) {
             <th style={{ ...th, width: 120 }}>Acciones</th>
           </tr></thead>
           <tbody>
-            {page.map((c: any, i: number) => (
+            {page.map((c: any) => (
               <tr key={c.id}>
                 <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{c.cod}</td>
                 <td style={td}>{c.nombre}</td>
