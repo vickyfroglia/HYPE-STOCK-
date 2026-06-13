@@ -108,7 +108,7 @@ export default function Home() {
           <>
             {pagina === 'dashboard' && <Dashboard ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} calcStock={calcStock} />}
             {pagina === 'ingresos' && <Ingresos clientes={clientes} telas={telas} empleados={empleados} onGuardar={cargarTodo} />}
-            {pagina === 'egresos' && <Egresos ingresos={ingresos} egresos={egresos} empleados={empleados} onGuardar={cargarTodo} />}
+            {pagina === 'egresos' && <Egresos ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} empleados={empleados} onGuardar={cargarTodo} />}
             {pagina === 'stockTH' && <StockTH calcStock={calcStock} ingresos={ingresos} />}
             {pagina === 'stockTC' && <StockTC calcStock={calcStock} ingresos={ingresos} />}
             {pagina === 'clientes' && <Clientes clientes={clientes} onGuardar={cargarTodo} />}
@@ -416,13 +416,19 @@ function Ingresos({ clientes, telas, empleados, onGuardar }: any) {
   );
 }
 
-function Egresos({ ingresos, egresos, empleados, onGuardar }: any) {
+function Egresos({ ingresos, egresos, clientes, telas, empleados, onGuardar }: any) {
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
   const [remitoOrigen, setRemitoOrigen] = useState('');
   const [cliente, setCliente] = useState('');
+  const [busqCli, setBusqCli] = useState('');
+  const [showCli, setShowCli] = useState(false);
   const [tela, setTela] = useState('');
+  const [busqTela, setBusqTela] = useState('');
+  const [showTela, setShowTela] = useState(false);
   const [obs, setObs] = useState('');
   const [idHype, setIdHype] = useState('');
+  const [opcionesId, setOpcionesId] = useState<any[]>([]);
+  const [showId, setShowId] = useState(false);
   const [disponibles, setDisponibles] = useState(0);
   const [mts, setMts] = useState('');
   const [bultos, setBultos] = useState('');
@@ -435,13 +441,58 @@ function Egresos({ ingresos, egresos, empleados, onGuardar }: any) {
 
   function buscarRemito(val: string) {
     setRemitoOrigen(val);
+    if (!val) return;
     const ing = ingresos.find((i: any) => i.remito === val);
     if (ing) {
-      setCliente(ing.cliente); setTela(ing.tela); setObs(ing.observaciones || ''); setIdHype(ing.id_hype);
-      const ingTotal = ingresos.filter((i: any) => i.id_hype === ing.id_hype).reduce((s: number, i: any) => s + Number(i.mts), 0);
-      const egrTotal = egresos.filter((e: any) => e.id_hype === ing.id_hype).reduce((s: number, e: any) => s + Number(e.mts), 0);
-      setDisponibles(ingTotal - egrTotal);
+      setCliente(ing.cliente); setBusqCli(ing.cliente);
+      setTela(ing.tela); setBusqTela(ing.tela);
+      setObs(ing.observaciones || '');
+      setIdHype(ing.id_hype);
+      calcDisponibles(ing.id_hype);
     }
+  }
+
+  function calcDisponibles(id: string) {
+    const ingTotal = ingresos.filter((i: any) => i.id_hype === id).reduce((s: number, i: any) => s + Number(i.mts), 0);
+    const egrTotal = egresos.filter((e: any) => e.id_hype === id).reduce((s: number, e: any) => s + Number(e.mts), 0);
+    setDisponibles(ingTotal - egrTotal);
+  }
+
+  function buscarPorClienteTela(cli: string, tel: string) {
+    if (!cli || !tel) { setOpcionesId([]); setIdHype(''); setDisponibles(0); return; }
+    const matches = ingresos.filter((i: any) =>
+      i.cliente.toLowerCase() === cli.toLowerCase() &&
+      i.tela.toLowerCase() === tel.toLowerCase()
+    );
+    const ids = [...new Set(matches.map((i: any) => i.id_hype))];
+    setOpcionesId(ids.map(id => {
+      const ingT = ingresos.filter((i: any) => i.id_hype === id).reduce((s: number, i: any) => s + Number(i.mts), 0);
+      const egrT = egresos.filter((e: any) => e.id_hype === id).reduce((s: number, e: any) => s + Number(e.mts), 0);
+      return { id, disp: ingT - egrT };
+    }));
+    if (ids.length === 1) {
+      setIdHype(ids[0]);
+      calcDisponibles(ids[0]);
+    } else {
+      setIdHype('');
+      setDisponibles(0);
+      if (ids.length > 1) setShowId(true);
+    }
+  }
+
+  function selCliente(c: any) {
+    setCliente(c.nombre); setBusqCli(c.nombre); setShowCli(false);
+    buscarPorClienteTela(c.nombre, tela);
+  }
+
+  function selTela(t: any) {
+    setTela(t.nombre); setBusqTela(t.nombre); setShowTela(false);
+    buscarPorClienteTela(cliente, t.nombre);
+  }
+
+  function selId(id: string) {
+    setIdHype(id); setShowId(false);
+    calcDisponibles(id);
   }
 
   function validarMts(val: string) {
@@ -452,7 +503,8 @@ function Egresos({ ingresos, egresos, empleados, onGuardar }: any) {
 
   async function guardar() {
     if (alerta) { alert('Corregí los metros antes de guardar.'); return; }
-    if (!remitoOrigen || !parseFloat(mts)) { alert('Completá los datos obligatorios.'); return; }
+    if (!parseFloat(mts)) { alert('Completá los metros a egresar.'); return; }
+    if (!idHype) { alert('No se encontró un ID válido. Verificá cliente y tela.'); return; }
     setGuardando(true);
     const { error } = await supabase.from('egresos').insert([{
       fecha, remito_origen: remitoOrigen, remito_entrega: remitoEntrega,
@@ -471,13 +523,57 @@ function Egresos({ ingresos, egresos, empleados, onGuardar }: any) {
       <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #eee', marginBottom: 16 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}>
           <div><label style={lbl}>Fecha</label><input type="date" value={fecha} onChange={e => setFecha(e.target.value)} style={inp} /></div>
-          <div><label style={lbl}>Nro. remito origen</label><input type="number" value={remitoOrigen} onChange={e => buscarRemito(e.target.value)} placeholder="00145" style={inp} /></div>
-          <div><label style={lbl}>Cliente <span style={{ background: '#e8f4ea', color: '#3B6D11', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>auto</span></label><input value={cliente} readOnly style={{ ...inp, background: '#f5f5f7' }} /></div>
-          <div><label style={lbl}>Tela <span style={{ background: '#e8f4ea', color: '#3B6D11', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>auto</span></label><input value={tela} readOnly style={{ ...inp, background: '#f5f5f7' }} /></div>
-          <div><label style={lbl}>Observaciones <span style={{ background: '#e8f4ea', color: '#3B6D11', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>auto</span></label><input value={obs} readOnly style={{ ...inp, background: '#f5f5f7' }} /></div>
-          <div><label style={lbl}>ID <span style={{ background: '#e8f4ea', color: '#3B6D11', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>auto</span></label>
-            <div style={{ background: '#1a1a2e', color: '#e85d2f', fontFamily: 'monospace', fontSize: 13, fontWeight: 700, padding: '8px 12px', borderRadius: 8 }}>{idHype || '---'}</div>
+          <div><label style={lbl}>Nro. remito origen <span style={{ fontSize: 10, color: '#aaa' }}>(opcional)</span></label><input type="number" value={remitoOrigen} onChange={e => buscarRemito(e.target.value)} placeholder="00145" style={inp} /></div>
+
+          <div style={{ position: 'relative' }}>
+            <label style={lbl}>Cliente</label>
+            <input value={busqCli} onChange={e => { setBusqCli(e.target.value); setCliente(e.target.value); setShowCli(true); buscarPorClienteTela(e.target.value, tela); }} placeholder="Escribí para buscar..." style={inp} />
+            {showCli && busqCli && (
+              <div style={dropdown}>
+                {clientes.filter((c: any) => c.nombre.toLowerCase().includes(busqCli.toLowerCase())).slice(0, 8).map((c: any) => (
+                  <div key={c.cod} onClick={() => selCliente(c)} style={ddItem}>{c.nombre} <span style={{ color: '#888', fontSize: 11 }}>{c.cod}</span></div>
+                ))}
+              </div>
+            )}
           </div>
+
+          <div style={{ position: 'relative' }}>
+            <label style={lbl}>Tela</label>
+            <input value={busqTela} onChange={e => { setBusqTela(e.target.value); setTela(e.target.value); setShowTela(true); buscarPorClienteTela(cliente, e.target.value); }} placeholder="Escribí para buscar..." style={inp} />
+            {showTela && busqTela && (
+              <div style={dropdown}>
+                {telas.filter((t: any) => t.nombre.toLowerCase().includes(busqTela.toLowerCase())).slice(0, 8).map((t: any) => (
+                  <div key={t.cod} onClick={() => selTela(t)} style={ddItem}>{t.nombre} <span style={{ color: '#888', fontSize: 11 }}>{t.cod}</span></div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div><label style={lbl}>Observaciones</label><input value={obs} onChange={e => setObs(e.target.value)} placeholder="Color, diseño..." style={inp} /></div>
+
+          <div style={{ position: 'relative' }}>
+            <label style={lbl}>ID <span style={{ background: '#e8f4ea', color: '#3B6D11', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>automático</span></label>
+            {opcionesId.length > 1 && !idHype ? (
+              <div>
+                <div style={{ ...inp, background: '#f5f5f7', color: '#888', cursor: 'pointer' }} onClick={() => setShowId(!showId)}>
+                  {idHype || 'Seleccioná un ID ▾'}
+                </div>
+                {showId && (
+                  <div style={dropdown}>
+                    {opcionesId.map((o: any) => (
+                      <div key={o.id} onClick={() => selId(o.id)} style={ddItem}>
+                        <span style={{ fontFamily: 'monospace', color: '#e85d2f' }}>{o.id}</span>
+                        <span style={{ color: '#888', fontSize: 11, marginLeft: 8 }}>{o.disp.toLocaleString()} mts disp.</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ background: '#1a1a2e', color: '#e85d2f', fontFamily: 'monospace', fontSize: 13, fontWeight: 700, padding: '8px 12px', borderRadius: 8 }}>{idHype || '---'}</div>
+            )}
+          </div>
+
           <div><label style={lbl}>Mts disponibles</label><input value={disponibles ? disponibles + ' mts' : '---'} readOnly style={{ ...inp, background: '#f5f5f7', color: '#3B6D11', fontWeight: 500 }} /></div>
           <div><label style={lbl}>Mts a egresar</label><input type="number" value={mts} onChange={e => validarMts(e.target.value)} placeholder="0" style={inp} /></div>
           <div><label style={lbl}>Nro. bultos</label><input type="number" value={bultos} onChange={e => setBultos(e.target.value)} placeholder="0" style={inp} /></div>
@@ -721,17 +817,10 @@ function HistorialEgresos({ egresos, onGuardar }: any) {
     if (!editItem) return;
     setGuardando(true);
     const { error } = await supabase.from('egresos').update({
-      fecha: editItem.fecha,
-      remito_origen: editItem.remito_origen,
-      remito_entrega: editItem.remito_entrega,
-      cliente: editItem.cliente,
-      tela: editItem.tela,
-      observaciones: editItem.observaciones,
-      mts: editItem.mts,
-      bultos: editItem.bultos,
-      estado: editItem.estado,
-      entrego: editItem.entrego,
-      retiro: editItem.retiro,
+      fecha: editItem.fecha, remito_origen: editItem.remito_origen, remito_entrega: editItem.remito_entrega,
+      cliente: editItem.cliente, tela: editItem.tela, observaciones: editItem.observaciones,
+      mts: editItem.mts, bultos: editItem.bultos, estado: editItem.estado,
+      entrego: editItem.entrego, retiro: editItem.retiro,
     }).eq('id', editItem.id);
     if (error) alert('Error: ' + error.message);
     else { setEditItem(null); onGuardar(); }
