@@ -55,6 +55,7 @@ export default function Home() {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '▦' },
     { id: 'ingresos', label: 'Ingresos', icon: '↓' },
+    { id: 'historial', label: 'Historial', icon: '☰' },
     { id: 'egresos', label: 'Egresos', icon: '↑' },
     { id: 'stockTH', label: 'Stock TH', icon: '◫' },
     { id: 'stockTC', label: 'Stock TC', icon: '◫' },
@@ -66,8 +67,9 @@ export default function Home() {
   function calcStock() {
     const stockMap: any = {};
     ingresos.forEach((i: any) => {
-      if (!stockMap[i.id_hype]) stockMap[i.id_hype] = { ing: 0, egr: 0, tela: i.tela, cliente: i.cliente, proceso: i.proceso };
+      if (!stockMap[i.id_hype]) stockMap[i.id_hype] = { ing: 0, egr: 0, tela: i.tela, cliente: i.cliente, proceso: i.proceso, observaciones: i.observaciones, bultos: 0, ubicacion: i.ubicacion, ramado: i.ramado, recibido: i.recibido };
       stockMap[i.id_hype].ing += Number(i.mts);
+      stockMap[i.id_hype].bultos += Number(i.bultos || 0);
     });
     egresos.forEach((e: any) => {
       if (stockMap[e.id_hype]) stockMap[e.id_hype].egr += Number(e.mts);
@@ -77,7 +79,7 @@ export default function Home() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'Arial, sans-serif' }}>
-      <div style={{ width: 200, background: '#1a1a2e', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, height: '100vh' }}>
+      <div style={{ width: 200, background: '#1a1a2e', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, height: '100vh', overflowY: 'auto' }}>
         <div style={{ padding: '18px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
           <img src="/logo.png" alt="HYPE printlab" style={{ width: '100%', maxWidth: 160, display: 'block' }} />
           <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: 3, marginTop: 6 }}>STOCK & PRODUCCIÓN</div>
@@ -105,9 +107,10 @@ export default function Home() {
           <>
             {pagina === 'dashboard' && <Dashboard ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} calcStock={calcStock} />}
             {pagina === 'ingresos' && <Ingresos clientes={clientes} telas={telas} empleados={empleados} onGuardar={cargarTodo} />}
+            {pagina === 'historial' && <Historial ingresos={ingresos} onGuardar={cargarTodo} clientes={clientes} telas={telas} empleados={empleados} />}
             {pagina === 'egresos' && <Egresos ingresos={ingresos} egresos={egresos} empleados={empleados} onGuardar={cargarTodo} />}
-            {pagina === 'stockTH' && <StockTH calcStock={calcStock} />}
-            {pagina === 'stockTC' && <StockTC calcStock={calcStock} />}
+            {pagina === 'stockTH' && <StockTH calcStock={calcStock} ingresos={ingresos} />}
+            {pagina === 'stockTC' && <StockTC calcStock={calcStock} ingresos={ingresos} />}
             {pagina === 'clientes' && <Clientes clientes={clientes} onGuardar={cargarTodo} />}
             {pagina === 'telas' && <Telas telas={telas} onGuardar={cargarTodo} />}
             {pagina === 'empleados' && <Empleados empleados={empleados} onGuardar={cargarTodo} />}
@@ -145,21 +148,23 @@ function Dashboard({ ingresos, egresos, clientes, telas, calcStock }: any) {
       </div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #eee' }}>
         <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>Últimos ingresos</div>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead><tr>{['Fecha','Cliente','Tela','ID','Mts','Estado'].map(h => <th key={h} style={{ textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid #eee', fontSize: 11, color: '#888' }}>{h}</th>)}</tr></thead>
-          <tbody>
-            {ingresos.slice(0, 8).map((i: any, idx: number) => (
-              <tr key={idx}>
-                <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.fecha}</td>
-                <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.cliente}</td>
-                <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.tela}</td>
-                <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0', fontFamily: 'monospace', color: '#e85d2f', fontSize: 12 }}>{i.id_hype}</td>
-                <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.mts} mts</td>
-                <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.estado}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead><tr>{['Fecha','Cliente','Tela','ID','Mts','Estado'].map(h => <th key={h} style={{ textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid #eee', fontSize: 11, color: '#888' }}>{h}</th>)}</tr></thead>
+            <tbody>
+              {ingresos.slice(0, 8).map((i: any, idx: number) => (
+                <tr key={idx}>
+                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.fecha}</td>
+                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.cliente}</td>
+                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.tela}</td>
+                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0', fontFamily: 'monospace', color: '#e85d2f', fontSize: 12 }}>{i.id_hype}</td>
+                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.mts} mts</td>
+                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.estado}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -177,6 +182,138 @@ function AutocompleteEmpleado({ label, value, onChange, empleados }: any) {
           {filtered.map((e: any) => (
             <div key={e.id} onClick={() => { onChange(e.nombre); setShow(false); }} style={ddItem}>{e.nombre}</div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Historial({ ingresos, onGuardar, clientes, telas, empleados }: any) {
+  const [search, setSearch] = useState('');
+  const [pag, setPag] = useState(1);
+  const [editItem, setEditItem] = useState<any>(null);
+  const [guardando, setGuardando] = useState(false);
+  const POR_PAG = 20;
+
+  const filtered = ingresos.filter((i: any) =>
+    (i.cliente || '').toLowerCase().includes(search.toLowerCase()) ||
+    (i.tela || '').toLowerCase().includes(search.toLowerCase()) ||
+    (i.id_hype || '').toLowerCase().includes(search.toLowerCase()) ||
+    (i.remito || '').includes(search)
+  );
+  const total = Math.ceil(filtered.length / POR_PAG);
+  const page = filtered.slice((pag - 1) * POR_PAG, pag * POR_PAG);
+
+  async function eliminar(i: any) {
+    if (!confirm(`¿Eliminar el ingreso ${i.id_hype} del ${i.fecha}?`)) return;
+    await supabase.from('ingresos').delete().eq('id', i.id);
+    onGuardar();
+  }
+
+  async function guardarEdicion() {
+    if (!editItem) return;
+    setGuardando(true);
+    const { error } = await supabase.from('ingresos').update({
+      fecha: editItem.fecha,
+      remito: editItem.remito,
+      cliente: editItem.cliente,
+      tela: editItem.tela,
+      observaciones: editItem.observaciones,
+      bultos: editItem.bultos,
+      mts: editItem.mts,
+      ubicacion: editItem.ubicacion,
+      ramado: editItem.ramado,
+      recibido: editItem.recibido,
+      estado: editItem.estado,
+    }).eq('id', editItem.id);
+    if (error) alert('Error: ' + error.message);
+    else { setEditItem(null); onGuardar(); }
+    setGuardando(false);
+  }
+
+  const ubicaciones = ['1-A','1-B','1-C','1-D','2-A','2-B','2-C','3-A','3-B','3-C','3-D','4-A','4-B','4-C','ISLA','PARED','TINTO HYPE','TINTO EXT'];
+
+  return (
+    <div>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 18, fontWeight: 500 }}>Historial de ingresos</div>
+        <div style={{ fontSize: 13, color: '#888' }}>{filtered.length} ingresos registrados</div>
+      </div>
+      <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 12 }}>
+        <input placeholder="Buscar por cliente, tela, ID o remito..." value={search} onChange={e => { setSearch(e.target.value); setPag(1); }} style={{ ...inp, maxWidth: 360 }} />
+      </div>
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead><tr>
+              {['Fecha','Remito','Cliente','Tela','ID','Obs.','Bultos','Mts','Ubic.','Ramado','Recibido','Acciones'].map(h =>
+                <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>
+              )}
+            </tr></thead>
+            <tbody>
+              {page.map((i: any) => (
+                <tr key={i.id}>
+                  <td style={td}>{i.fecha}</td>
+                  <td style={td}>{i.remito}</td>
+                  <td style={{ ...td, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.cliente}</td>
+                  <td style={{ ...td, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.tela}</td>
+                  <td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{i.id_hype}</td>
+                  <td style={{ ...td, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.observaciones}</td>
+                  <td style={{ ...td, textAlign: 'center' }}>{i.bultos}</td>
+                  <td style={{ ...td, textAlign: 'center', fontWeight: 500 }}>{i.mts}</td>
+                  <td style={td}>{i.ubicacion}</td>
+                  <td style={td}>{i.ramado}</td>
+                  <td style={td}>{i.recibido}</td>
+                  <td style={td}>
+                    <button onClick={() => setEditItem({...i})} style={{ ...btn, fontSize: 12, padding: '4px 10px', marginRight: 6 }}>Editar</button>
+                    <button onClick={() => eliminar(i)} style={{ ...btn, fontSize: 12, padding: '4px 10px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>Eliminar</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {total > 1 && <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          {pag > 1 && <button onClick={() => setPag(pag - 1)} style={btn}>‹</button>}
+          <span style={{ fontSize: 12, color: '#888', lineHeight: '32px' }}>Pág {pag} de {total}</span>
+          {pag < total && <button onClick={() => setPag(pag + 1)} style={btn}>›</button>}
+        </div>}
+      </div>
+
+      {editItem && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 560, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 16 }}>Editar ingreso</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div><label style={lbl}>Fecha</label><input type="date" value={editItem.fecha} onChange={e => setEditItem({...editItem, fecha: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Nro. remito</label><input value={editItem.remito} onChange={e => setEditItem({...editItem, remito: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Cliente</label><input value={editItem.cliente} onChange={e => setEditItem({...editItem, cliente: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Tela</label><input value={editItem.tela} onChange={e => setEditItem({...editItem, tela: e.target.value})} style={inp} /></div>
+              <div style={{ gridColumn: '1/-1' }}><label style={lbl}>Observaciones</label><input value={editItem.observaciones || ''} onChange={e => setEditItem({...editItem, observaciones: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Bultos</label><input type="number" value={editItem.bultos} onChange={e => setEditItem({...editItem, bultos: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Mts</label><input type="number" value={editItem.mts} onChange={e => setEditItem({...editItem, mts: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Ubicación</label>
+                <select value={editItem.ubicacion} onChange={e => setEditItem({...editItem, ubicacion: e.target.value})} style={inp}>
+                  {ubicaciones.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+              </div>
+              <div><label style={lbl}>Ramado/Tintorería</label>
+                <select value={editItem.ramado} onChange={e => setEditItem({...editItem, ramado: e.target.value})} style={inp}>
+                  <option value="No">No</option><option value="Si">Sí</option>
+                </select>
+              </div>
+              <div><label style={lbl}>Recibido por</label><input value={editItem.recibido || ''} onChange={e => setEditItem({...editItem, recibido: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Estado</label>
+                <select value={editItem.estado} onChange={e => setEditItem({...editItem, estado: e.target.value})} style={inp}>
+                  <option>En almacén</option><option>Entregado a cliente</option><option>A producción</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+              <button onClick={() => setEditItem(null)} style={btn}>Cancelar</button>
+              <button onClick={guardarEdicion} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>Guardar cambios</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -420,75 +557,74 @@ function Egresos({ ingresos, egresos, empleados, onGuardar }: any) {
   );
 }
 
-function StockCard({ id, s }: any) {
-  const disp = s.ing - s.egr;
-  const pct = Math.max(0, Math.round((disp / s.ing) * 100));
-  return (
-    <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
-      <div style={{ fontFamily: 'monospace', fontWeight: 700, color: '#e85d2f', fontSize: 13, letterSpacing: 1 }}>{id}</div>
-      <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{s.cliente} · {s.proceso === 'S' ? 'Sublimación' : 'Digital'}</div>
-      <div style={{ fontSize: 12, color: '#888' }}>{s.tela}</div>
-      <div style={{ fontSize: 22, fontWeight: 500, marginTop: 8 }}>{disp.toLocaleString()} <span style={{ fontSize: 12, color: '#888', fontWeight: 400 }}>mts</span></div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#888', marginTop: 6 }}>
-        <span>Ing: {s.ing.toLocaleString()}</span><span>Egr: {s.egr.toLocaleString()}</span>
-      </div>
-      <div style={{ height: 4, background: '#f0f0f0', borderRadius: 2, marginTop: 8 }}>
-        <div style={{ height: 4, background: '#e85d2f', borderRadius: 2, width: pct + '%' }} />
-      </div>
-    </div>
-  );
-}
-
-function StockTH({ calcStock }: any) {
+function StockTabla({ entries, titulo, color, bgColor }: any) {
   const [search, setSearch] = useState('');
-  const stock = calcStock();
-  const entries = Object.entries(stock).filter(([id, s]: any) => {
-    if (!id.startsWith('TH')) return false;
+  const filtered = entries.filter(([id, s]: any) => {
     if (!search) return true;
-    return id.toLowerCase().includes(search.toLowerCase()) || s.cliente.toLowerCase().includes(search.toLowerCase()) || s.tela.toLowerCase().includes(search.toLowerCase());
+    return id.toLowerCase().includes(search.toLowerCase()) ||
+      s.cliente.toLowerCase().includes(search.toLowerCase()) ||
+      s.tela.toLowerCase().includes(search.toLowerCase());
   });
-  const totalMts = entries.reduce((s, [, v]: any) => s + v.ing - v.egr, 0);
+  const totalMts = filtered.reduce((s: number, [, v]: any) => s + v.ing - v.egr, 0);
+
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 500 }}>Stock TH — Tela propia HYPE</div>
-        <div style={{ fontSize: 13, color: '#888' }}>{entries.length} IDs · {totalMts.toLocaleString()} mts disponibles</div>
-      </div>
-      <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 16 }}>
-        <input placeholder="Buscar por ID o tela..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, maxWidth: 300 }} />
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
-        {entries.length === 0 && <div style={{ color: '#888', fontSize: 13 }}>Sin stock TH registrado</div>}
-        {entries.map(([id, s]: any) => <StockCard key={id} id={id} s={s} />)}
-      </div>
-    </div>
-  );
-}
-
-function StockTC({ calcStock }: any) {
-  const [search, setSearch] = useState('');
-  const stock = calcStock();
-  const entries = Object.entries(stock).filter(([id, s]: any) => {
-    if (!id.startsWith('TC')) return false;
-    if (!search) return true;
-    return id.toLowerCase().includes(search.toLowerCase()) || s.cliente.toLowerCase().includes(search.toLowerCase()) || s.tela.toLowerCase().includes(search.toLowerCase());
-  });
-  const totalMts = entries.reduce((s, [, v]: any) => s + v.ing - v.egr, 0);
-  return (
-    <div>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 500 }}>Stock TC — Tela de clientes</div>
-        <div style={{ fontSize: 13, color: '#888' }}>{entries.length} IDs · {totalMts.toLocaleString()} mts disponibles</div>
+        <div style={{ fontSize: 18, fontWeight: 500 }}>{titulo}</div>
+        <div style={{ fontSize: 13, color: '#888' }}>{filtered.length} IDs · {totalMts.toLocaleString()} mts disponibles</div>
       </div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 16 }}>
         <input placeholder="Buscar por ID, cliente o tela..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, maxWidth: 300 }} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
-        {entries.length === 0 && <div style={{ color: '#888', fontSize: 13 }}>Sin stock TC registrado</div>}
-        {entries.map(([id, s]: any) => <StockCard key={id} id={id} s={s} />)}
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr>
+                {['ID','Cliente','Tela','Observaciones','Bultos','Mts ing.','Mts egr.','Mts disp.','Ubicación','Ramado','Recibido','Proceso'].map(h =>
+                  <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 && <tr><td colSpan={12} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin stock registrado</td></tr>}
+              {filtered.map(([id, s]: any) => {
+                const disp = s.ing - s.egr;
+                return (
+                  <tr key={id}>
+                    <td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{id}</td>
+                    <td style={{ ...td, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.cliente}</td>
+                    <td style={{ ...td, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.tela}</td>
+                    <td style={{ ...td, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.observaciones || '—'}</td>
+                    <td style={{ ...td, textAlign: 'center' }}>{s.bultos}</td>
+                    <td style={{ ...td, textAlign: 'center' }}>{s.ing.toLocaleString()}</td>
+                    <td style={{ ...td, textAlign: 'center' }}>{s.egr.toLocaleString()}</td>
+                    <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: disp > 0 ? '#3B6D11' : '#c00' }}>{disp.toLocaleString()}</td>
+                    <td style={td}>{s.ubicacion || '—'}</td>
+                    <td style={td}>{s.ramado || '—'}</td>
+                    <td style={td}>{s.recibido || '—'}</td>
+                    <td style={td}>{s.proceso === 'S' ? 'Sublimación' : 'Digital'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
+}
+
+function StockTH({ calcStock, ingresos }: any) {
+  const stock = calcStock();
+  const entries = Object.entries(stock).filter(([id]: any) => id.startsWith('TH'));
+  return <StockTabla entries={entries} titulo="Stock TH — Tela propia HYPE" color="#854F0B" bgColor="#FAEEDA" />;
+}
+
+function StockTC({ calcStock, ingresos }: any) {
+  const stock = calcStock();
+  const entries = Object.entries(stock).filter(([id]: any) => id.startsWith('TC'));
+  return <StockTabla entries={entries} titulo="Stock TC — Tela de clientes" color="#185FA5" bgColor="#E6F1FB" />;
 }
 
 function Clientes({ clientes, onGuardar }: any) {
