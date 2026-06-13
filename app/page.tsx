@@ -14,6 +14,7 @@ export default function Home() {
   const [telas, setTelas] = useState<any[]>([]);
   const [ingresos, setIngresos] = useState<any[]>([]);
   const [egresos, setEgresos] = useState<any[]>([]);
+  const [empleados, setEmpleados] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [logueado, setLogueado] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -28,16 +29,18 @@ export default function Home() {
 
   async function cargarTodo() {
     setLoading(true);
-    const [{ data: cls }, { data: tls }, { data: ings }, { data: egs }] = await Promise.all([
+    const [{ data: cls }, { data: tls }, { data: ings }, { data: egs }, { data: emps }] = await Promise.all([
       supabase.from('clientes').select('*').order('cod'),
       supabase.from('telas').select('*').order('cod'),
       supabase.from('ingresos').select('*').order('created_at', { ascending: false }),
       supabase.from('egresos').select('*').order('created_at', { ascending: false }),
+      supabase.from('empleados').select('*').order('nombre'),
     ]);
     if (cls) setClientes(cls);
     if (tls) setTelas(tls);
     if (ings) setIngresos(ings);
     if (egs) setEgresos(egs);
+    if (emps) setEmpleados(emps);
     setLoading(false);
   }
 
@@ -56,6 +59,7 @@ export default function Home() {
     { id: 'stock', label: 'Stock', icon: '◫' },
     { id: 'clientes', label: 'Clientes', icon: '♟' },
     { id: 'telas', label: 'Telas', icon: '≡' },
+    { id: 'empleados', label: 'Empleados', icon: '👤' },
   ];
 
   function calcStock() {
@@ -99,11 +103,12 @@ export default function Home() {
         {!loading && (
           <>
             {pagina === 'dashboard' && <Dashboard ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} calcStock={calcStock} />}
-            {pagina === 'ingresos' && <Ingresos clientes={clientes} telas={telas} onGuardar={cargarTodo} />}
-            {pagina === 'egresos' && <Egresos ingresos={ingresos} egresos={egresos} onGuardar={cargarTodo} />}
+            {pagina === 'ingresos' && <Ingresos clientes={clientes} telas={telas} empleados={empleados} onGuardar={cargarTodo} />}
+            {pagina === 'egresos' && <Egresos ingresos={ingresos} egresos={egresos} empleados={empleados} onGuardar={cargarTodo} />}
             {pagina === 'stock' && <Stock calcStock={calcStock} />}
             {pagina === 'clientes' && <Clientes clientes={clientes} onGuardar={cargarTodo} />}
             {pagina === 'telas' && <Telas telas={telas} onGuardar={cargarTodo} />}
+            {pagina === 'empleados' && <Empleados empleados={empleados} onGuardar={cargarTodo} />}
           </>
         )}
       </div>
@@ -158,7 +163,25 @@ function Dashboard({ ingresos, egresos, clientes, telas, calcStock }: any) {
   );
 }
 
-function Ingresos({ clientes, telas, onGuardar }: any) {
+function AutocompleteEmpleado({ label, value, onChange, empleados }: any) {
+  const [show, setShow] = useState(false);
+  const filtered = empleados.filter((e: any) => e.nombre.toLowerCase().includes(value.toLowerCase()));
+  return (
+    <div style={{ position: 'relative' }}>
+      <label style={lbl}>{label}</label>
+      <input value={value} onChange={e => { onChange(e.target.value); setShow(true); }} placeholder="Escribí para buscar..." style={inp} onFocus={() => setShow(true)} />
+      {show && value && filtered.length > 0 && (
+        <div style={dropdown}>
+          {filtered.map((e: any) => (
+            <div key={e.id} onClick={() => { onChange(e.nombre); setShow(false); }} style={ddItem}>{e.nombre}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Ingresos({ clientes, telas, empleados, onGuardar }: any) {
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
   const [remito, setRemito] = useState('');
   const [cliente, setCliente] = useState('');
@@ -243,7 +266,7 @@ function Ingresos({ clientes, telas, onGuardar }: any) {
             )}
           </div>
           <div><label style={lbl}>Cód. cliente</label><input value={codCliente} readOnly style={{ ...inp, background: '#f5f5f7' }} /></div>
-          <div><label style={lbl}>Recibido por</label><input value={recibido} onChange={e => setRecibido(e.target.value)} placeholder="Nombre" style={inp} /></div>
+          <AutocompleteEmpleado label="Recibido por" value={recibido} onChange={setRecibido} empleados={empleados} />
         </div>
       </div>
 
@@ -316,7 +339,7 @@ function Ingresos({ clientes, telas, onGuardar }: any) {
   );
 }
 
-function Egresos({ ingresos, egresos, onGuardar }: any) {
+function Egresos({ ingresos, egresos, empleados, onGuardar }: any) {
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
   const [remitoOrigen, setRemitoOrigen] = useState('');
   const [cliente, setCliente] = useState('');
@@ -387,7 +410,7 @@ function Egresos({ ingresos, egresos, onGuardar }: any) {
               <option>En almacén</option><option>Entregado a cliente</option><option>A producción</option><option>Salida a tinto externa</option><option>En tinto HYPE</option>
             </select>
           </div>
-          <div><label style={lbl}>Quién entregó</label><input value={entrego} onChange={e => setEntrego(e.target.value)} placeholder="Nombre" style={inp} /></div>
+          <AutocompleteEmpleado label="Quién entregó" value={entrego} onChange={setEntrego} empleados={empleados} />
           <div><label style={lbl}>Quién retiró / Envío</label><input value={retiro} onChange={e => setRetiro(e.target.value)} placeholder="Nombre o empresa" style={inp} /></div>
         </div>
         {alerta && <div style={{ marginTop: 12, padding: '10px 14px', background: '#FAEEDA', color: '#854F0B', borderRadius: 8, fontSize: 13 }}>⚠ {alerta}</div>}
@@ -452,28 +475,21 @@ function Clientes({ clientes, onGuardar }: any) {
   const [guardando, setGuardando] = useState(false);
   const [pag, setPag] = useState(1);
   const POR_PAG = 20;
-
   const filtered = clientes.filter((c: any) => c.nombre.toLowerCase().includes(search.toLowerCase()) || c.cod.includes(search));
   const total = Math.ceil(filtered.length / POR_PAG);
   const page = filtered.slice((pag - 1) * POR_PAG, pag * POR_PAG);
-
   async function guardar() {
     if (!cod || !nombre) { alert('Completá código y nombre.'); return; }
     setGuardando(true);
-    if (editIdx !== null) {
-      await supabase.from('clientes').update({ cod, nombre }).eq('id', clientes[editIdx].id);
-    } else {
-      await supabase.from('clientes').insert([{ cod, nombre }]);
-    }
+    if (editIdx !== null) await supabase.from('clientes').update({ cod, nombre }).eq('id', clientes[editIdx].id);
+    else await supabase.from('clientes').insert([{ cod, nombre }]);
     setModal(false); onGuardar(); setGuardando(false);
   }
-
   async function eliminar(c: any) {
     if (!confirm('¿Eliminar este cliente?')) return;
     await supabase.from('clientes').delete().eq('id', c.id);
     onGuardar();
   }
-
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
@@ -481,15 +497,11 @@ function Clientes({ clientes, onGuardar }: any) {
         <button onClick={() => { setEditIdx(null); setCod(''); setNombre(''); setModal(true); }} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>+ Nuevo cliente</button>
       </div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 12 }}>
-        <input placeholder="Buscar por nombre o código..." value={search} onChange={e => { setSearch(e.target.value); setPag(1); }} style={{ ...inp, maxWidth: 300 }} />
+        <input placeholder="Buscar..." value={search} onChange={e => { setSearch(e.target.value); setPag(1); }} style={{ ...inp, maxWidth: 300 }} />
       </div>
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead><tr>
-            <th style={{ ...th, width: 80 }}>Código</th>
-            <th style={th}>Nombre</th>
-            <th style={{ ...th, width: 120 }}>Acciones</th>
-          </tr></thead>
+          <thead><tr><th style={{ ...th, width: 80 }}>Código</th><th style={th}>Nombre</th><th style={{ ...th, width: 120 }}>Acciones</th></tr></thead>
           <tbody>
             {page.map((c: any) => (
               <tr key={c.id}>
@@ -503,27 +515,23 @@ function Clientes({ clientes, onGuardar }: any) {
             ))}
           </tbody>
         </table>
-        {total > 1 && (
-          <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            {pag > 1 && <button onClick={() => setPag(pag - 1)} style={btn}>‹</button>}
-            <span style={{ fontSize: 12, color: '#888', lineHeight: '32px' }}>Pág {pag} de {total}</span>
-            {pag < total && <button onClick={() => setPag(pag + 1)} style={btn}>›</button>}
-          </div>
-        )}
+        {total > 1 && <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          {pag > 1 && <button onClick={() => setPag(pag - 1)} style={btn}>‹</button>}
+          <span style={{ fontSize: 12, color: '#888', lineHeight: '32px' }}>Pág {pag} de {total}</span>
+          {pag < total && <button onClick={() => setPag(pag + 1)} style={btn}>›</button>}
+        </div>}
       </div>
-      {modal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 400, border: '1px solid #eee' }}>
-            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 16 }}>{editIdx !== null ? 'Editar cliente' : 'Nuevo cliente'}</div>
-            <div style={{ marginBottom: 12 }}><label style={lbl}>Código</label><input value={cod} onChange={e => setCod(e.target.value)} style={inp} /></div>
-            <div><label style={lbl}>Nombre</label><input value={nombre} onChange={e => setNombre(e.target.value)} style={inp} /></div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
-              <button onClick={() => setModal(false)} style={btn}>Cancelar</button>
-              <button onClick={guardar} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>Guardar</button>
-            </div>
+      {modal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+        <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 400 }}>
+          <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 16 }}>{editIdx !== null ? 'Editar' : 'Nuevo'} cliente</div>
+          <div style={{ marginBottom: 12 }}><label style={lbl}>Código</label><input value={cod} onChange={e => setCod(e.target.value)} style={inp} /></div>
+          <div><label style={lbl}>Nombre</label><input value={nombre} onChange={e => setNombre(e.target.value)} style={inp} /></div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+            <button onClick={() => setModal(false)} style={btn}>Cancelar</button>
+            <button onClick={guardar} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>Guardar</button>
           </div>
         </div>
-      )}
+      </div>}
     </div>
   );
 }
@@ -537,28 +545,21 @@ function Telas({ telas, onGuardar }: any) {
   const [guardando, setGuardando] = useState(false);
   const [pag, setPag] = useState(1);
   const POR_PAG = 20;
-
   const filtered = telas.filter((t: any) => t.nombre.toLowerCase().includes(search.toLowerCase()) || t.cod.includes(search));
   const total = Math.ceil(filtered.length / POR_PAG);
   const page = filtered.slice((pag - 1) * POR_PAG, pag * POR_PAG);
-
   async function guardar() {
     if (!cod || !nombre) { alert('Completá código y nombre.'); return; }
     setGuardando(true);
-    if (editIdx !== null) {
-      await supabase.from('telas').update({ cod, nombre }).eq('id', telas[editIdx].id);
-    } else {
-      await supabase.from('telas').insert([{ cod, nombre }]);
-    }
+    if (editIdx !== null) await supabase.from('telas').update({ cod, nombre }).eq('id', telas[editIdx].id);
+    else await supabase.from('telas').insert([{ cod, nombre }]);
     setModal(false); onGuardar(); setGuardando(false);
   }
-
   async function eliminar(t: any) {
     if (!confirm('¿Eliminar esta tela?')) return;
     await supabase.from('telas').delete().eq('id', t.id);
     onGuardar();
   }
-
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
@@ -566,15 +567,11 @@ function Telas({ telas, onGuardar }: any) {
         <button onClick={() => { setEditIdx(null); setCod(''); setNombre(''); setModal(true); }} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>+ Nueva tela</button>
       </div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 12 }}>
-        <input placeholder="Buscar por nombre o código..." value={search} onChange={e => { setSearch(e.target.value); setPag(1); }} style={{ ...inp, maxWidth: 300 }} />
+        <input placeholder="Buscar..." value={search} onChange={e => { setSearch(e.target.value); setPag(1); }} style={{ ...inp, maxWidth: 300 }} />
       </div>
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead><tr>
-            <th style={{ ...th, width: 80 }}>Código</th>
-            <th style={th}>Nombre</th>
-            <th style={{ ...th, width: 120 }}>Acciones</th>
-          </tr></thead>
+          <thead><tr><th style={{ ...th, width: 80 }}>Código</th><th style={th}>Nombre</th><th style={{ ...th, width: 120 }}>Acciones</th></tr></thead>
           <tbody>
             {page.map((t: any) => (
               <tr key={t.id}>
@@ -588,27 +585,76 @@ function Telas({ telas, onGuardar }: any) {
             ))}
           </tbody>
         </table>
-        {total > 1 && (
-          <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            {pag > 1 && <button onClick={() => setPag(pag - 1)} style={btn}>‹</button>}
-            <span style={{ fontSize: 12, color: '#888', lineHeight: '32px' }}>Pág {pag} de {total}</span>
-            {pag < total && <button onClick={() => setPag(pag + 1)} style={btn}>›</button>}
-          </div>
-        )}
+        {total > 1 && <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          {pag > 1 && <button onClick={() => setPag(pag - 1)} style={btn}>‹</button>}
+          <span style={{ fontSize: 12, color: '#888', lineHeight: '32px' }}>Pág {pag} de {total}</span>
+          {pag < total && <button onClick={() => setPag(pag + 1)} style={btn}>›</button>}
+        </div>}
       </div>
-      {modal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 400, border: '1px solid #eee' }}>
-            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 16 }}>{editIdx !== null ? 'Editar tela' : 'Nueva tela'}</div>
-            <div style={{ marginBottom: 12 }}><label style={lbl}>Código</label><input value={cod} onChange={e => setCod(e.target.value)} style={inp} /></div>
-            <div><label style={lbl}>Nombre</label><input value={nombre} onChange={e => setNombre(e.target.value)} style={inp} /></div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
-              <button onClick={() => setModal(false)} style={btn}>Cancelar</button>
-              <button onClick={guardar} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>Guardar</button>
-            </div>
+      {modal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+        <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 400 }}>
+          <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 16 }}>{editIdx !== null ? 'Editar' : 'Nueva'} tela</div>
+          <div style={{ marginBottom: 12 }}><label style={lbl}>Código</label><input value={cod} onChange={e => setCod(e.target.value)} style={inp} /></div>
+          <div><label style={lbl}>Nombre</label><input value={nombre} onChange={e => setNombre(e.target.value)} style={inp} /></div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+            <button onClick={() => setModal(false)} style={btn}>Cancelar</button>
+            <button onClick={guardar} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>Guardar</button>
           </div>
         </div>
-      )}
+      </div>}
+    </div>
+  );
+}
+
+function Empleados({ empleados, onGuardar }: any) {
+  const [modal, setModal] = useState(false);
+  const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [nombre, setNombre] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  async function guardar() {
+    if (!nombre) { alert('Ingresá el nombre.'); return; }
+    setGuardando(true);
+    if (editIdx !== null) await supabase.from('empleados').update({ nombre }).eq('id', empleados[editIdx].id);
+    else await supabase.from('empleados').insert([{ nombre }]);
+    setModal(false); onGuardar(); setGuardando(false);
+  }
+  async function eliminar(e: any) {
+    if (!confirm('¿Eliminar este empleado?')) return;
+    await supabase.from('empleados').delete().eq('id', e.id);
+    onGuardar();
+  }
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div><div style={{ fontSize: 18, fontWeight: 500 }}>Empleados</div><div style={{ fontSize: 13, color: '#888' }}>{empleados.length} registrados</div></div>
+        <button onClick={() => { setEditIdx(null); setNombre(''); setModal(true); }} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>+ Nuevo empleado</button>
+      </div>
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead><tr><th style={th}>Nombre</th><th style={{ ...th, width: 120 }}>Acciones</th></tr></thead>
+          <tbody>
+            {empleados.map((e: any) => (
+              <tr key={e.id}>
+                <td style={td}>{e.nombre}</td>
+                <td style={td}>
+                  <button onClick={() => { setEditIdx(empleados.indexOf(e)); setNombre(e.nombre); setModal(true); }} style={{ ...btn, fontSize: 12, padding: '4px 10px', marginRight: 6 }}>Editar</button>
+                  <button onClick={() => eliminar(e)} style={{ ...btn, fontSize: 12, padding: '4px 10px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>Eliminar</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {modal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+        <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 400 }}>
+          <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 16 }}>{editIdx !== null ? 'Editar' : 'Nuevo'} empleado</div>
+          <div><label style={lbl}>Nombre</label><input value={nombre} onChange={e => setNombre(e.target.value)} style={inp} /></div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+            <button onClick={() => setModal(false)} style={btn}>Cancelar</button>
+            <button onClick={guardar} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>Guardar</button>
+          </div>
+        </div>
+      </div>}
     </div>
   );
 }
