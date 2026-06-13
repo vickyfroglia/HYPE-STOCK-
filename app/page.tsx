@@ -427,7 +427,7 @@ function Egresos({ ingresos, egresos, clientes, telas, empleados, onGuardar }: a
   const [showTela, setShowTela] = useState(false);
   const [obs, setObs] = useState('');
   const [idHype, setIdHype] = useState('');
-  const [opcionesId, setOpcionesId] = useState<any[]>([]);
+  const [opcionesId, setOpcionesId] = useState<{id: string, disp: number}[]>([]);
   const [showId, setShowId] = useState(false);
   const [disponibles, setDisponibles] = useState(0);
   const [mts, setMts] = useState('');
@@ -458,36 +458,39 @@ function Egresos({ ingresos, egresos, clientes, telas, empleados, onGuardar }: a
     setDisponibles(ingTotal - egrTotal);
   }
 
-  function buscarPorClienteTela(cli: string, tel: string) {
+  function buscarPorCampos(cli: string, tel: string, ob: string) {
     if (!cli || !tel) { setOpcionesId([]); setIdHype(''); setDisponibles(0); return; }
-    const matches = ingresos.filter((i: any) =>
-      i.cliente.toLowerCase() === cli.toLowerCase() &&
-      i.tela.toLowerCase() === tel.toLowerCase()
-    );
-    const ids = [...new Set(matches.map((i: any) => i.id_hype))];
-    setOpcionesId(ids.map(id => {
+    const matches = ingresos.filter((i: any) => {
+      const mismoCliente = i.cliente.toLowerCase() === cli.toLowerCase();
+      const mismaTela = i.tela.toLowerCase() === tel.toLowerCase();
+      const mismasObs = !ob || (i.observaciones || '').toLowerCase() === ob.toLowerCase();
+      return mismoCliente && mismaTela && mismasObs;
+    });
+    const idsUnicos = [...new Set(matches.map((i: any) => i.id_hype))] as string[];
+    const opts = idsUnicos.map((id: string) => {
       const ingT = ingresos.filter((i: any) => i.id_hype === id).reduce((s: number, i: any) => s + Number(i.mts), 0);
       const egrT = egresos.filter((e: any) => e.id_hype === id).reduce((s: number, e: any) => s + Number(e.mts), 0);
       return { id, disp: ingT - egrT };
-    }));
-    if (ids.length === 1) {
-      setIdHype(ids[0]);
-      calcDisponibles(ids[0]);
+    });
+    setOpcionesId(opts);
+    if (opts.length === 1) {
+      setIdHype(opts[0].id);
+      calcDisponibles(opts[0].id);
     } else {
       setIdHype('');
       setDisponibles(0);
-      if (ids.length > 1) setShowId(true);
+      if (opts.length > 1) setShowId(true);
     }
   }
 
   function selCliente(c: any) {
     setCliente(c.nombre); setBusqCli(c.nombre); setShowCli(false);
-    buscarPorClienteTela(c.nombre, tela);
+    buscarPorCampos(c.nombre, tela, obs);
   }
 
   function selTela(t: any) {
     setTela(t.nombre); setBusqTela(t.nombre); setShowTela(false);
-    buscarPorClienteTela(cliente, t.nombre);
+    buscarPorCampos(cliente, t.nombre, obs);
   }
 
   function selId(id: string) {
@@ -504,7 +507,7 @@ function Egresos({ ingresos, egresos, clientes, telas, empleados, onGuardar }: a
   async function guardar() {
     if (alerta) { alert('Corregí los metros antes de guardar.'); return; }
     if (!parseFloat(mts)) { alert('Completá los metros a egresar.'); return; }
-    if (!idHype) { alert('No se encontró un ID válido. Verificá cliente y tela.'); return; }
+    if (!idHype) { alert('No se encontró un ID válido. Verificá cliente, tela y observaciones.'); return; }
     setGuardando(true);
     const { error } = await supabase.from('egresos').insert([{
       fecha, remito_origen: remitoOrigen, remito_entrega: remitoEntrega,
@@ -527,7 +530,7 @@ function Egresos({ ingresos, egresos, clientes, telas, empleados, onGuardar }: a
 
           <div style={{ position: 'relative' }}>
             <label style={lbl}>Cliente</label>
-            <input value={busqCli} onChange={e => { setBusqCli(e.target.value); setCliente(e.target.value); setShowCli(true); buscarPorClienteTela(e.target.value, tela); }} placeholder="Escribí para buscar..." style={inp} />
+            <input value={busqCli} onChange={e => { setBusqCli(e.target.value); setCliente(e.target.value); setShowCli(true); buscarPorCampos(e.target.value, tela, obs); }} placeholder="Escribí para buscar..." style={inp} />
             {showCli && busqCli && (
               <div style={dropdown}>
                 {clientes.filter((c: any) => c.nombre.toLowerCase().includes(busqCli.toLowerCase())).slice(0, 8).map((c: any) => (
@@ -539,7 +542,7 @@ function Egresos({ ingresos, egresos, clientes, telas, empleados, onGuardar }: a
 
           <div style={{ position: 'relative' }}>
             <label style={lbl}>Tela</label>
-            <input value={busqTela} onChange={e => { setBusqTela(e.target.value); setTela(e.target.value); setShowTela(true); buscarPorClienteTela(cliente, e.target.value); }} placeholder="Escribí para buscar..." style={inp} />
+            <input value={busqTela} onChange={e => { setBusqTela(e.target.value); setTela(e.target.value); setShowTela(true); buscarPorCampos(cliente, e.target.value, obs); }} placeholder="Escribí para buscar..." style={inp} />
             {showTela && busqTela && (
               <div style={dropdown}>
                 {telas.filter((t: any) => t.nombre.toLowerCase().includes(busqTela.toLowerCase())).slice(0, 8).map((t: any) => (
@@ -549,18 +552,18 @@ function Egresos({ ingresos, egresos, clientes, telas, empleados, onGuardar }: a
             )}
           </div>
 
-          <div><label style={lbl}>Observaciones</label><input value={obs} onChange={e => setObs(e.target.value)} placeholder="Color, diseño..." style={inp} /></div>
+          <div><label style={lbl}>Observaciones</label><input value={obs} onChange={e => { setObs(e.target.value); buscarPorCampos(cliente, tela, e.target.value); }} placeholder="Color, diseño..." style={inp} /></div>
 
           <div style={{ position: 'relative' }}>
             <label style={lbl}>ID <span style={{ background: '#e8f4ea', color: '#3B6D11', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>automático</span></label>
             {opcionesId.length > 1 && !idHype ? (
               <div>
                 <div style={{ ...inp, background: '#f5f5f7', color: '#888', cursor: 'pointer' }} onClick={() => setShowId(!showId)}>
-                  {idHype || 'Seleccioná un ID ▾'}
+                  Seleccioná un ID ▾
                 </div>
                 {showId && (
                   <div style={dropdown}>
-                    {opcionesId.map((o: any) => (
+                    {opcionesId.map((o) => (
                       <div key={o.id} onClick={() => selId(o.id)} style={ddItem}>
                         <span style={{ fontFamily: 'monospace', color: '#e85d2f' }}>{o.id}</span>
                         <span style={{ color: '#888', fontSize: 11, marginLeft: 8 }}>{o.disp.toLocaleString()} mts disp.</span>
