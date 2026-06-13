@@ -79,8 +79,8 @@ export default function Home() {
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'Arial, sans-serif' }}>
       <div style={{ width: 200, background: '#1a1a2e', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, height: '100vh' }}>
         <div style={{ padding: '18px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#fff', letterSpacing: 2 }}>HYPE</div>
-          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: 3 }}>STOCK & PRODUCCIÓN</div>
+          <img src="/logo.png" alt="HYPE printlab" style={{ width: '100%', maxWidth: 160, display: 'block' }} />
+          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: 3, marginTop: 6 }}>STOCK & PRODUCCIÓN</div>
         </div>
         {navItems.map(n => (
           <div key={n.id} onClick={() => setPagina(n.id)} style={{
@@ -690,6 +690,4 @@ const lbl: React.CSSProperties = { fontSize: 12, color: '#888', display: 'block'
 const dropdown: React.CSSProperties = { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #ddd', borderRadius: 8, zIndex: 100, maxHeight: 200, overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' };
 const ddItem: React.CSSProperties = { padding: '8px 12px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid #f0f0f0' };
 const th: React.CSSProperties = { textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid #eee', fontSize: 11, color: '#888', fontWeight: 500 };
-const td: React.CSSProperties = { padding: '9px 12px', borderBottom: '1px solid #f5f5f5', color: '#1a1a2e' 
-  
-};
+const td: React.CSSProperties = { padding: '9px 12px', borderBottom: '1px solid #f5f5f5', color: '#1a1a2e' };
