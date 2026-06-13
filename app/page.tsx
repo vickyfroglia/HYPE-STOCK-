@@ -61,7 +61,8 @@ export default function Home() {
     { id: 'clientes', label: 'Clientes', icon: '♟' },
     { id: 'telas', label: 'Telas', icon: '≡' },
     { id: 'empleados', label: 'Empleados', icon: '👤' },
-    { id: 'historial', label: 'Historial', icon: '☰' },
+    { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰' },
+    { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰' },
   ];
 
   function calcStock() {
@@ -107,13 +108,14 @@ export default function Home() {
           <>
             {pagina === 'dashboard' && <Dashboard ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} calcStock={calcStock} />}
             {pagina === 'ingresos' && <Ingresos clientes={clientes} telas={telas} empleados={empleados} onGuardar={cargarTodo} />}
-            {pagina === 'historial' && <Historial ingresos={ingresos} onGuardar={cargarTodo} clientes={clientes} telas={telas} empleados={empleados} />}
             {pagina === 'egresos' && <Egresos ingresos={ingresos} egresos={egresos} empleados={empleados} onGuardar={cargarTodo} />}
             {pagina === 'stockTH' && <StockTH calcStock={calcStock} ingresos={ingresos} />}
             {pagina === 'stockTC' && <StockTC calcStock={calcStock} ingresos={ingresos} />}
             {pagina === 'clientes' && <Clientes clientes={clientes} onGuardar={cargarTodo} />}
             {pagina === 'telas' && <Telas telas={telas} onGuardar={cargarTodo} />}
             {pagina === 'empleados' && <Empleados empleados={empleados} onGuardar={cargarTodo} />}
+            {pagina === 'historialIngresos' && <HistorialIngresos ingresos={ingresos} onGuardar={cargarTodo} clientes={clientes} telas={telas} empleados={empleados} />}
+            {pagina === 'historialEgresos' && <HistorialEgresos egresos={egresos} onGuardar={cargarTodo} />}
           </>
         )}
       </div>
@@ -316,9 +318,7 @@ function Ingresos({ clientes, telas, empleados, onGuardar }: any) {
     } else {
       onGuardar();
       const imprimir = confirm('✅ Ingreso guardado correctamente.\n\n¿Querés imprimir las etiquetas ahora?');
-      if (imprimir) {
-        setEtiquetasData(rows.map(r => ({ ...r, cliente, fecha })));
-      }
+      if (imprimir) setEtiquetasData(rows.map(r => ({ ...r, cliente, fecha })));
     }
     setGuardando(false);
   }
@@ -567,7 +567,7 @@ function StockTC({ calcStock, ingresos }: any) {
   return <StockTabla entries={entries} titulo="Stock TC — Tela de clientes" />;
 }
 
-function Historial({ ingresos, onGuardar, clientes, telas, empleados }: any) {
+function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados }: any) {
   const [search, setSearch] = useState('');
   const [pag, setPag] = useState(1);
   const [editItem, setEditItem] = useState<any>(null);
@@ -639,9 +639,9 @@ function Historial({ ingresos, onGuardar, clientes, telas, empleados }: any) {
                   <td style={td}>{i.ramado}</td>
                   <td style={td}>{i.recibido}</td>
                   <td style={td}>
-                    <button onClick={() => setEtiquetasData([{ ...i, obs: i.observaciones }])} style={{ ...btn, fontSize: 12, padding: '4px 10px', marginRight: 6, background: '#e8f4ea', color: '#3B6D11', border: '1px solid #97C459' }}>🏷 Etiquetas</button>
-                    <button onClick={() => setEditItem({...i})} style={{ ...btn, fontSize: 12, padding: '4px 10px', marginRight: 6 }}>Editar</button>
-                    <button onClick={() => eliminar(i)} style={{ ...btn, fontSize: 12, padding: '4px 10px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>Eliminar</button>
+                    <button onClick={() => setEtiquetasData([{ ...i, obs: i.observaciones }])} style={{ ...btn, fontSize: 12, padding: '4px 8px', marginRight: 4, background: '#e8f4ea', color: '#3B6D11', border: '1px solid #97C459' }}>🏷</button>
+                    <button onClick={() => setEditItem({...i})} style={{ ...btn, fontSize: 12, padding: '4px 8px', marginRight: 4 }}>Editar</button>
+                    <button onClick={() => eliminar(i)} style={{ ...btn, fontSize: 12, padding: '4px 8px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>Eliminar</button>
                   </td>
                 </tr>
               ))}
@@ -683,6 +683,129 @@ function Historial({ ingresos, onGuardar, clientes, telas, empleados }: any) {
                   <option>En almacén</option><option>Entregado a cliente</option><option>A producción</option>
                 </select>
               </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+              <button onClick={() => setEditItem(null)} style={btn}>Cancelar</button>
+              <button onClick={guardarEdicion} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>Guardar cambios</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HistorialEgresos({ egresos, onGuardar }: any) {
+  const [search, setSearch] = useState('');
+  const [pag, setPag] = useState(1);
+  const [editItem, setEditItem] = useState<any>(null);
+  const [guardando, setGuardando] = useState(false);
+  const POR_PAG = 20;
+
+  const filtered = egresos.filter((e: any) =>
+    (e.cliente || '').toLowerCase().includes(search.toLowerCase()) ||
+    (e.tela || '').toLowerCase().includes(search.toLowerCase()) ||
+    (e.id_hype || '').toLowerCase().includes(search.toLowerCase()) ||
+    (e.remito_origen || '').includes(search)
+  );
+  const total = Math.ceil(filtered.length / POR_PAG);
+  const page = filtered.slice((pag - 1) * POR_PAG, pag * POR_PAG);
+
+  async function eliminar(e: any) {
+    if (!confirm(`¿Eliminar el egreso ${e.id_hype} del ${e.fecha}?`)) return;
+    await supabase.from('egresos').delete().eq('id', e.id);
+    onGuardar();
+  }
+
+  async function guardarEdicion() {
+    if (!editItem) return;
+    setGuardando(true);
+    const { error } = await supabase.from('egresos').update({
+      fecha: editItem.fecha,
+      remito_origen: editItem.remito_origen,
+      remito_entrega: editItem.remito_entrega,
+      cliente: editItem.cliente,
+      tela: editItem.tela,
+      observaciones: editItem.observaciones,
+      mts: editItem.mts,
+      bultos: editItem.bultos,
+      estado: editItem.estado,
+      entrego: editItem.entrego,
+      retiro: editItem.retiro,
+    }).eq('id', editItem.id);
+    if (error) alert('Error: ' + error.message);
+    else { setEditItem(null); onGuardar(); }
+    setGuardando(false);
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 18, fontWeight: 500 }}>Historial de egresos</div>
+        <div style={{ fontSize: 13, color: '#888' }}>{filtered.length} egresos registrados</div>
+      </div>
+      <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 12 }}>
+        <input placeholder="Buscar por cliente, tela, ID o remito..." value={search} onChange={e => { setSearch(e.target.value); setPag(1); }} style={{ ...inp, maxWidth: 360 }} />
+      </div>
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead><tr>
+              {['Fecha','Rto. Origen','Rto. Entrega','Cliente','Tela','ID','Mts','Bultos','Estado','Entregó','Retiró','Acciones'].map(h =>
+                <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>
+              )}
+            </tr></thead>
+            <tbody>
+              {page.length === 0 && <tr><td colSpan={12} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin egresos registrados</td></tr>}
+              {page.map((e: any) => (
+                <tr key={e.id}>
+                  <td style={td}>{e.fecha}</td>
+                  <td style={td}>{e.remito_origen}</td>
+                  <td style={td}>{e.remito_entrega}</td>
+                  <td style={{ ...td, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.cliente}</td>
+                  <td style={{ ...td, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.tela}</td>
+                  <td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{e.id_hype}</td>
+                  <td style={{ ...td, textAlign: 'center', fontWeight: 500 }}>{e.mts}</td>
+                  <td style={{ ...td, textAlign: 'center' }}>{e.bultos}</td>
+                  <td style={td}>{e.estado}</td>
+                  <td style={td}>{e.entrego}</td>
+                  <td style={td}>{e.retiro}</td>
+                  <td style={td}>
+                    <button onClick={() => setEditItem({...e})} style={{ ...btn, fontSize: 12, padding: '4px 8px', marginRight: 4 }}>Editar</button>
+                    <button onClick={() => eliminar(e)} style={{ ...btn, fontSize: 12, padding: '4px 8px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>Eliminar</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {total > 1 && <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          {pag > 1 && <button onClick={() => setPag(pag - 1)} style={btn}>‹</button>}
+          <span style={{ fontSize: 12, color: '#888', lineHeight: '32px' }}>Pág {pag} de {total}</span>
+          {pag < total && <button onClick={() => setPag(pag + 1)} style={btn}>›</button>}
+        </div>}
+      </div>
+
+      {editItem && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 560, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 16 }}>Editar egreso</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div><label style={lbl}>Fecha</label><input type="date" value={editItem.fecha} onChange={e => setEditItem({...editItem, fecha: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Remito origen</label><input value={editItem.remito_origen || ''} onChange={e => setEditItem({...editItem, remito_origen: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Remito entrega</label><input value={editItem.remito_entrega || ''} onChange={e => setEditItem({...editItem, remito_entrega: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Cliente</label><input value={editItem.cliente || ''} onChange={e => setEditItem({...editItem, cliente: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Tela</label><input value={editItem.tela || ''} onChange={e => setEditItem({...editItem, tela: e.target.value})} style={inp} /></div>
+              <div style={{ gridColumn: '1/-1' }}><label style={lbl}>Observaciones</label><input value={editItem.observaciones || ''} onChange={e => setEditItem({...editItem, observaciones: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Mts</label><input type="number" value={editItem.mts} onChange={e => setEditItem({...editItem, mts: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Bultos</label><input type="number" value={editItem.bultos} onChange={e => setEditItem({...editItem, bultos: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Estado</label>
+                <select value={editItem.estado} onChange={e => setEditItem({...editItem, estado: e.target.value})} style={inp}>
+                  <option>En almacén</option><option>Entregado a cliente</option><option>A producción</option><option>Salida a tinto externa</option><option>En tinto HYPE</option>
+                </select>
+              </div>
+              <div><label style={lbl}>Quién entregó</label><input value={editItem.entrego || ''} onChange={e => setEditItem({...editItem, entrego: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Quién retiró / Envío</label><input value={editItem.retiro || ''} onChange={e => setEditItem({...editItem, retiro: e.target.value})} style={inp} /></div>
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
               <button onClick={() => setEditItem(null)} style={btn}>Cancelar</button>
