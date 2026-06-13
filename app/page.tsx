@@ -55,13 +55,13 @@ export default function Home() {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '▦' },
     { id: 'ingresos', label: 'Ingresos', icon: '↓' },
-    { id: 'historial', label: 'Historial', icon: '☰' },
     { id: 'egresos', label: 'Egresos', icon: '↑' },
     { id: 'stockTH', label: 'Stock TH', icon: '◫' },
     { id: 'stockTC', label: 'Stock TC', icon: '◫' },
     { id: 'clientes', label: 'Clientes', icon: '♟' },
     { id: 'telas', label: 'Telas', icon: '≡' },
     { id: 'empleados', label: 'Empleados', icon: '👤' },
+    { id: 'historial', label: 'Historial', icon: '☰' },
   ];
 
   function calcStock() {
@@ -557,7 +557,7 @@ function Egresos({ ingresos, egresos, empleados, onGuardar }: any) {
   );
 }
 
-function StockTabla({ entries, titulo, color, bgColor }: any) {
+function StockTabla({ entries, titulo }: any) {
   const [search, setSearch] = useState('');
   const filtered = entries.filter(([id, s]: any) => {
     if (!search) return true;
@@ -618,13 +618,13 @@ function StockTabla({ entries, titulo, color, bgColor }: any) {
 function StockTH({ calcStock, ingresos }: any) {
   const stock = calcStock();
   const entries = Object.entries(stock).filter(([id]: any) => id.startsWith('TH'));
-  return <StockTabla entries={entries} titulo="Stock TH — Tela propia HYPE" color="#854F0B" bgColor="#FAEEDA" />;
+  return <StockTabla entries={entries} titulo="Stock TH — Tela propia HYPE" />;
 }
 
 function StockTC({ calcStock, ingresos }: any) {
   const stock = calcStock();
   const entries = Object.entries(stock).filter(([id]: any) => id.startsWith('TC'));
-  return <StockTabla entries={entries} titulo="Stock TC — Tela de clientes" color="#185FA5" bgColor="#E6F1FB" />;
+  return <StockTabla entries={entries} titulo="Stock TC — Tela de clientes" />;
 }
 
 function Clientes({ clientes, onGuardar }: any) {
