@@ -188,134 +188,67 @@ function AutocompleteEmpleado({ label, value, onChange, empleados }: any) {
   );
 }
 
-function Historial({ ingresos, onGuardar, clientes, telas, empleados }: any) {
-  const [search, setSearch] = useState('');
-  const [pag, setPag] = useState(1);
-  const [editItem, setEditItem] = useState<any>(null);
-  const [guardando, setGuardando] = useState(false);
-  const POR_PAG = 20;
-
-  const filtered = ingresos.filter((i: any) =>
-    (i.cliente || '').toLowerCase().includes(search.toLowerCase()) ||
-    (i.tela || '').toLowerCase().includes(search.toLowerCase()) ||
-    (i.id_hype || '').toLowerCase().includes(search.toLowerCase()) ||
-    (i.remito || '').includes(search)
-  );
-  const total = Math.ceil(filtered.length / POR_PAG);
-  const page = filtered.slice((pag - 1) * POR_PAG, pag * POR_PAG);
-
-  async function eliminar(i: any) {
-    if (!confirm(`¿Eliminar el ingreso ${i.id_hype} del ${i.fecha}?`)) return;
-    await supabase.from('ingresos').delete().eq('id', i.id);
-    onGuardar();
-  }
-
-  async function guardarEdicion() {
-    if (!editItem) return;
-    setGuardando(true);
-    const { error } = await supabase.from('ingresos').update({
-      fecha: editItem.fecha,
-      remito: editItem.remito,
-      cliente: editItem.cliente,
-      tela: editItem.tela,
-      observaciones: editItem.observaciones,
-      bultos: editItem.bultos,
-      mts: editItem.mts,
-      ubicacion: editItem.ubicacion,
-      ramado: editItem.ramado,
-      recibido: editItem.recibido,
-      estado: editItem.estado,
-    }).eq('id', editItem.id);
-    if (error) alert('Error: ' + error.message);
-    else { setEditItem(null); onGuardar(); }
-    setGuardando(false);
-  }
-
-  const ubicaciones = ['1-A','1-B','1-C','1-D','2-A','2-B','2-C','3-A','3-B','3-C','3-D','4-A','4-B','4-C','ISLA','PARED','TINTO HYPE','TINTO EXT'];
+function PanelEtiquetas({ rows, onCerrar }: any) {
+  useEffect(() => {
+    rows.forEach((_: any, i: number) => {
+      const el = document.getElementById('qr-panel-' + i);
+      if (el && el.childElementCount === 0) {
+        const qrData = JSON.stringify({ id: rows[i].id_hype, cliente: rows[i].cliente, tela: rows[i].tela, obs: rows[i].obs, fecha: rows[i].fecha, ubicacion: rows[i].ubicacion, mts: rows[i].mts });
+        // @ts-ignore
+        if (window.QRCode) new window.QRCode(el, { text: qrData, width: 100, height: 100, colorDark: '#1a1a2e', colorLight: '#ffffff' });
+      }
+    });
+  }, [rows]);
 
   return (
-    <div>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 500 }}>Historial de ingresos</div>
-        <div style={{ fontSize: 13, color: '#888' }}>{filtered.length} ingresos registrados</div>
-      </div>
-      <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 12 }}>
-        <input placeholder="Buscar por cliente, tela, ID o remito..." value={search} onChange={e => { setSearch(e.target.value); setPag(1); }} style={{ ...inp, maxWidth: 360 }} />
-      </div>
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead><tr>
-              {['Fecha','Remito','Cliente','Tela','ID','Obs.','Bultos','Mts','Ubic.','Ramado','Recibido','Acciones'].map(h =>
-                <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>
-              )}
-            </tr></thead>
-            <tbody>
-              {page.map((i: any) => (
-                <tr key={i.id}>
-                  <td style={td}>{i.fecha}</td>
-                  <td style={td}>{i.remito}</td>
-                  <td style={{ ...td, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.cliente}</td>
-                  <td style={{ ...td, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.tela}</td>
-                  <td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{i.id_hype}</td>
-                  <td style={{ ...td, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.observaciones}</td>
-                  <td style={{ ...td, textAlign: 'center' }}>{i.bultos}</td>
-                  <td style={{ ...td, textAlign: 'center', fontWeight: 500 }}>{i.mts}</td>
-                  <td style={td}>{i.ubicacion}</td>
-                  <td style={td}>{i.ramado}</td>
-                  <td style={td}>{i.recibido}</td>
-                  <td style={td}>
-                    <button onClick={() => setEditItem({...i})} style={{ ...btn, fontSize: 12, padding: '4px 10px', marginRight: 6 }}>Editar</button>
-                    <button onClick={() => eliminar(i)} style={{ ...btn, fontSize: 12, padding: '4px 10px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>Eliminar</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {total > 1 && <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          {pag > 1 && <button onClick={() => setPag(pag - 1)} style={btn}>‹</button>}
-          <span style={{ fontSize: 12, color: '#888', lineHeight: '32px' }}>Pág {pag} de {total}</span>
-          {pag < total && <button onClick={() => setPag(pag + 1)} style={btn}>›</button>}
-        </div>}
-      </div>
-
-      {editItem && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 560, maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 16 }}>Editar ingreso</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div><label style={lbl}>Fecha</label><input type="date" value={editItem.fecha} onChange={e => setEditItem({...editItem, fecha: e.target.value})} style={inp} /></div>
-              <div><label style={lbl}>Nro. remito</label><input value={editItem.remito} onChange={e => setEditItem({...editItem, remito: e.target.value})} style={inp} /></div>
-              <div><label style={lbl}>Cliente</label><input value={editItem.cliente} onChange={e => setEditItem({...editItem, cliente: e.target.value})} style={inp} /></div>
-              <div><label style={lbl}>Tela</label><input value={editItem.tela} onChange={e => setEditItem({...editItem, tela: e.target.value})} style={inp} /></div>
-              <div style={{ gridColumn: '1/-1' }}><label style={lbl}>Observaciones</label><input value={editItem.observaciones || ''} onChange={e => setEditItem({...editItem, observaciones: e.target.value})} style={inp} /></div>
-              <div><label style={lbl}>Bultos</label><input type="number" value={editItem.bultos} onChange={e => setEditItem({...editItem, bultos: e.target.value})} style={inp} /></div>
-              <div><label style={lbl}>Mts</label><input type="number" value={editItem.mts} onChange={e => setEditItem({...editItem, mts: e.target.value})} style={inp} /></div>
-              <div><label style={lbl}>Ubicación</label>
-                <select value={editItem.ubicacion} onChange={e => setEditItem({...editItem, ubicacion: e.target.value})} style={inp}>
-                  {ubicaciones.map(u => <option key={u} value={u}>{u}</option>)}
-                </select>
-              </div>
-              <div><label style={lbl}>Ramado/Tintorería</label>
-                <select value={editItem.ramado} onChange={e => setEditItem({...editItem, ramado: e.target.value})} style={inp}>
-                  <option value="No">No</option><option value="Si">Sí</option>
-                </select>
-              </div>
-              <div><label style={lbl}>Recibido por</label><input value={editItem.recibido || ''} onChange={e => setEditItem({...editItem, recibido: e.target.value})} style={inp} /></div>
-              <div><label style={lbl}>Estado</label>
-                <select value={editItem.estado} onChange={e => setEditItem({...editItem, estado: e.target.value})} style={inp}>
-                  <option>En almacén</option><option>Entregado a cliente</option><option>A producción</option>
-                </select>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
-              <button onClick={() => setEditItem(null)} style={btn}>Cancelar</button>
-              <button onClick={guardarEdicion} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>Guardar cambios</button>
-            </div>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 999, overflowY: 'auto', padding: '20px 0' }}>
+      <div style={{ background: '#f5f5f7', borderRadius: 16, padding: 24, width: '90%', maxWidth: 700 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ fontSize: 16, fontWeight: 500 }}>Etiquetas para imprimir</div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => window.print()} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>🖨 Imprimir</button>
+            <button onClick={onCerrar} style={btn}>Cerrar</button>
           </div>
         </div>
-      )}
+        <div id="etiquetas-print">
+          {rows.map((r: any, rIdx: number) =>
+            Array.from({ length: parseInt(r.bultos) || 1 }).map((_, i) => (
+              <div key={`${rIdx}-${i}`} style={{
+                width: 566, height: 378, background: '#fff', border: '1.5px solid #bbb', borderRadius: 6,
+                display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: 'Arial, sans-serif',
+                marginBottom: 16, pageBreakAfter: 'always'
+              }}>
+                <div style={{ background: '#1a1a2e', padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ color: '#fff', fontSize: 26, fontWeight: 700, letterSpacing: 4 }}>HYPE</div>
+                  <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 13, textTransform: 'uppercase', letterSpacing: 2 }}>{r.proceso === 'S' ? 'Sublimación' : 'Digital directo'}</div>
+                  <div style={{ color: '#e85d2f', fontSize: 18, fontWeight: 700 }}>ROLLO {i + 1}/{parseInt(r.bultos) || 1}</div>
+                </div>
+                <div style={{ display: 'flex', flex: 1 }}>
+                  <div style={{ flex: 1, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ fontSize: 26, fontWeight: 700, color: '#1a1a2e', letterSpacing: 3, fontFamily: 'Courier New, monospace', borderBottom: '1.5px solid #e0e0e0', paddingBottom: 6 }}>{r.id_hype}</div>
+                    <div><div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Cliente</div><div style={{ fontSize: 17, fontWeight: 700, textTransform: 'uppercase' }}>{r.cliente}</div></div>
+                    <div><div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Tela</div><div style={{ fontSize: 17, fontWeight: 700, textTransform: 'uppercase' }}>{r.tela}</div></div>
+                    {r.obs && <div><div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Observaciones</div><div style={{ fontSize: 15, fontWeight: 700, textTransform: 'uppercase' }}>{r.obs}</div></div>}
+                    <div style={{ display: 'flex', gap: 20 }}>
+                      <div><div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Fecha</div><div style={{ fontSize: 15, fontWeight: 700 }}>{r.fecha}</div></div>
+                      <div><div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Ubicación</div><div style={{ fontSize: 15, fontWeight: 700 }}>{r.ubicacion}</div></div>
+                    </div>
+                  </div>
+                  <div style={{ width: 126, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 10, borderLeft: '1px solid #eee', gap: 6 }}>
+                    <div id={`qr-panel-${rIdx}`}></div>
+                    <div style={{ fontSize: 10, color: '#aaa', textAlign: 'center' }}>Escanear para ver stock</div>
+                  </div>
+                </div>
+                <div style={{ background: '#f0f0f0', borderTop: '1px solid #ddd', padding: '6px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: 11, color: '#888' }}>HYPE Estampación · {r.fecha}</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: '#e85d2f' }}>{r.mts} MTS TOTALES</div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" />
     </div>
   );
 }
@@ -330,6 +263,7 @@ function Ingresos({ clientes, telas, empleados, onGuardar }: any) {
   const [showCli, setShowCli] = useState(false);
   const [renglones, setRenglones] = useState([{ prop: '', proceso: '', tela: '', codTela: '', obs: '', bultos: '', modo: 'KG', kg: '', rinde: '', mts: '', ramado: 'No', ubicacion: '1-A', id_hype: '', busqTela: '', showTela: false }]);
   const [guardando, setGuardando] = useState(false);
+  const [etiquetasData, setEtiquetasData] = useState<any>(null);
   const ubicaciones = ['1-A','1-B','1-C','1-D','2-A','2-B','2-C','3-A','3-B','3-C','3-D','4-A','4-B','4-C','ISLA','PARED','TINTO HYPE','TINTO EXT'];
 
   function selCliente(c: any) {
@@ -377,12 +311,21 @@ function Ingresos({ clientes, telas, empleados, onGuardar }: any) {
       mts: parseFloat(r.mts), ramado: r.ramado, ubicacion: r.ubicacion,
       id_hype: r.id_hype, estado: 'En almacén'
     })));
-    if (error) { alert('Error al guardar: ' + error.message); } else { alert('Ingreso guardado correctamente.'); onGuardar(); }
+    if (error) {
+      alert('Error al guardar: ' + error.message);
+    } else {
+      onGuardar();
+      const imprimir = confirm('✅ Ingreso guardado correctamente.\n\n¿Querés imprimir las etiquetas ahora?');
+      if (imprimir) {
+        setEtiquetasData(rows.map(r => ({ ...r, cliente, fecha })));
+      }
+    }
     setGuardando(false);
   }
 
   return (
     <div>
+      {etiquetasData && <PanelEtiquetas rows={etiquetasData} onCerrar={() => setEtiquetasData(null)} />}
       <div style={{ marginBottom: 20 }}><div style={{ fontSize: 18, fontWeight: 500 }}>Nuevo ingreso</div></div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #eee', marginBottom: 16 }}>
         <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>Encabezado</div>
@@ -566,7 +509,6 @@ function StockTabla({ entries, titulo }: any) {
       s.tela.toLowerCase().includes(search.toLowerCase());
   });
   const totalMts = filtered.reduce((s: number, [, v]: any) => s + v.ing - v.egr, 0);
-
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
@@ -580,11 +522,9 @@ function StockTabla({ entries, titulo }: any) {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr>
-                {['ID','Cliente','Tela','Observaciones','Bultos','Mts ing.','Mts egr.','Mts disp.','Ubicación','Ramado','Recibido','Proceso'].map(h =>
-                  <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>
-                )}
-              </tr>
+              <tr>{['ID','Cliente','Tela','Observaciones','Bultos','Mts ing.','Mts egr.','Mts disp.','Ubicación','Ramado','Recibido','Proceso'].map(h =>
+                <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>
+              )}</tr>
             </thead>
             <tbody>
               {filtered.length === 0 && <tr><td colSpan={12} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin stock registrado</td></tr>}
@@ -625,6 +565,134 @@ function StockTC({ calcStock, ingresos }: any) {
   const stock = calcStock();
   const entries = Object.entries(stock).filter(([id]: any) => id.startsWith('TC'));
   return <StockTabla entries={entries} titulo="Stock TC — Tela de clientes" />;
+}
+
+function Historial({ ingresos, onGuardar, clientes, telas, empleados }: any) {
+  const [search, setSearch] = useState('');
+  const [pag, setPag] = useState(1);
+  const [editItem, setEditItem] = useState<any>(null);
+  const [guardando, setGuardando] = useState(false);
+  const [etiquetasData, setEtiquetasData] = useState<any>(null);
+  const POR_PAG = 20;
+
+  const filtered = ingresos.filter((i: any) =>
+    (i.cliente || '').toLowerCase().includes(search.toLowerCase()) ||
+    (i.tela || '').toLowerCase().includes(search.toLowerCase()) ||
+    (i.id_hype || '').toLowerCase().includes(search.toLowerCase()) ||
+    (i.remito || '').includes(search)
+  );
+  const total = Math.ceil(filtered.length / POR_PAG);
+  const page = filtered.slice((pag - 1) * POR_PAG, pag * POR_PAG);
+
+  async function eliminar(i: any) {
+    if (!confirm(`¿Eliminar el ingreso ${i.id_hype} del ${i.fecha}?`)) return;
+    await supabase.from('ingresos').delete().eq('id', i.id);
+    onGuardar();
+  }
+
+  async function guardarEdicion() {
+    if (!editItem) return;
+    setGuardando(true);
+    const { error } = await supabase.from('ingresos').update({
+      fecha: editItem.fecha, remito: editItem.remito, cliente: editItem.cliente,
+      tela: editItem.tela, observaciones: editItem.observaciones, bultos: editItem.bultos,
+      mts: editItem.mts, ubicacion: editItem.ubicacion, ramado: editItem.ramado,
+      recibido: editItem.recibido, estado: editItem.estado,
+    }).eq('id', editItem.id);
+    if (error) alert('Error: ' + error.message);
+    else { setEditItem(null); onGuardar(); }
+    setGuardando(false);
+  }
+
+  const ubicaciones = ['1-A','1-B','1-C','1-D','2-A','2-B','2-C','3-A','3-B','3-C','3-D','4-A','4-B','4-C','ISLA','PARED','TINTO HYPE','TINTO EXT'];
+
+  return (
+    <div>
+      {etiquetasData && <PanelEtiquetas rows={etiquetasData} onCerrar={() => setEtiquetasData(null)} />}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 18, fontWeight: 500 }}>Historial de ingresos</div>
+        <div style={{ fontSize: 13, color: '#888' }}>{filtered.length} ingresos registrados</div>
+      </div>
+      <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 12 }}>
+        <input placeholder="Buscar por cliente, tela, ID o remito..." value={search} onChange={e => { setSearch(e.target.value); setPag(1); }} style={{ ...inp, maxWidth: 360 }} />
+      </div>
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead><tr>
+              {['Fecha','Remito','Cliente','Tela','ID','Obs.','Bultos','Mts','Ubic.','Ramado','Recibido','Acciones'].map(h =>
+                <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>
+              )}
+            </tr></thead>
+            <tbody>
+              {page.map((i: any) => (
+                <tr key={i.id}>
+                  <td style={td}>{i.fecha}</td>
+                  <td style={td}>{i.remito}</td>
+                  <td style={{ ...td, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.cliente}</td>
+                  <td style={{ ...td, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.tela}</td>
+                  <td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{i.id_hype}</td>
+                  <td style={{ ...td, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.observaciones}</td>
+                  <td style={{ ...td, textAlign: 'center' }}>{i.bultos}</td>
+                  <td style={{ ...td, textAlign: 'center', fontWeight: 500 }}>{i.mts}</td>
+                  <td style={td}>{i.ubicacion}</td>
+                  <td style={td}>{i.ramado}</td>
+                  <td style={td}>{i.recibido}</td>
+                  <td style={td}>
+                    <button onClick={() => setEtiquetasData([{ ...i, obs: i.observaciones }])} style={{ ...btn, fontSize: 12, padding: '4px 10px', marginRight: 6, background: '#e8f4ea', color: '#3B6D11', border: '1px solid #97C459' }}>🏷 Etiquetas</button>
+                    <button onClick={() => setEditItem({...i})} style={{ ...btn, fontSize: 12, padding: '4px 10px', marginRight: 6 }}>Editar</button>
+                    <button onClick={() => eliminar(i)} style={{ ...btn, fontSize: 12, padding: '4px 10px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>Eliminar</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {total > 1 && <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          {pag > 1 && <button onClick={() => setPag(pag - 1)} style={btn}>‹</button>}
+          <span style={{ fontSize: 12, color: '#888', lineHeight: '32px' }}>Pág {pag} de {total}</span>
+          {pag < total && <button onClick={() => setPag(pag + 1)} style={btn}>›</button>}
+        </div>}
+      </div>
+
+      {editItem && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 560, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 16 }}>Editar ingreso</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div><label style={lbl}>Fecha</label><input type="date" value={editItem.fecha} onChange={e => setEditItem({...editItem, fecha: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Nro. remito</label><input value={editItem.remito} onChange={e => setEditItem({...editItem, remito: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Cliente</label><input value={editItem.cliente} onChange={e => setEditItem({...editItem, cliente: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Tela</label><input value={editItem.tela} onChange={e => setEditItem({...editItem, tela: e.target.value})} style={inp} /></div>
+              <div style={{ gridColumn: '1/-1' }}><label style={lbl}>Observaciones</label><input value={editItem.observaciones || ''} onChange={e => setEditItem({...editItem, observaciones: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Bultos</label><input type="number" value={editItem.bultos} onChange={e => setEditItem({...editItem, bultos: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Mts</label><input type="number" value={editItem.mts} onChange={e => setEditItem({...editItem, mts: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Ubicación</label>
+                <select value={editItem.ubicacion} onChange={e => setEditItem({...editItem, ubicacion: e.target.value})} style={inp}>
+                  {ubicaciones.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+              </div>
+              <div><label style={lbl}>Ramado/Tintorería</label>
+                <select value={editItem.ramado} onChange={e => setEditItem({...editItem, ramado: e.target.value})} style={inp}>
+                  <option value="No">No</option><option value="Si">Sí</option>
+                </select>
+              </div>
+              <div><label style={lbl}>Recibido por</label><input value={editItem.recibido || ''} onChange={e => setEditItem({...editItem, recibido: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Estado</label>
+                <select value={editItem.estado} onChange={e => setEditItem({...editItem, estado: e.target.value})} style={inp}>
+                  <option>En almacén</option><option>Entregado a cliente</option><option>A producción</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+              <button onClick={() => setEditItem(null)} style={btn}>Cancelar</button>
+              <button onClick={guardarEdicion} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>Guardar cambios</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Clientes({ clientes, onGuardar }: any) {
