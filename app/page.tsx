@@ -12,6 +12,7 @@ export default function Home() {
   const [pagina, setPagina] = useState('dashboard');
   const [clientes, setClientes] = useState<any[]>([]);
   const [telas, setTelas] = useState<any[]>([]);
+  const [colores, setColores] = useState<any[]>([]);
   const [ingresos, setIngresos] = useState<any[]>([]);
   const [egresos, setEgresos] = useState<any[]>([]);
   const [empleados, setEmpleados] = useState<any[]>([]);
@@ -29,15 +30,17 @@ export default function Home() {
 
   async function cargarTodo() {
     setLoading(true);
-    const [{ data: cls }, { data: tls }, { data: ings }, { data: egs }, { data: emps }] = await Promise.all([
+    const [{ data: cls }, { data: tls }, { data: cols }, { data: ings }, { data: egs }, { data: emps }] = await Promise.all([
       supabase.from('clientes').select('*').order('cod'),
       supabase.from('telas').select('*').order('cod'),
+      supabase.from('colores').select('*').order('nombre'),
       supabase.from('ingresos').select('*').order('created_at', { ascending: false }),
       supabase.from('egresos').select('*').order('created_at', { ascending: false }),
       supabase.from('empleados').select('*').order('nombre'),
     ]);
     if (cls) setClientes(cls);
     if (tls) setTelas(tls);
+    if (cols) setColores(cols);
     if (ings) setIngresos(ings);
     if (egs) setEgresos(egs);
     if (emps) setEmpleados(emps);
@@ -60,6 +63,7 @@ export default function Home() {
     { id: 'stockTC', label: 'Stock TC', icon: '◫' },
     { id: 'clientes', label: 'Clientes', icon: '♟' },
     { id: 'telas', label: 'Telas', icon: '≡' },
+    { id: 'colores', label: 'Colores', icon: '◉' },
     { id: 'empleados', label: 'Empleados', icon: '👤' },
     { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰' },
     { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰' },
@@ -68,7 +72,7 @@ export default function Home() {
   function calcStock() {
     const stockMap: any = {};
     ingresos.forEach((i: any) => {
-      if (!stockMap[i.id_hype]) stockMap[i.id_hype] = { ing: 0, egr: 0, tela: i.tela, cliente: i.cliente, proceso: i.proceso, observaciones: i.observaciones, bultos: 0, ubicacion: i.ubicacion, ramado: i.ramado, recibido: i.recibido };
+      if (!stockMap[i.id_hype]) stockMap[i.id_hype] = { ing: 0, egr: 0, tela: i.tela, cliente: i.cliente, proceso: i.proceso, color: i.color, observaciones: i.observaciones, bultos: 0, ubicacion: i.ubicacion, ramado: i.ramado, recibido: i.recibido };
       stockMap[i.id_hype].ing += Number(i.mts);
       stockMap[i.id_hype].bultos += Number(i.bultos || 0);
     });
@@ -107,12 +111,13 @@ export default function Home() {
         {!loading && (
           <>
             {pagina === 'dashboard' && <Dashboard ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} calcStock={calcStock} />}
-            {pagina === 'ingresos' && <Ingresos clientes={clientes} telas={telas} empleados={empleados} onGuardar={cargarTodo} />}
-            {pagina === 'egresos' && <Egresos ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} empleados={empleados} onGuardar={cargarTodo} />}
+            {pagina === 'ingresos' && <Ingresos clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
+            {pagina === 'egresos' && <Egresos ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
             {pagina === 'stockTH' && <StockTH calcStock={calcStock} ingresos={ingresos} />}
             {pagina === 'stockTC' && <StockTC calcStock={calcStock} ingresos={ingresos} />}
             {pagina === 'clientes' && <Clientes clientes={clientes} onGuardar={cargarTodo} />}
             {pagina === 'telas' && <Telas telas={telas} onGuardar={cargarTodo} />}
+            {pagina === 'colores' && <Colores colores={colores} onGuardar={cargarTodo} />}
             {pagina === 'empleados' && <Empleados empleados={empleados} onGuardar={cargarTodo} />}
             {pagina === 'historialIngresos' && <HistorialIngresos ingresos={ingresos} onGuardar={cargarTodo} clientes={clientes} telas={telas} empleados={empleados} />}
             {pagina === 'historialEgresos' && <HistorialEgresos egresos={egresos} onGuardar={cargarTodo} />}
@@ -152,13 +157,14 @@ function Dashboard({ ingresos, egresos, clientes, telas, calcStock }: any) {
         <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>Últimos ingresos</div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead><tr>{['Fecha','Cliente','Tela','ID','Mts','Estado'].map(h => <th key={h} style={{ textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid #eee', fontSize: 11, color: '#888' }}>{h}</th>)}</tr></thead>
+            <thead><tr>{['Fecha','Cliente','Tela','Color','ID','Mts','Estado'].map(h => <th key={h} style={{ textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid #eee', fontSize: 11, color: '#888' }}>{h}</th>)}</tr></thead>
             <tbody>
               {ingresos.slice(0, 8).map((i: any, idx: number) => (
                 <tr key={idx}>
                   <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.fecha}</td>
                   <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.cliente}</td>
                   <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.tela}</td>
+                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.color}</td>
                   <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0', fontFamily: 'monospace', color: '#e85d2f', fontSize: 12 }}>{i.id_hype}</td>
                   <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.mts} mts</td>
                   <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.estado}</td>
@@ -195,7 +201,7 @@ function PanelEtiquetas({ rows, onCerrar }: any) {
     rows.forEach((_: any, i: number) => {
       const el = document.getElementById('qr-panel-' + i);
       if (el && el.childElementCount === 0) {
-        const qrData = JSON.stringify({ id: rows[i].id_hype, cliente: rows[i].cliente, tela: rows[i].tela, obs: rows[i].obs, fecha: rows[i].fecha, ubicacion: rows[i].ubicacion, mts: rows[i].mts });
+        const qrData = JSON.stringify({ id: rows[i].id_hype, cliente: rows[i].cliente, tela: rows[i].tela, color: rows[i].color, obs: rows[i].obs, fecha: rows[i].fecha, ubicacion: rows[i].ubicacion, mts: rows[i].mts });
         // @ts-ignore
         if (window.QRCode) new window.QRCode(el, { text: qrData, width: 100, height: 100, colorDark: '#1a1a2e', colorLight: '#ffffff' });
       }
@@ -230,6 +236,7 @@ function PanelEtiquetas({ rows, onCerrar }: any) {
                     <div style={{ fontSize: 26, fontWeight: 700, color: '#1a1a2e', letterSpacing: 3, fontFamily: 'Courier New, monospace', borderBottom: '1.5px solid #e0e0e0', paddingBottom: 6 }}>{r.id_hype}</div>
                     <div><div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Cliente</div><div style={{ fontSize: 17, fontWeight: 700, textTransform: 'uppercase' }}>{r.cliente}</div></div>
                     <div><div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Tela</div><div style={{ fontSize: 17, fontWeight: 700, textTransform: 'uppercase' }}>{r.tela}</div></div>
+                    {r.color && <div><div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Color</div><div style={{ fontSize: 17, fontWeight: 700, textTransform: 'uppercase' }}>{r.color}</div></div>}
                     {r.obs && <div><div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Observaciones</div><div style={{ fontSize: 15, fontWeight: 700, textTransform: 'uppercase' }}>{r.obs}</div></div>}
                     <div style={{ display: 'flex', gap: 20 }}>
                       <div><div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Fecha</div><div style={{ fontSize: 15, fontWeight: 700 }}>{r.fecha}</div></div>
@@ -255,7 +262,7 @@ function PanelEtiquetas({ rows, onCerrar }: any) {
   );
 }
 
-function Ingresos({ clientes, telas, empleados, onGuardar }: any) {
+function Ingresos({ clientes, telas, colores, empleados, onGuardar }: any) {
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
   const [remito, setRemito] = useState('');
   const [cliente, setCliente] = useState('');
@@ -263,18 +270,18 @@ function Ingresos({ clientes, telas, empleados, onGuardar }: any) {
   const [recibido, setRecibido] = useState('');
   const [busqCli, setBusqCli] = useState('');
   const [showCli, setShowCli] = useState(false);
-  const [renglones, setRenglones] = useState([{ prop: '', proceso: '', tela: '', codTela: '', obs: '', bultos: '', modo: 'KG', kg: '', rinde: '', mts: '', ramado: 'No', ubicacion: '1-A', id_hype: '', busqTela: '', showTela: false }]);
+  const [renglones, setRenglones] = useState([{ prop: '', proceso: '', tela: '', codTela: '', color: '', siglaColor: '', obs: '', bultos: '', modo: 'KG', kg: '', rinde: '', mts: '', ramado: 'No', ubicacion: '1-A', id_hype: '', busqTela: '', showTela: false, busqColor: '', showColor: false }]);
   const [guardando, setGuardando] = useState(false);
   const [etiquetasData, setEtiquetasData] = useState<any>(null);
   const ubicaciones = ['1-A','1-B','1-C','1-D','2-A','2-B','2-C','3-A','3-B','3-C','3-D','4-A','4-B','4-C','ISLA','PARED','TINTO HYPE','TINTO EXT'];
 
   function selCliente(c: any) {
     setCliente(c.nombre); setCodCliente(c.cod); setBusqCli(c.nombre); setShowCli(false);
-    setRenglones(prev => prev.map(r => ({ ...r, id_hype: buildId(r.prop, r.proceso, c.cod, r.codTela) })));
+    setRenglones(prev => prev.map(r => ({ ...r, id_hype: buildId(r.prop, r.proceso, c.cod, r.codTela, r.siglaColor) })));
   }
 
-  function buildId(prop: string, proceso: string, codCli: string, codTela: string) {
-    if (prop && proceso && codCli && codTela) return prop + proceso + codCli + codTela;
+  function buildId(prop: string, proceso: string, codCli: string, codTela: string, siglaColor: string) {
+    if (prop && proceso && codCli && codTela && siglaColor) return prop + proceso + codCli + codTela + siglaColor;
     return '';
   }
 
@@ -287,7 +294,13 @@ function Ingresos({ clientes, telas, empleados, onGuardar }: any) {
         const rinde = field === 'rinde' ? parseFloat(value) : parseFloat(nr.rinde);
         if (kg && rinde && rinde > 0) nr.mts = Math.round(kg / rinde).toString();
       }
-      nr.id_hype = buildId(field === 'prop' ? value : nr.prop, field === 'proceso' ? value : nr.proceso, codCliente, field === 'codTela' ? value : nr.codTela);
+      nr.id_hype = buildId(
+        field === 'prop' ? value : nr.prop,
+        field === 'proceso' ? value : nr.proceso,
+        codCliente,
+        field === 'codTela' ? value : nr.codTela,
+        field === 'siglaColor' ? value : nr.siglaColor
+      );
       return nr;
     }));
   }
@@ -296,7 +309,16 @@ function Ingresos({ clientes, telas, empleados, onGuardar }: any) {
     setRenglones(prev => prev.map((r, i) => {
       if (i !== idx) return r;
       const nr = { ...r, tela: t.nombre, codTela: t.cod, busqTela: t.nombre, showTela: false };
-      nr.id_hype = buildId(nr.prop, nr.proceso, codCliente, t.cod);
+      nr.id_hype = buildId(nr.prop, nr.proceso, codCliente, t.cod, nr.siglaColor);
+      return nr;
+    }));
+  }
+
+  function selColor(idx: number, c: any) {
+    setRenglones(prev => prev.map((r, i) => {
+      if (i !== idx) return r;
+      const nr = { ...r, color: c.nombre, siglaColor: c.sigla, busqColor: c.nombre, showColor: false };
+      nr.id_hype = buildId(nr.prop, nr.proceso, codCliente, nr.codTela, c.sigla);
       return nr;
     }));
   }
@@ -304,11 +326,12 @@ function Ingresos({ clientes, telas, empleados, onGuardar }: any) {
   async function guardar() {
     if (!fecha || !remito || !cliente) { alert('Completá fecha, remito y cliente.'); return; }
     setGuardando(true);
-    const rows = renglones.filter(r => r.prop && r.proceso && r.tela && parseFloat(r.mts) > 0);
-    if (!rows.length) { alert('Completá al menos un renglón.'); setGuardando(false); return; }
+    const rows = renglones.filter(r => r.prop && r.proceso && r.tela && r.color && parseFloat(r.mts) > 0);
+    if (!rows.length) { alert('Completá al menos un renglón con color.'); setGuardando(false); return; }
     const { error } = await supabase.from('ingresos').insert(rows.map(r => ({
       fecha, remito, cliente, cod_cliente: codCliente, recibido,
       prop: r.prop, proceso: r.proceso, tela: r.tela, cod_tela: r.codTela,
+      color: r.color, sigla_color: r.siglaColor,
       observaciones: r.obs, bultos: parseInt(r.bultos) || 0,
       mts: parseFloat(r.mts), ramado: r.ramado, ubicacion: r.ubicacion,
       id_hype: r.id_hype, estado: 'En almacén'
@@ -377,7 +400,20 @@ function Ingresos({ clientes, telas, empleados, onGuardar }: any) {
                 )}
               </div>
               <div><label style={lbl}>Cód. tela</label><input value={r.codTela} readOnly style={{ ...inp, background: '#f5f5f7' }} /></div>
-              <div><label style={lbl}>Observaciones</label><input value={r.obs} onChange={e => updateRenglon(idx, 'obs', e.target.value)} placeholder="Color, diseño..." style={inp} /></div>
+
+              <div style={{ position: 'relative' }}><label style={lbl}>Color</label>
+                <input value={r.busqColor} onChange={e => { updateRenglon(idx, 'busqColor', e.target.value); setRenglones(prev => prev.map((rr, i) => i === idx ? { ...rr, showColor: true } : rr)); }} placeholder="Buscar color..." style={inp} />
+                {r.showColor && r.busqColor && (
+                  <div style={dropdown}>
+                    {colores.filter((c: any) => c.nombre.toLowerCase().includes(r.busqColor.toLowerCase()) || c.sigla.toLowerCase().includes(r.busqColor.toLowerCase())).slice(0, 8).map((c: any) => (
+                      <div key={c.sigla} onClick={() => selColor(idx, c)} style={ddItem}>{c.nombre} <span style={{ color: '#888', fontSize: 11 }}>{c.sigla}</span></div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div><label style={lbl}>Sigla color</label><input value={r.siglaColor} readOnly style={{ ...inp, background: '#f5f5f7' }} /></div>
+
+              <div><label style={lbl}>Observaciones</label><input value={r.obs} onChange={e => updateRenglon(idx, 'obs', e.target.value)} placeholder="Diseño, detalle..." style={inp} /></div>
               <div><label style={lbl}>Nro. bultos</label><input type="number" value={r.bultos} onChange={e => updateRenglon(idx, 'bultos', e.target.value)} placeholder="0" style={inp} /></div>
               <div><label style={lbl}>Ingreso en</label>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -404,7 +440,7 @@ function Ingresos({ clientes, telas, empleados, onGuardar }: any) {
             </div>
           </div>
         ))}
-        <div onClick={() => setRenglones(prev => [...prev, { prop: '', proceso: '', tela: '', codTela: '', obs: '', bultos: '', modo: 'KG', kg: '', rinde: '', mts: '', ramado: 'No', ubicacion: '1-A', id_hype: '', busqTela: '', showTela: false }])} style={{ padding: '12px 20px', cursor: 'pointer', color: '#e85d2f', fontSize: 13, background: '#fafafa', borderTop: '1px solid #eee' }}>
+        <div onClick={() => setRenglones(prev => [...prev, { prop: '', proceso: '', tela: '', codTela: '', color: '', siglaColor: '', obs: '', bultos: '', modo: 'KG', kg: '', rinde: '', mts: '', ramado: 'No', ubicacion: '1-A', id_hype: '', busqTela: '', showTela: false, busqColor: '', showColor: false }])} style={{ padding: '12px 20px', cursor: 'pointer', color: '#e85d2f', fontSize: 13, background: '#fafafa', borderTop: '1px solid #eee' }}>
           + Agregar renglón
         </div>
       </div>
@@ -416,19 +452,22 @@ function Ingresos({ clientes, telas, empleados, onGuardar }: any) {
   );
 }
 
-function Egresos({ ingresos, egresos, clientes, telas, empleados, onGuardar }: any) {
+function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGuardar }: any) {
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
   const [remitoOrigen, setRemitoOrigen] = useState('');
+  const [idHype, setIdHype] = useState('');
+  const [busqId, setBusqId] = useState('');
+  const [showId, setShowId] = useState(false);
   const [cliente, setCliente] = useState('');
   const [busqCli, setBusqCli] = useState('');
   const [showCli, setShowCli] = useState(false);
   const [tela, setTela] = useState('');
   const [busqTela, setBusqTela] = useState('');
   const [showTela, setShowTela] = useState(false);
+  const [color, setColor] = useState('');
+  const [busqColor, setBusqColor] = useState('');
+  const [showColor, setShowColor] = useState(false);
   const [obs, setObs] = useState('');
-  const [idHype, setIdHype] = useState('');
-  const [opcionesId, setOpcionesId] = useState<{id: string, disp: number}[]>([]);
-  const [showId, setShowId] = useState(false);
   const [disponibles, setDisponibles] = useState(0);
   const [mts, setMts] = useState('');
   const [bultos, setBultos] = useState('');
@@ -439,63 +478,58 @@ function Egresos({ ingresos, egresos, clientes, telas, empleados, onGuardar }: a
   const [alerta, setAlerta] = useState('');
   const [guardando, setGuardando] = useState(false);
 
-  function buscarRemito(val: string) {
-    setRemitoOrigen(val);
-    if (!val) return;
-    const ing = ingresos.find((i: any) => i.remito === val);
-    if (ing) {
-      setCliente(ing.cliente); setBusqCli(ing.cliente);
-      setTela(ing.tela); setBusqTela(ing.tela);
-      setObs(ing.observaciones || '');
-      setIdHype(ing.id_hype);
-      calcDisponibles(ing.id_hype);
-    }
-  }
-
   function calcDisponibles(id: string) {
     const ingTotal = ingresos.filter((i: any) => i.id_hype === id).reduce((s: number, i: any) => s + Number(i.mts), 0);
     const egrTotal = egresos.filter((e: any) => e.id_hype === id).reduce((s: number, e: any) => s + Number(e.mts), 0);
     setDisponibles(ingTotal - egrTotal);
   }
 
-  function buscarPorCampos(cli: string, tel: string, ob: string) {
-    if (!cli || !tel) { setOpcionesId([]); setIdHype(''); setDisponibles(0); return; }
-    const matches = ingresos.filter((i: any) => {
-      const mismoCliente = i.cliente.toLowerCase() === cli.toLowerCase();
-      const mismaTela = i.tela.toLowerCase() === tel.toLowerCase();
-      const mismasObs = !ob || (i.observaciones || '').toLowerCase() === ob.toLowerCase();
-      return mismoCliente && mismaTela && mismasObs;
-    });
-    const idsUnicos = [...new Set(matches.map((i: any) => i.id_hype))] as string[];
-    const opts = idsUnicos.map((id: string) => {
-      const ingT = ingresos.filter((i: any) => i.id_hype === id).reduce((s: number, i: any) => s + Number(i.mts), 0);
-      const egrT = egresos.filter((e: any) => e.id_hype === id).reduce((s: number, e: any) => s + Number(e.mts), 0);
-      return { id, disp: ingT - egrT };
-    });
-    setOpcionesId(opts);
-    if (opts.length === 1) {
-      setIdHype(opts[0].id);
-      calcDisponibles(opts[0].id);
+  function cargarPorId(id: string) {
+    const ing = ingresos.find((i: any) => i.id_hype === id);
+    if (ing) {
+      setCliente(ing.cliente); setBusqCli(ing.cliente);
+      setTela(ing.tela); setBusqTela(ing.tela);
+      setColor(ing.color || ''); setBusqColor(ing.color || '');
+      setObs(ing.observaciones || '');
+      calcDisponibles(id);
+    }
+  }
+
+  function selId(id: string) {
+    setIdHype(id); setBusqId(id); setShowId(false);
+    cargarPorId(id);
+  }
+
+  function buscarPorCampos(cli: string, tel: string, col: string) {
+    if (!cli || !tel || !col) { setIdHype(''); setDisponibles(0); return; }
+    const match = ingresos.find((i: any) =>
+      i.cliente.toLowerCase() === cli.toLowerCase() &&
+      i.tela.toLowerCase() === tel.toLowerCase() &&
+      (i.color || '').toLowerCase() === col.toLowerCase()
+    );
+    if (match) {
+      setIdHype(match.id_hype);
+      setBusqId(match.id_hype);
+      calcDisponibles(match.id_hype);
     } else {
       setIdHype('');
       setDisponibles(0);
-      if (opts.length > 1) setShowId(true);
     }
   }
 
   function selCliente(c: any) {
     setCliente(c.nombre); setBusqCli(c.nombre); setShowCli(false);
-    buscarPorCampos(c.nombre, tela, obs);
+    buscarPorCampos(c.nombre, tela, color);
   }
 
   function selTela(t: any) {
     setTela(t.nombre); setBusqTela(t.nombre); setShowTela(false);
-    buscarPorCampos(cliente, t.nombre, obs);
+    buscarPorCampos(cliente, t.nombre, color);
   }
 
-  function selId(id: string) {
-    setIdHype(id); setShowId(false);
-    calcDisponibles(id);
+  function selColor(c: any) {
+    setColor(c.nombre); setBusqColor(c.nombre); setShowColor(false);
+    buscarPorCampos(cliente, tela, c.nombre);
   }
 
   function validarMts(val: string) {
@@ -507,11 +541,11 @@ function Egresos({ ingresos, egresos, clientes, telas, empleados, onGuardar }: a
   async function guardar() {
     if (alerta) { alert('Corregí los metros antes de guardar.'); return; }
     if (!parseFloat(mts)) { alert('Completá los metros a egresar.'); return; }
-    if (!idHype) { alert('No se encontró un ID válido. Verificá cliente, tela y observaciones.'); return; }
+    if (!idHype) { alert('No se encontró un ID válido. Verificá cliente, tela y color.'); return; }
     setGuardando(true);
     const { error } = await supabase.from('egresos').insert([{
       fecha, remito_origen: remitoOrigen, remito_entrega: remitoEntrega,
-      cliente, tela, observaciones: obs, id_hype: idHype,
+      cliente, tela, color, observaciones: obs, id_hype: idHype,
       mts: parseFloat(mts), bultos: parseInt(bultos) || 0,
       estado, entrego, retiro
     }]);
@@ -520,17 +554,36 @@ function Egresos({ ingresos, egresos, clientes, telas, empleados, onGuardar }: a
     setGuardando(false);
   }
 
+  const idsUnicos = [...new Set(ingresos.map((i: any) => i.id_hype))] as string[];
+
   return (
     <div>
       <div style={{ marginBottom: 20 }}><div style={{ fontSize: 18, fontWeight: 500 }}>Nuevo egreso</div></div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #eee', marginBottom: 16 }}>
+        <div style={{ marginBottom: 16, padding: 12, background: '#f5f5f7', borderRadius: 8, fontSize: 12, color: '#888' }}>
+          Podés buscar <strong>por ID</strong> o por <strong>cliente + tela + color</strong> — ambos se completan automáticamente.
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}>
           <div><label style={lbl}>Fecha</label><input type="date" value={fecha} onChange={e => setFecha(e.target.value)} style={inp} /></div>
-          <div><label style={lbl}>Nro. remito origen <span style={{ fontSize: 10, color: '#aaa' }}>(opcional)</span></label><input type="number" value={remitoOrigen} onChange={e => buscarRemito(e.target.value)} placeholder="00145" style={inp} /></div>
+          <div><label style={lbl}>Nro. remito origen <span style={{ fontSize: 10, color: '#aaa' }}>(opcional)</span></label><input type="number" value={remitoOrigen} onChange={e => setRemitoOrigen(e.target.value)} placeholder="00145" style={inp} /></div>
 
           <div style={{ position: 'relative' }}>
-            <label style={lbl}>Cliente</label>
-            <input value={busqCli} onChange={e => { setBusqCli(e.target.value); setCliente(e.target.value); setShowCli(true); buscarPorCampos(e.target.value, tela, obs); }} placeholder="Escribí para buscar..." style={inp} />
+            <label style={lbl}>Buscar por ID <span style={{ background: '#e8f4ea', color: '#3B6D11', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>completa campos</span></label>
+            <input value={busqId} onChange={e => { setBusqId(e.target.value); setShowId(true); }} placeholder="Ej: TCS001045BLA" style={inp} />
+            {showId && busqId && (
+              <div style={dropdown}>
+                {idsUnicos.filter(id => id.toLowerCase().includes(busqId.toLowerCase())).slice(0, 10).map(id => (
+                  <div key={id} onClick={() => selId(id)} style={ddItem}>
+                    <span style={{ fontFamily: 'monospace', color: '#e85d2f' }}>{id}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div style={{ position: 'relative' }}>
+            <label style={lbl}>Cliente <span style={{ background: '#e8f4ea', color: '#3B6D11', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>completa ID</span></label>
+            <input value={busqCli} onChange={e => { setBusqCli(e.target.value); setCliente(e.target.value); setShowCli(true); buscarPorCampos(e.target.value, tela, color); }} placeholder="Escribí para buscar..." style={inp} />
             {showCli && busqCli && (
               <div style={dropdown}>
                 {clientes.filter((c: any) => c.nombre.toLowerCase().includes(busqCli.toLowerCase())).slice(0, 8).map((c: any) => (
@@ -541,8 +594,8 @@ function Egresos({ ingresos, egresos, clientes, telas, empleados, onGuardar }: a
           </div>
 
           <div style={{ position: 'relative' }}>
-            <label style={lbl}>Tela</label>
-            <input value={busqTela} onChange={e => { setBusqTela(e.target.value); setTela(e.target.value); setShowTela(true); buscarPorCampos(cliente, e.target.value, obs); }} placeholder="Escribí para buscar..." style={inp} />
+            <label style={lbl}>Tela <span style={{ background: '#e8f4ea', color: '#3B6D11', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>completa ID</span></label>
+            <input value={busqTela} onChange={e => { setBusqTela(e.target.value); setTela(e.target.value); setShowTela(true); buscarPorCampos(cliente, e.target.value, color); }} placeholder="Escribí para buscar..." style={inp} />
             {showTela && busqTela && (
               <div style={dropdown}>
                 {telas.filter((t: any) => t.nombre.toLowerCase().includes(busqTela.toLowerCase())).slice(0, 8).map((t: any) => (
@@ -552,29 +605,23 @@ function Egresos({ ingresos, egresos, clientes, telas, empleados, onGuardar }: a
             )}
           </div>
 
-          <div><label style={lbl}>Observaciones</label><input value={obs} onChange={e => { setObs(e.target.value); buscarPorCampos(cliente, tela, e.target.value); }} placeholder="Color, diseño..." style={inp} /></div>
-
           <div style={{ position: 'relative' }}>
-            <label style={lbl}>ID <span style={{ background: '#e8f4ea', color: '#3B6D11', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>automático</span></label>
-            {opcionesId.length > 1 && !idHype ? (
-              <div>
-                <div style={{ ...inp, background: '#f5f5f7', color: '#888', cursor: 'pointer' }} onClick={() => setShowId(!showId)}>
-                  Seleccioná un ID ▾
-                </div>
-                {showId && (
-                  <div style={dropdown}>
-                    {opcionesId.map((o) => (
-                      <div key={o.id} onClick={() => selId(o.id)} style={ddItem}>
-                        <span style={{ fontFamily: 'monospace', color: '#e85d2f' }}>{o.id}</span>
-                        <span style={{ color: '#888', fontSize: 11, marginLeft: 8 }}>{o.disp.toLocaleString()} mts disp.</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+            <label style={lbl}>Color <span style={{ background: '#e8f4ea', color: '#3B6D11', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>completa ID</span></label>
+            <input value={busqColor} onChange={e => { setBusqColor(e.target.value); setColor(e.target.value); setShowColor(true); buscarPorCampos(cliente, tela, e.target.value); }} placeholder="Escribí para buscar..." style={inp} />
+            {showColor && busqColor && (
+              <div style={dropdown}>
+                {colores.filter((c: any) => c.nombre.toLowerCase().includes(busqColor.toLowerCase()) || c.sigla.toLowerCase().includes(busqColor.toLowerCase())).slice(0, 8).map((c: any) => (
+                  <div key={c.sigla} onClick={() => selColor(c)} style={ddItem}>{c.nombre} <span style={{ color: '#888', fontSize: 11 }}>{c.sigla}</span></div>
+                ))}
               </div>
-            ) : (
-              <div style={{ background: '#1a1a2e', color: '#e85d2f', fontFamily: 'monospace', fontSize: 13, fontWeight: 700, padding: '8px 12px', borderRadius: 8 }}>{idHype || '---'}</div>
             )}
+          </div>
+
+          <div><label style={lbl}>Observaciones</label><input value={obs} onChange={e => setObs(e.target.value)} placeholder="Diseño, detalle..." style={inp} /></div>
+
+          <div>
+            <label style={lbl}>ID <span style={{ background: '#e8f4ea', color: '#3B6D11', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>automático</span></label>
+            <div style={{ background: '#1a1a2e', color: '#e85d2f', fontFamily: 'monospace', fontSize: 13, fontWeight: 700, padding: '8px 12px', borderRadius: 8 }}>{idHype || '---'}</div>
           </div>
 
           <div><label style={lbl}>Mts disponibles</label><input value={disponibles ? disponibles + ' mts' : '---'} readOnly style={{ ...inp, background: '#f5f5f7', color: '#3B6D11', fontWeight: 500 }} /></div>
@@ -605,7 +652,8 @@ function StockTabla({ entries, titulo }: any) {
     if (!search) return true;
     return id.toLowerCase().includes(search.toLowerCase()) ||
       s.cliente.toLowerCase().includes(search.toLowerCase()) ||
-      s.tela.toLowerCase().includes(search.toLowerCase());
+      s.tela.toLowerCase().includes(search.toLowerCase()) ||
+      (s.color || '').toLowerCase().includes(search.toLowerCase());
   });
   const totalMts = filtered.reduce((s: number, [, v]: any) => s + v.ing - v.egr, 0);
   return (
@@ -615,13 +663,13 @@ function StockTabla({ entries, titulo }: any) {
         <div style={{ fontSize: 13, color: '#888' }}>{filtered.length} IDs · {totalMts.toLocaleString()} mts disponibles</div>
       </div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 16 }}>
-        <input placeholder="Buscar por ID, cliente o tela..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, maxWidth: 300 }} />
+        <input placeholder="Buscar por ID, cliente, tela o color..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, maxWidth: 300 }} />
       </div>
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr>{['ID','Cliente','Tela','Observaciones','Bultos','Mts ing.','Mts egr.','Mts disp.','Ubicación','Ramado','Recibido','Proceso'].map(h =>
+              <tr>{['ID','Cliente','Tela','Color','Observaciones','Bultos','Mts ing.','Mts egr.','Mts disp.','Ubicación','Ramado','Proceso'].map(h =>
                 <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>
               )}</tr>
             </thead>
@@ -632,16 +680,16 @@ function StockTabla({ entries, titulo }: any) {
                 return (
                   <tr key={id}>
                     <td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{id}</td>
-                    <td style={{ ...td, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.cliente}</td>
-                    <td style={{ ...td, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.tela}</td>
-                    <td style={{ ...td, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.observaciones || '—'}</td>
+                    <td style={{ ...td, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.cliente}</td>
+                    <td style={{ ...td, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.tela}</td>
+                    <td style={td}>{s.color || '—'}</td>
+                    <td style={{ ...td, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.observaciones || '—'}</td>
                     <td style={{ ...td, textAlign: 'center' }}>{s.bultos}</td>
                     <td style={{ ...td, textAlign: 'center' }}>{s.ing.toLocaleString()}</td>
                     <td style={{ ...td, textAlign: 'center' }}>{s.egr.toLocaleString()}</td>
                     <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: disp > 0 ? '#3B6D11' : '#c00' }}>{disp.toLocaleString()}</td>
                     <td style={td}>{s.ubicacion || '—'}</td>
                     <td style={td}>{s.ramado || '—'}</td>
-                    <td style={td}>{s.recibido || '—'}</td>
                     <td style={td}>{s.proceso === 'S' ? 'Sublimación' : 'Digital'}</td>
                   </tr>
                 );
@@ -677,6 +725,7 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados }: 
   const filtered = ingresos.filter((i: any) =>
     (i.cliente || '').toLowerCase().includes(search.toLowerCase()) ||
     (i.tela || '').toLowerCase().includes(search.toLowerCase()) ||
+    (i.color || '').toLowerCase().includes(search.toLowerCase()) ||
     (i.id_hype || '').toLowerCase().includes(search.toLowerCase()) ||
     (i.remito || '').includes(search)
   );
@@ -694,9 +743,9 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados }: 
     setGuardando(true);
     const { error } = await supabase.from('ingresos').update({
       fecha: editItem.fecha, remito: editItem.remito, cliente: editItem.cliente,
-      tela: editItem.tela, observaciones: editItem.observaciones, bultos: editItem.bultos,
-      mts: editItem.mts, ubicacion: editItem.ubicacion, ramado: editItem.ramado,
-      recibido: editItem.recibido, estado: editItem.estado,
+      tela: editItem.tela, color: editItem.color, observaciones: editItem.observaciones,
+      bultos: editItem.bultos, mts: editItem.mts, ubicacion: editItem.ubicacion,
+      ramado: editItem.ramado, recibido: editItem.recibido, estado: editItem.estado,
     }).eq('id', editItem.id);
     if (error) alert('Error: ' + error.message);
     else { setEditItem(null); onGuardar(); }
@@ -713,13 +762,13 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados }: 
         <div style={{ fontSize: 13, color: '#888' }}>{filtered.length} ingresos registrados</div>
       </div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 12 }}>
-        <input placeholder="Buscar por cliente, tela, ID o remito..." value={search} onChange={e => { setSearch(e.target.value); setPag(1); }} style={{ ...inp, maxWidth: 360 }} />
+        <input placeholder="Buscar por cliente, tela, color, ID o remito..." value={search} onChange={e => { setSearch(e.target.value); setPag(1); }} style={{ ...inp, maxWidth: 400 }} />
       </div>
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead><tr>
-              {['Fecha','Remito','Cliente','Tela','ID','Obs.','Bultos','Mts','Ubic.','Ramado','Recibido','Acciones'].map(h =>
+              {['Fecha','Remito','Cliente','Tela','Color','ID','Obs.','Bultos','Mts','Ubic.','Ramado','Recibido','Acciones'].map(h =>
                 <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>
               )}
             </tr></thead>
@@ -728,10 +777,11 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados }: 
                 <tr key={i.id}>
                   <td style={td}>{i.fecha}</td>
                   <td style={td}>{i.remito}</td>
-                  <td style={{ ...td, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.cliente}</td>
-                  <td style={{ ...td, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.tela}</td>
+                  <td style={{ ...td, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.cliente}</td>
+                  <td style={{ ...td, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.tela}</td>
+                  <td style={td}>{i.color}</td>
                   <td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{i.id_hype}</td>
-                  <td style={{ ...td, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.observaciones}</td>
+                  <td style={{ ...td, maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.observaciones}</td>
                   <td style={{ ...td, textAlign: 'center' }}>{i.bultos}</td>
                   <td style={{ ...td, textAlign: 'center', fontWeight: 500 }}>{i.mts}</td>
                   <td style={td}>{i.ubicacion}</td>
@@ -763,6 +813,7 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados }: 
               <div><label style={lbl}>Nro. remito</label><input value={editItem.remito} onChange={e => setEditItem({...editItem, remito: e.target.value})} style={inp} /></div>
               <div><label style={lbl}>Cliente</label><input value={editItem.cliente} onChange={e => setEditItem({...editItem, cliente: e.target.value})} style={inp} /></div>
               <div><label style={lbl}>Tela</label><input value={editItem.tela} onChange={e => setEditItem({...editItem, tela: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Color</label><input value={editItem.color || ''} onChange={e => setEditItem({...editItem, color: e.target.value})} style={inp} /></div>
               <div style={{ gridColumn: '1/-1' }}><label style={lbl}>Observaciones</label><input value={editItem.observaciones || ''} onChange={e => setEditItem({...editItem, observaciones: e.target.value})} style={inp} /></div>
               <div><label style={lbl}>Bultos</label><input type="number" value={editItem.bultos} onChange={e => setEditItem({...editItem, bultos: e.target.value})} style={inp} /></div>
               <div><label style={lbl}>Mts</label><input type="number" value={editItem.mts} onChange={e => setEditItem({...editItem, mts: e.target.value})} style={inp} /></div>
@@ -804,6 +855,7 @@ function HistorialEgresos({ egresos, onGuardar }: any) {
   const filtered = egresos.filter((e: any) =>
     (e.cliente || '').toLowerCase().includes(search.toLowerCase()) ||
     (e.tela || '').toLowerCase().includes(search.toLowerCase()) ||
+    (e.color || '').toLowerCase().includes(search.toLowerCase()) ||
     (e.id_hype || '').toLowerCase().includes(search.toLowerCase()) ||
     (e.remito_origen || '').includes(search)
   );
@@ -821,9 +873,9 @@ function HistorialEgresos({ egresos, onGuardar }: any) {
     setGuardando(true);
     const { error } = await supabase.from('egresos').update({
       fecha: editItem.fecha, remito_origen: editItem.remito_origen, remito_entrega: editItem.remito_entrega,
-      cliente: editItem.cliente, tela: editItem.tela, observaciones: editItem.observaciones,
-      mts: editItem.mts, bultos: editItem.bultos, estado: editItem.estado,
-      entrego: editItem.entrego, retiro: editItem.retiro,
+      cliente: editItem.cliente, tela: editItem.tela, color: editItem.color,
+      observaciones: editItem.observaciones, mts: editItem.mts, bultos: editItem.bultos,
+      estado: editItem.estado, entrego: editItem.entrego, retiro: editItem.retiro,
     }).eq('id', editItem.id);
     if (error) alert('Error: ' + error.message);
     else { setEditItem(null); onGuardar(); }
@@ -837,13 +889,13 @@ function HistorialEgresos({ egresos, onGuardar }: any) {
         <div style={{ fontSize: 13, color: '#888' }}>{filtered.length} egresos registrados</div>
       </div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 12 }}>
-        <input placeholder="Buscar por cliente, tela, ID o remito..." value={search} onChange={e => { setSearch(e.target.value); setPag(1); }} style={{ ...inp, maxWidth: 360 }} />
+        <input placeholder="Buscar por cliente, tela, color, ID o remito..." value={search} onChange={e => { setSearch(e.target.value); setPag(1); }} style={{ ...inp, maxWidth: 400 }} />
       </div>
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead><tr>
-              {['Fecha','Rto. Origen','Rto. Entrega','Cliente','Tela','ID','Mts','Bultos','Estado','Entregó','Retiró','Acciones'].map(h =>
+              {['Fecha','Rto. Origen','Rto. Entrega','Cliente','Tela','Color','ID','Mts','Estado','Entregó','Retiró','Acciones'].map(h =>
                 <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>
               )}
             </tr></thead>
@@ -854,11 +906,11 @@ function HistorialEgresos({ egresos, onGuardar }: any) {
                   <td style={td}>{e.fecha}</td>
                   <td style={td}>{e.remito_origen}</td>
                   <td style={td}>{e.remito_entrega}</td>
-                  <td style={{ ...td, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.cliente}</td>
-                  <td style={{ ...td, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.tela}</td>
+                  <td style={{ ...td, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.cliente}</td>
+                  <td style={{ ...td, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.tela}</td>
+                  <td style={td}>{e.color}</td>
                   <td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{e.id_hype}</td>
                   <td style={{ ...td, textAlign: 'center', fontWeight: 500 }}>{e.mts}</td>
-                  <td style={{ ...td, textAlign: 'center' }}>{e.bultos}</td>
                   <td style={td}>{e.estado}</td>
                   <td style={td}>{e.entrego}</td>
                   <td style={td}>{e.retiro}</td>
@@ -888,6 +940,7 @@ function HistorialEgresos({ egresos, onGuardar }: any) {
               <div><label style={lbl}>Remito entrega</label><input value={editItem.remito_entrega || ''} onChange={e => setEditItem({...editItem, remito_entrega: e.target.value})} style={inp} /></div>
               <div><label style={lbl}>Cliente</label><input value={editItem.cliente || ''} onChange={e => setEditItem({...editItem, cliente: e.target.value})} style={inp} /></div>
               <div><label style={lbl}>Tela</label><input value={editItem.tela || ''} onChange={e => setEditItem({...editItem, tela: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Color</label><input value={editItem.color || ''} onChange={e => setEditItem({...editItem, color: e.target.value})} style={inp} /></div>
               <div style={{ gridColumn: '1/-1' }}><label style={lbl}>Observaciones</label><input value={editItem.observaciones || ''} onChange={e => setEditItem({...editItem, observaciones: e.target.value})} style={inp} /></div>
               <div><label style={lbl}>Mts</label><input type="number" value={editItem.mts} onChange={e => setEditItem({...editItem, mts: e.target.value})} style={inp} /></div>
               <div><label style={lbl}>Bultos</label><input type="number" value={editItem.bultos} onChange={e => setEditItem({...editItem, bultos: e.target.value})} style={inp} /></div>
@@ -906,6 +959,80 @@ function HistorialEgresos({ egresos, onGuardar }: any) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function Colores({ colores, onGuardar }: any) {
+  const [search, setSearch] = useState('');
+  const [modal, setModal] = useState(false);
+  const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [sigla, setSigla] = useState('');
+  const [nombre, setNombre] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  const [pag, setPag] = useState(1);
+  const POR_PAG = 20;
+  const filtered = colores.filter((c: any) => c.nombre.toLowerCase().includes(search.toLowerCase()) || c.sigla.toLowerCase().includes(search.toLowerCase()));
+  const total = Math.ceil(filtered.length / POR_PAG);
+  const page = filtered.slice((pag - 1) * POR_PAG, pag * POR_PAG);
+  async function guardar() {
+    if (!sigla || !nombre) { alert('Completá sigla y nombre.'); return; }
+    if (sigla.length !== 3) { alert('La sigla debe tener exactamente 3 letras.'); return; }
+    setGuardando(true);
+    if (editIdx !== null) await supabase.from('colores').update({ sigla: sigla.toUpperCase(), nombre }).eq('id', colores[editIdx].id);
+    else await supabase.from('colores').insert([{ sigla: sigla.toUpperCase(), nombre }]);
+    setModal(false); onGuardar(); setGuardando(false);
+  }
+  async function eliminar(c: any) {
+    if (!confirm('¿Eliminar este color?')) return;
+    await supabase.from('colores').delete().eq('id', c.id);
+    onGuardar();
+  }
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div><div style={{ fontSize: 18, fontWeight: 500 }}>Colores</div><div style={{ fontSize: 13, color: '#888' }}>{filtered.length} colores registrados</div></div>
+        <button onClick={() => { setEditIdx(null); setSigla(''); setNombre(''); setModal(true); }} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>+ Nuevo color</button>
+      </div>
+      <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 12 }}>
+        <input placeholder="Buscar por nombre o sigla..." value={search} onChange={e => { setSearch(e.target.value); setPag(1); }} style={{ ...inp, maxWidth: 300 }} />
+      </div>
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead><tr><th style={{ ...th, width: 80 }}>Sigla</th><th style={th}>Nombre</th><th style={{ ...th, width: 120 }}>Acciones</th></tr></thead>
+          <tbody>
+            {page.map((c: any) => (
+              <tr key={c.id}>
+                <td style={{ ...td, fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: '#e85d2f' }}>{c.sigla}</td>
+                <td style={td}>{c.nombre}</td>
+                <td style={td}>
+                  <button onClick={() => { setEditIdx(colores.indexOf(c)); setSigla(c.sigla); setNombre(c.nombre); setModal(true); }} style={{ ...btn, fontSize: 12, padding: '4px 10px', marginRight: 6 }}>Editar</button>
+                  <button onClick={() => eliminar(c)} style={{ ...btn, fontSize: 12, padding: '4px 10px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>Eliminar</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {total > 1 && <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          {pag > 1 && <button onClick={() => setPag(pag - 1)} style={btn}>‹</button>}
+          <span style={{ fontSize: 12, color: '#888', lineHeight: '32px' }}>Pág {pag} de {total}</span>
+          {pag < total && <button onClick={() => setPag(pag + 1)} style={btn}>›</button>}
+        </div>}
+      </div>
+      {modal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+        <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 400 }}>
+          <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 16 }}>{editIdx !== null ? 'Editar' : 'Nuevo'} color</div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={lbl}>Sigla (3 letras)</label>
+            <input value={sigla} onChange={e => setSigla(e.target.value.toUpperCase().slice(0, 3))} placeholder="Ej: ROJ" style={inp} />
+          </div>
+          <div><label style={lbl}>Nombre</label><input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Rojo" style={inp} /></div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+            <button onClick={() => setModal(false)} style={btn}>Cancelar</button>
+            <button onClick={guardar} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>Guardar</button>
+          </div>
+        </div>
+      </div>}
     </div>
   );
 }
