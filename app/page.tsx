@@ -191,7 +191,6 @@ function Ingresos({ clientes, telas, empleados, onGuardar }: any) {
   const [showCli, setShowCli] = useState(false);
   const [renglones, setRenglones] = useState([{ prop: '', proceso: '', tela: '', codTela: '', obs: '', bultos: '', modo: 'KG', kg: '', rinde: '', mts: '', ramado: 'No', ubicacion: '1-A', id_hype: '', busqTela: '', showTela: false }]);
   const [guardando, setGuardando] = useState(false);
-
   const ubicaciones = ['1-A','1-B','1-C','1-D','2-A','2-B','2-C','3-A','3-B','3-C','3-D','4-A','4-B','4-C','ISLA','PARED','TINTO HYPE','TINTO EXT'];
 
   function selCliente(c: any) {
@@ -205,20 +204,17 @@ function Ingresos({ clientes, telas, empleados, onGuardar }: any) {
   }
 
   function updateRenglon(idx: number, field: string, value: string) {
-    setRenglones(prev => {
-      const updated = prev.map((r, i) => {
-        if (i !== idx) return r;
-        const nr = { ...r, [field]: value };
-        if (field === 'kg' || field === 'rinde') {
-          const kg = field === 'kg' ? parseFloat(value) : parseFloat(nr.kg);
-          const rinde = field === 'rinde' ? parseFloat(value) : parseFloat(nr.rinde);
-          if (kg && rinde && rinde > 0) nr.mts = Math.round(kg / rinde).toString();
-        }
-        nr.id_hype = buildId(field === 'prop' ? value : nr.prop, field === 'proceso' ? value : nr.proceso, codCliente, field === 'codTela' ? value : nr.codTela);
-        return nr;
-      });
-      return updated;
-    });
+    setRenglones(prev => prev.map((r, i) => {
+      if (i !== idx) return r;
+      const nr = { ...r, [field]: value };
+      if (field === 'kg' || field === 'rinde') {
+        const kg = field === 'kg' ? parseFloat(value) : parseFloat(nr.kg);
+        const rinde = field === 'rinde' ? parseFloat(value) : parseFloat(nr.rinde);
+        if (kg && rinde && rinde > 0) nr.mts = Math.round(kg / rinde).toString();
+      }
+      nr.id_hype = buildId(field === 'prop' ? value : nr.prop, field === 'proceso' ? value : nr.proceso, codCliente, field === 'codTela' ? value : nr.codTela);
+      return nr;
+    }));
   }
 
   function selTela(idx: number, t: any) {
@@ -269,7 +265,6 @@ function Ingresos({ clientes, telas, empleados, onGuardar }: any) {
           <AutocompleteEmpleado label="Recibido por" value={recibido} onChange={setRecibido} empleados={empleados} />
         </div>
       </div>
-
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', marginBottom: 16, overflow: 'hidden' }}>
         <div style={{ padding: '12px 20px', borderBottom: '1px solid #eee', fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>Renglones</div>
         {renglones.map((r, idx) => (
@@ -425,42 +420,65 @@ function Egresos({ ingresos, egresos, empleados, onGuardar }: any) {
 
 function Stock({ calcStock }: any) {
   const [search, setSearch] = useState('');
-  const [filtro, setFiltro] = useState('');
   const stock = calcStock();
-  const entries = Object.entries(stock).filter(([id, s]: any) => {
-    if (filtro && !id.startsWith(filtro)) return false;
-    if (search && !id.toLowerCase().includes(search.toLowerCase()) && !s.cliente.toLowerCase().includes(search.toLowerCase()) && !s.tela.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
+  const entriesTH = Object.entries(stock).filter(([id]: any) => id.startsWith('TH'));
+  const entriesTC = Object.entries(stock).filter(([id]: any) => id.startsWith('TC'));
+
+  const filtrar = (entries: any[]) => entries.filter(([id, s]: any) => {
+    if (!search) return true;
+    return id.toLowerCase().includes(search.toLowerCase()) ||
+      s.cliente.toLowerCase().includes(search.toLowerCase()) ||
+      s.tela.toLowerCase().includes(search.toLowerCase());
   });
+
+  const StockCard = ([id, s]: any) => {
+    const disp = s.ing - s.egr;
+    const pct = Math.max(0, Math.round((disp / s.ing) * 100));
+    return (
+      <div key={id} style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
+        <div style={{ fontFamily: 'monospace', fontWeight: 700, color: '#e85d2f', fontSize: 13, letterSpacing: 1 }}>{id}</div>
+        <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{s.cliente} · {s.proceso === 'S' ? 'Sublimación' : 'Digital'}</div>
+        <div style={{ fontSize: 12, color: '#888' }}>{s.tela}</div>
+        <div style={{ fontSize: 22, fontWeight: 500, marginTop: 8 }}>{disp.toLocaleString()} <span style={{ fontSize: 12, color: '#888', fontWeight: 400 }}>mts</span></div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#888', marginTop: 6 }}>
+          <span>Ing: {s.ing.toLocaleString()}</span><span>Egr: {s.egr.toLocaleString()}</span>
+        </div>
+        <div style={{ height: 4, background: '#f0f0f0', borderRadius: 2, marginTop: 8 }}>
+          <div style={{ height: 4, background: '#e85d2f', borderRadius: 2, width: pct + '%' }} />
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div>
       <div style={{ marginBottom: 20 }}><div style={{ fontSize: 18, fontWeight: 500 }}>Stock actual</div></div>
-      <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 16, display: 'flex', gap: 10 }}>
-        <input placeholder="Buscar por ID, cliente o tela..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, maxWidth: 280 }} />
-        <select value={filtro} onChange={e => setFiltro(e.target.value)} style={{ ...inp, maxWidth: 140 }}>
-          <option value="">Todos</option><option value="TC">Solo TC</option><option value="TH">Solo TH</option>
-        </select>
+      <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 20 }}>
+        <input placeholder="Buscar por ID, cliente o tela..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, maxWidth: 300 }} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
-        {entries.length === 0 && <div style={{ color: '#888', fontSize: 13 }}>Sin stock registrado</div>}
-        {entries.map(([id, s]: any) => {
-          const disp = s.ing - s.egr;
-          const pct = Math.round((disp / s.ing) * 100);
-          return (
-            <div key={id} style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
-              <div style={{ fontFamily: 'monospace', fontWeight: 700, color: '#e85d2f', fontSize: 13, letterSpacing: 1 }}>{id}</div>
-              <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{s.cliente} · {s.proceso === 'S' ? 'Sublimación' : 'Digital'}</div>
-              <div style={{ fontSize: 12, color: '#888' }}>{s.tela}</div>
-              <div style={{ fontSize: 22, fontWeight: 500, marginTop: 8 }}>{disp.toLocaleString()} <span style={{ fontSize: 12, color: '#888', fontWeight: 400 }}>mts</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#888', marginTop: 6 }}>
-                <span>Ing: {s.ing.toLocaleString()}</span><span>Egr: {s.egr.toLocaleString()}</span>
-              </div>
-              <div style={{ height: 4, background: '#f0f0f0', borderRadius: 2, marginTop: 8 }}>
-                <div style={{ height: 4, background: '#e85d2f', borderRadius: 2, width: pct + '%' }} />
-              </div>
-            </div>
-          );
-        })}
+
+      {/* TH */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+          <div style={{ background: '#FAEEDA', color: '#854F0B', fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 6, letterSpacing: 1 }}>TH — TELA PROPIA HYPE</div>
+          <div style={{ fontSize: 12, color: '#888' }}>{filtrar(entriesTH).length} IDs · {filtrar(entriesTH).reduce((s, [, v]: any) => s + v.ing - v.egr, 0).toLocaleString()} mts disponibles</div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
+          {filtrar(entriesTH).length === 0 && <div style={{ color: '#888', fontSize: 13 }}>Sin stock TH registrado</div>}
+          {filtrar(entriesTH).map(StockCard)}
+        </div>
+      </div>
+
+      {/* TC */}
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+          <div style={{ background: '#E6F1FB', color: '#185FA5', fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 6, letterSpacing: 1 }}>TC — TELA DE CLIENTES</div>
+          <div style={{ fontSize: 12, color: '#888' }}>{filtrar(entriesTC).length} IDs · {filtrar(entriesTC).reduce((s, [, v]: any) => s + v.ing - v.egr, 0).toLocaleString()} mts disponibles</div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
+          {filtrar(entriesTC).length === 0 && <div style={{ color: '#888', fontSize: 13 }}>Sin stock TC registrado</div>}
+          {filtrar(entriesTC).map(StockCard)}
+        </div>
       </div>
     </div>
   );
