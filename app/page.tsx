@@ -400,7 +400,6 @@ function Ingresos({ clientes, telas, colores, empleados, onGuardar }: any) {
                 )}
               </div>
               <div><label style={lbl}>Cód. tela</label><input value={r.codTela} readOnly style={{ ...inp, background: '#f5f5f7' }} /></div>
-
               <div style={{ position: 'relative' }}><label style={lbl}>Color</label>
                 <input value={r.busqColor} onChange={e => { updateRenglon(idx, 'busqColor', e.target.value); setRenglones(prev => prev.map((rr, i) => i === idx ? { ...rr, showColor: true } : rr)); }} placeholder="Buscar color..." style={inp} />
                 {r.showColor && r.busqColor && (
@@ -412,7 +411,6 @@ function Ingresos({ clientes, telas, colores, empleados, onGuardar }: any) {
                 )}
               </div>
               <div><label style={lbl}>Sigla color</label><input value={r.siglaColor} readOnly style={{ ...inp, background: '#f5f5f7' }} /></div>
-
               <div><label style={lbl}>Observaciones</label><input value={r.obs} onChange={e => updateRenglon(idx, 'obs', e.target.value)} placeholder="Diseño, detalle..." style={inp} /></div>
               <div><label style={lbl}>Nro. bultos</label><input type="number" value={r.bultos} onChange={e => updateRenglon(idx, 'bultos', e.target.value)} placeholder="0" style={inp} /></div>
               <div><label style={lbl}>Ingreso en</label>
@@ -669,12 +667,12 @@ function StockTabla({ entries, titulo }: any) {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr>{['ID','Cliente','Tela','Color','Observaciones','Bultos','Mts ing.','Mts egr.','Mts disp.','Ubicación','Ramado','Proceso'].map(h =>
+              <tr>{['ID','Cliente','Tela','Color','Observaciones','Bultos','Mts disp.','Ubicación','Ramado','Proceso'].map(h =>
                 <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>
               )}</tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && <tr><td colSpan={12} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin stock registrado</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={10} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin stock registrado</td></tr>}
               {filtered.map(([id, s]: any) => {
                 const disp = s.ing - s.egr;
                 return (
@@ -685,8 +683,6 @@ function StockTabla({ entries, titulo }: any) {
                     <td style={td}>{s.color || '—'}</td>
                     <td style={{ ...td, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.observaciones || '—'}</td>
                     <td style={{ ...td, textAlign: 'center' }}>{s.bultos}</td>
-                    <td style={{ ...td, textAlign: 'center' }}>{s.ing.toLocaleString()}</td>
-                    <td style={{ ...td, textAlign: 'center' }}>{s.egr.toLocaleString()}</td>
                     <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: disp > 0 ? '#3B6D11' : '#c00' }}>{disp.toLocaleString()}</td>
                     <td style={td}>{s.ubicacion || '—'}</td>
                     <td style={td}>{s.ramado || '—'}</td>
