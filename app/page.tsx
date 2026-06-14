@@ -482,24 +482,30 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
     setDisponibles(ingTotal - egrTotal);
   }
 
-  function cargarPorId(id: string) {
-    const ing = ingresos.find((i: any) => i.id_hype === id);
-    if (ing) {
-      setCliente(ing.cliente); setBusqCli(ing.cliente);
-      setTela(ing.tela); setBusqTela(ing.tela);
-      setColor(ing.color || ''); setBusqColor(ing.color || '');
-      setObs(ing.observaciones || '');
-      calcDisponibles(id);
-    }
+  function cargarDesdeIngreso(ing: any) {
+    setCliente(ing.cliente); setBusqCli(ing.cliente);
+    setTela(ing.tela); setBusqTela(ing.tela);
+    setColor(ing.color || ''); setBusqColor(ing.color || '');
+    setObs(ing.observaciones || '');
+    setIdHype(ing.id_hype); setBusqId(ing.id_hype);
+    calcDisponibles(ing.id_hype);
+  }
+
+  function buscarPorRemito(val: string) {
+    setRemitoOrigen(val);
+    if (!val) return;
+    const ing = ingresos.find((i: any) => i.remito === val);
+    if (ing) cargarDesdeIngreso(ing);
   }
 
   function selId(id: string) {
     setIdHype(id); setBusqId(id); setShowId(false);
-    cargarPorId(id);
+    const ing = ingresos.find((i: any) => i.id_hype === id);
+    if (ing) cargarDesdeIngreso(ing);
   }
 
   function buscarPorCampos(cli: string, tel: string, col: string) {
-    if (!cli || !tel || !col) { setIdHype(''); setDisponibles(0); return; }
+    if (!cli || !tel || !col) { setIdHype(''); setBusqId(''); setDisponibles(0); return; }
     const match = ingresos.find((i: any) =>
       i.cliente.toLowerCase() === cli.toLowerCase() &&
       i.tela.toLowerCase() === tel.toLowerCase() &&
@@ -511,6 +517,7 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
       calcDisponibles(match.id_hype);
     } else {
       setIdHype('');
+      setBusqId('');
       setDisponibles(0);
     }
   }
@@ -539,7 +546,7 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
   async function guardar() {
     if (alerta) { alert('Corregí los metros antes de guardar.'); return; }
     if (!parseFloat(mts)) { alert('Completá los metros a egresar.'); return; }
-    if (!idHype) { alert('No se encontró un ID válido. Verificá cliente, tela y color.'); return; }
+    if (!idHype) { alert('No se encontró un ID válido. Verificá remito, ID o cliente+tela+color.'); return; }
     setGuardando(true);
     const { error } = await supabase.from('egresos').insert([{
       fecha, remito_origen: remitoOrigen, remito_entrega: remitoEntrega,
@@ -558,16 +565,20 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
     <div>
       <div style={{ marginBottom: 20 }}><div style={{ fontSize: 18, fontWeight: 500 }}>Nuevo egreso</div></div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #eee', marginBottom: 16 }}>
-        <div style={{ marginBottom: 16, padding: 12, background: '#f5f5f7', borderRadius: 8, fontSize: 12, color: '#888' }}>
-          Podés buscar <strong>por ID</strong> o por <strong>cliente + tela + color</strong> — ambos se completan automáticamente.
+        <div style={{ marginBottom: 16, padding: 12, background: '#f5f5f7', borderRadius: 8, fontSize: 12, color: '#666' }}>
+          Podés buscar por <strong>remito de origen</strong>, por <strong>ID</strong>, o por <strong>cliente + tela + color</strong>. Cualquiera de los tres completa el resto automáticamente.
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}>
           <div><label style={lbl}>Fecha</label><input type="date" value={fecha} onChange={e => setFecha(e.target.value)} style={inp} /></div>
-          <div><label style={lbl}>Nro. remito origen <span style={{ fontSize: 10, color: '#aaa' }}>(opcional)</span></label><input type="number" value={remitoOrigen} onChange={e => setRemitoOrigen(e.target.value)} placeholder="00145" style={inp} /></div>
+
+          <div>
+            <label style={lbl}>Nro. remito origen <span style={{ fontSize: 10, color: '#aaa' }}>(opcional)</span></label>
+            <input type="number" value={remitoOrigen} onChange={e => buscarPorRemito(e.target.value)} placeholder="00145" style={inp} />
+          </div>
 
           <div style={{ position: 'relative' }}>
-            <label style={lbl}>Buscar por ID <span style={{ background: '#e8f4ea', color: '#3B6D11', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>completa campos</span></label>
-            <input value={busqId} onChange={e => { setBusqId(e.target.value); setShowId(true); }} placeholder="Ej: TCS001045BLA" style={inp} />
+            <label style={lbl}>Buscar por ID <span style={{ background: '#e8f4ea', color: '#3B6D11', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>completa todo</span></label>
+            <input value={busqId} onChange={e => { setBusqId(e.target.value); setShowId(true); if (!e.target.value) { setIdHype(''); setDisponibles(0); } }} placeholder="Ej: TCS001045BLA" style={inp} />
             {showId && busqId && (
               <div style={dropdown}>
                 {idsUnicos.filter(id => id.toLowerCase().includes(busqId.toLowerCase())).slice(0, 10).map(id => (
@@ -619,10 +630,10 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
 
           <div>
             <label style={lbl}>ID <span style={{ background: '#e8f4ea', color: '#3B6D11', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>automático</span></label>
-            <div style={{ background: '#1a1a2e', color: '#e85d2f', fontFamily: 'monospace', fontSize: 13, fontWeight: 700, padding: '8px 12px', borderRadius: 8 }}>{idHype || '---'}</div>
+            <div style={{ background: '#1a1a2e', color: idHype ? '#e85d2f' : '#666', fontFamily: 'monospace', fontSize: 13, fontWeight: 700, padding: '8px 12px', borderRadius: 8 }}>{idHype || '---'}</div>
           </div>
 
-          <div><label style={lbl}>Mts disponibles</label><input value={disponibles ? disponibles + ' mts' : '---'} readOnly style={{ ...inp, background: '#f5f5f7', color: '#3B6D11', fontWeight: 500 }} /></div>
+          <div><label style={lbl}>Mts disponibles</label><input value={disponibles ? disponibles + ' mts' : '---'} readOnly style={{ ...inp, background: '#f5f5f7', color: disponibles > 0 ? '#3B6D11' : '#888', fontWeight: 500 }} /></div>
           <div><label style={lbl}>Mts a egresar</label><input type="number" value={mts} onChange={e => validarMts(e.target.value)} placeholder="0" style={inp} /></div>
           <div><label style={lbl}>Nro. bultos</label><input type="number" value={bultos} onChange={e => setBultos(e.target.value)} placeholder="0" style={inp} /></div>
           <div><label style={lbl}>Nro. remito entrega</label><input type="number" value={remitoEntrega} onChange={e => setRemitoEntrega(e.target.value)} placeholder="00089" style={inp} /></div>
