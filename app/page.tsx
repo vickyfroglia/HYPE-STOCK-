@@ -66,16 +66,23 @@ export default function Home() {
   if (!logueado) return <Login onLogin={handleLogin} />;
 
   const esAdmin = rol === 'admin';
+  const puedeVerStock = ['admin', 'diseno', 'encargado', 'operario_terminacion'].includes(rol);
+
+  function formatFecha(fecha: string) {
+    if (!fecha) return '—';
+    const [y, m, d] = fecha.split('-');
+    return `${d}/${m}/${y}`;
+  }
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '▦', roles: ['admin', 'diseno', 'comercial', 'administrativo', 'encargado', 'operario_impresion', 'operario_terminacion'], sep: false },
-    { id: '__stock__', label: 'STOCK', icon: '', roles: ['admin', 'diseno'], sep: true },
-    { id: 'ingresos', label: 'Ingresos', icon: '↓', roles: ['admin'], sep: false },
-    { id: 'egresos', label: 'Egresos', icon: '↑', roles: ['admin'], sep: false },
-    { id: 'stockTH', label: 'Stock TH', icon: '◫', roles: ['admin', 'diseno'], sep: false },
-    { id: 'stockTC', label: 'Stock TC', icon: '◫', roles: ['admin', 'diseno'], sep: false },
-    { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰', roles: ['admin'], sep: false },
-    { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰', roles: ['admin'], sep: false },
+    { id: '__stock__', label: 'STOCK', icon: '', roles: ['admin', 'diseno', 'encargado', 'operario_terminacion'], sep: true },
+    { id: 'ingresos', label: 'Ingresos', icon: '↓', roles: ['admin', 'encargado', 'operario_terminacion'], sep: false },
+    { id: 'egresos', label: 'Egresos', icon: '↑', roles: ['admin', 'encargado', 'operario_terminacion'], sep: false },
+    { id: 'stockTH', label: 'Stock TH', icon: '◫', roles: ['admin', 'diseno', 'encargado', 'operario_terminacion'], sep: false },
+    { id: 'stockTC', label: 'Stock TC', icon: '◫', roles: ['admin', 'diseno', 'encargado', 'operario_terminacion'], sep: false },
+    { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰', roles: ['admin', 'encargado', 'operario_terminacion'], sep: false },
+    { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰', roles: ['admin', 'encargado', 'operario_terminacion'], sep: false },
     { id: '__prod__', label: 'PRODUCCIÓN', icon: '', roles: ['admin', 'diseno', 'comercial', 'administrativo', 'encargado', 'operario_impresion', 'operario_terminacion'], sep: true },
     { id: 'produccion', label: 'Producción', icon: '⚙', roles: ['admin', 'diseno', 'comercial', 'administrativo', 'encargado', 'operario_impresion', 'operario_terminacion'], sep: false },
     { id: '__bd__', label: 'BASE DE DATOS', icon: '', roles: ['admin'], sep: true },
@@ -132,18 +139,18 @@ export default function Home() {
         {loading && <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>Cargando...</div>}
         {!loading && (
           <>
-            {pagina === 'dashboard' && <Dashboard ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} calcStock={calcStock} rol={rol} />}
-            {pagina === 'ingresos' && esAdmin && <Ingresos clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
-            {pagina === 'egresos' && esAdmin && <Egresos ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
-            {pagina === 'stockTH' && <StockTH calcStock={calcStock} ingresos={ingresos} />}
-            {pagina === 'stockTC' && <StockTC calcStock={calcStock} ingresos={ingresos} />}
+            {pagina === 'dashboard' && <Dashboard ingresos={ingresos} egresos={egresos} clientes={clientes} calcStock={calcStock} formatFecha={formatFecha} />}
+            {pagina === 'ingresos' && puedeVerStock && <Ingresos clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
+            {pagina === 'egresos' && puedeVerStock && <Egresos ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
+            {pagina === 'stockTH' && puedeVerStock && <StockTH calcStock={calcStock} ingresos={ingresos} />}
+            {pagina === 'stockTC' && puedeVerStock && <StockTC calcStock={calcStock} ingresos={ingresos} />}
             {pagina === 'clientes' && esAdmin && <Clientes clientes={clientes} onGuardar={cargarTodo} />}
             {pagina === 'telas' && esAdmin && <Telas telas={telas} onGuardar={cargarTodo} />}
             {pagina === 'colores' && esAdmin && <Colores colores={colores} onGuardar={cargarTodo} />}
             {pagina === 'empleados' && esAdmin && <Empleados empleados={empleados} onGuardar={cargarTodo} />}
-            {pagina === 'historialIngresos' && esAdmin && <HistorialIngresos ingresos={ingresos} onGuardar={cargarTodo} clientes={clientes} telas={telas} empleados={empleados} />}
-            {pagina === 'historialEgresos' && esAdmin && <HistorialEgresos egresos={egresos} onGuardar={cargarTodo} />}
-            {pagina === 'produccion' && <Produccion clientes={clientes} telas={telas} colores={colores} ingresos={ingresos} rol={rol} nombreUsuario={nombreUsuario} />}
+            {pagina === 'historialIngresos' && puedeVerStock && <HistorialIngresos ingresos={ingresos} onGuardar={cargarTodo} clientes={clientes} telas={telas} empleados={empleados} />}
+            {pagina === 'historialEgresos' && puedeVerStock && <HistorialEgresos egresos={egresos} onGuardar={cargarTodo} />}
+            {pagina === 'produccion' && <Produccion clientes={clientes} telas={telas} colores={colores} ingresos={ingresos} rol={rol} nombreUsuario={nombreUsuario} formatFecha={formatFecha} />}
           </>
         )}
       </div>
@@ -160,7 +167,7 @@ const PREPARACIONES = ['Sin preparación', 'Apertura y reencanutado', 'Planchado
 const TERMINACIONES = ['Solo fijado', 'Post y fijado'];
 const MOTIVOS_IMP = ['Falla de máquina', 'Tela fallada', 'Falta de tinta', 'Archivo con error', 'Faltante de tela'];
 
-function Produccion({ clientes, telas, colores, ingresos, rol, nombreUsuario }: any) {
+function Produccion({ clientes, telas, colores, ingresos, rol, nombreUsuario, formatFecha }: any) {
   const [subpagina, setSubpagina] = useState('tablero');
   const [proceso, setProceso] = useState('DIRECTA');
   const [ordenes, setOrdenes] = useState<any[]>([]);
@@ -170,7 +177,7 @@ function Produccion({ clientes, telas, colores, ingresos, rol, nombreUsuario }: 
 
   async function cargarOrdenes() {
     setLoadingOrdenes(true);
-    const { data } = await supabase.from('ordenes_produccion').select('*').order('n', { ascending: false });
+    const { data } = await supabase.from('ordenes_produccion').select('*').order('n', { ascending: true });
     if (data) setOrdenes(data);
     setLoadingOrdenes(false);
   }
@@ -204,13 +211,13 @@ function Produccion({ clientes, telas, colores, ingresos, rol, nombreUsuario }: 
         ))}
       </div>
 
-      {subpagina === 'tablero' && <TablProduccion ordenes={ordenesProceso} loading={loadingOrdenes} onCargar={cargarOrdenes} proceso={proceso} rol={rol} nombreUsuario={nombreUsuario} />}
+      {subpagina === 'tablero' && <TablProduccion ordenes={ordenesProceso} loading={loadingOrdenes} onCargar={cargarOrdenes} proceso={proceso} rol={rol} nombreUsuario={nombreUsuario} formatFecha={formatFecha} />}
       {subpagina === 'nueva-ot' && <NuevaOT clientes={clientes} telas={telas} colores={colores} ingresos={ingresos} proceso={proceso} onGuardar={() => { cargarOrdenes(); setSubpagina('tablero'); }} />}
     </div>
   );
 }
 
-function TablProduccion({ ordenes, loading, onCargar, proceso, rol, nombreUsuario }: any) {
+function TablProduccion({ ordenes, loading, onCargar, proceso, rol, nombreUsuario, formatFecha }: any) {
   const [filtro, setFiltro] = useState('todas');
   const [search, setSearch] = useState('');
   const [editando, setEditando] = useState<any>(null);
@@ -285,13 +292,6 @@ function TablProduccion({ ordenes, loading, onCargar, proceso, rol, nombreUsuari
     setGuardando(false);
   }
 
-  async function guardarPrep(id: number, valor: boolean) {
-    const orden = ordenes.find((o: any) => o.id === id);
-    if (!orden) return;
-    const puedeProducir = (orden.anticipo === 'SI' || orden.anticipo === 'N/A') && valor;
-    await guardarCampo(id, { prep_tela: valor, puede_producir: puedeProducir, prep_operario: nombreUsuario });
-  }
-
   async function eliminar(o: any) {
     if (!confirm(`¿Eliminar la OT N${o.n} — ${o.cliente} — ${o.diseno}?`)) return;
     await supabase.from('ordenes_produccion').delete().eq('id', o.id);
@@ -348,21 +348,21 @@ function TablProduccion({ ordenes, loading, onCargar, proceso, rol, nombreUsuari
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: '#1a1a2e' }}>
-                {['N','PROD','FECHA','OT','MÁQUINA','CLIENTE','DISEÑO','MTS PED.','MTS IMP.','PERFIL','TELA','C/S APROB','ID','IMP','PREP.','TERMINACIÓN','TRABAJO COMP.','FECHA FIN','PREP TELA','ANTICIPO','ACCIONES'].map(h =>
+                {['N','PROD','FECHA','OT','MÁQUINA','CLIENTE','DISEÑO','MTS PED.','MTS IMP.','PERFIL','TELA','C/S APROB','ID','IMP','TERMINACIÓN','TRABAJO COMP.','FECHA FIN','ANTICIPO','ACCIONES'].map(h =>
                   <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 10, color: 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap', fontWeight: 500, letterSpacing: 0.5 }}>{h}</th>
                 )}
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={21} style={{ padding: 20, textAlign: 'center', color: '#888' }}>CARGANDO...</td></tr>}
-              {!loading && filtered.length === 0 && <tr><td colSpan={21} style={{ padding: 20, textAlign: 'center', color: '#888' }}>SIN ÓRDENES REGISTRADAS</td></tr>}
+              {loading && <tr><td colSpan={19} style={{ padding: 20, textAlign: 'center', color: '#888' }}>CARGANDO...</td></tr>}
+              {!loading && filtered.length === 0 && <tr><td colSpan={19} style={{ padding: 20, textAlign: 'center', color: '#888' }}>SIN ÓRDENES REGISTRADAS</td></tr>}
               {filtered.map((o: any) => (
                 <tr key={o.id} style={{ background: getRowBg(o), borderBottom: '1px solid #ddd' }}>
                   <td style={{ ...td, fontWeight: 700, fontSize: 13 }}>{o.n}</td>
                   <td style={{ ...td, fontWeight: 700, color: o.puede_producir ? '#3B6D11' : '#c00', textAlign: 'center' }}>
                     {o.puede_producir ? 'SI' : 'NO'}
                   </td>
-                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.fecha_pedido}</td>
+                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{formatFecha(o.fecha_pedido)}</td>
                   <td style={{ ...td, fontFamily: 'monospace', fontSize: 11, whiteSpace: 'nowrap' }}>{o.nro_ot}</td>
                   <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.equipo || '—'}</td>
                   <td style={{ ...td, whiteSpace: 'nowrap', fontWeight: 500 }}>{o.cliente}</td>
@@ -389,7 +389,6 @@ function TablProduccion({ ordenes, loading, onCargar, proceso, rol, nombreUsuari
                     </button>
                     {o.imp_operario && <div style={{ fontSize: 10, color: '#888' }}>{o.imp_operario}</div>}
                   </td>
-                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.preparacion || '—'}</td>
                   <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.terminacion || '—'}</td>
                   <td style={{ ...td, textAlign: 'center' }}>
                     <button onClick={() => { setModalTrabajo(o); setTrabajoEstado(o.trabajo_completo || ''); }}
@@ -401,16 +400,7 @@ function TablProduccion({ ordenes, loading, onCargar, proceso, rol, nombreUsuari
                     </button>
                     {o.trabajo_operario && <div style={{ fontSize: 10, color: '#888' }}>{o.trabajo_operario}</div>}
                   </td>
-                  <td style={{ ...td, textAlign: 'center', whiteSpace: 'nowrap' }}>{o.fecha_fin || '—'}</td>
-                  <td style={{ ...td, textAlign: 'center' }}>
-                    <button onClick={() => guardarPrep(o.id, !o.prep_tela)}
-                      style={{ ...btn, fontSize: 11, padding: '3px 8px',
-                        background: o.prep_tela ? '#c8e6c9' : '#f0f0f0',
-                        color: o.prep_tela ? '#2e7d32' : '#888',
-                        border: '1px solid #ddd' }}>
-                      {o.prep_tela ? 'SI' : 'NO'}
-                    </button>
-                  </td>
+                  <td style={{ ...td, textAlign: 'center', whiteSpace: 'nowrap' }}>{formatFecha(o.fecha_fin)}</td>
                   <td style={{ ...td, textAlign: 'center' }}>
                     <select defaultValue={o.anticipo || 'PENDIENTE'} onChange={e => {
                       const nuevoAnticipo = e.target.value;
@@ -768,7 +758,7 @@ function NuevaOT({ clientes, telas, colores, ingresos, proceso, onGuardar }: any
   );
 }
 
-function Dashboard({ ingresos, egresos, clientes, telas, calcStock, rol }: any) {
+function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any) {
   const stock = calcStock();
   const totalTC = Object.entries(stock).filter(([id]: any) => id.startsWith('TC')).reduce((s: number, [, v]: any) => s + v.ing - v.egr, 0);
   const totalTH = Object.entries(stock).filter(([id]: any) => id.startsWith('TH')).reduce((s: number, [, v]: any) => s + v.ing - v.egr, 0);
@@ -801,7 +791,7 @@ function Dashboard({ ingresos, egresos, clientes, telas, calcStock, rol }: any) 
             <tbody>
               {ingresos.slice(0, 8).map((i: any, idx: number) => (
                 <tr key={idx}>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.fecha}</td>
+                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{formatFecha(i.fecha)}</td>
                   <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.cliente}</td>
                   <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.tela}</td>
                   <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.color}</td>
