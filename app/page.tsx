@@ -66,10 +66,6 @@ export default function Home() {
   if (!logueado) return <Login onLogin={handleLogin} />;
 
   const esAdmin = rol === 'admin';
-  const esDiseno = rol === 'diseno';
-  const esAdminODiseno = rol === 'admin' || rol === 'diseno';
-  const esOperario = rol === 'encargado' || rol === 'operario_impresion' || rol === 'operario_terminacion';
-  const esAdministrativo = rol === 'administrativo';
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '▦', roles: ['admin', 'diseno', 'comercial', 'administrativo', 'encargado', 'operario_impresion', 'operario_terminacion'], sep: false },
@@ -147,7 +143,7 @@ export default function Home() {
             {pagina === 'empleados' && esAdmin && <Empleados empleados={empleados} onGuardar={cargarTodo} />}
             {pagina === 'historialIngresos' && esAdmin && <HistorialIngresos ingresos={ingresos} onGuardar={cargarTodo} clientes={clientes} telas={telas} empleados={empleados} />}
             {pagina === 'historialEgresos' && esAdmin && <HistorialEgresos egresos={egresos} onGuardar={cargarTodo} />}
-            {pagina === 'produccion' && <Produccion clientes={clientes} telas={telas} colores={colores} ingresos={ingresos} rol={rol} />}
+            {pagina === 'produccion' && <Produccion clientes={clientes} telas={telas} colores={colores} ingresos={ingresos} rol={rol} nombreUsuario={nombreUsuario} />}
           </>
         )}
       </div>
@@ -164,7 +160,7 @@ const PREPARACIONES = ['Sin preparación', 'Apertura y reencanutado', 'Planchado
 const TERMINACIONES = ['Solo fijado', 'Post y fijado'];
 const MOTIVOS_IMP = ['Falla de máquina', 'Tela fallada', 'Falta de tinta', 'Archivo con error', 'Faltante de tela'];
 
-function Produccion({ clientes, telas, colores, ingresos, rol }: any) {
+function Produccion({ clientes, telas, colores, ingresos, rol, nombreUsuario }: any) {
   const [subpagina, setSubpagina] = useState('tablero');
   const [proceso, setProceso] = useState('DIRECTA');
   const [ordenes, setOrdenes] = useState<any[]>([]);
@@ -187,7 +183,7 @@ function Produccion({ clientes, telas, colores, ingresos, rol }: any) {
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 500 }}>Producción</div>
-          <div style={{ fontSize: 13, color: '#888' }}>Gestión de órdenes</div>
+          <div style={{ fontSize: 13, color: '#888' }}>Gestión de órdenes — {nombreUsuario}</div>
         </div>
         {esAdminODiseno && (
           <button onClick={() => setSubpagina(subpagina === 'nueva-ot' ? 'tablero' : 'nueva-ot')} style={{
@@ -211,13 +207,13 @@ function Produccion({ clientes, telas, colores, ingresos, rol }: any) {
         ))}
       </div>
 
-      {subpagina === 'tablero' && <TablProduccion ordenes={ordenesProceso} loading={loadingOrdenes} onCargar={cargarOrdenes} proceso={proceso} rol={rol} />}
+      {subpagina === 'tablero' && <TablProduccion ordenes={ordenesProceso} loading={loadingOrdenes} onCargar={cargarOrdenes} proceso={proceso} rol={rol} nombreUsuario={nombreUsuario} />}
       {subpagina === 'nueva-ot' && esAdminODiseno && <NuevaOT clientes={clientes} telas={telas} colores={colores} ingresos={ingresos} proceso={proceso} onGuardar={() => { cargarOrdenes(); setSubpagina('tablero'); }} />}
     </div>
   );
 }
 
-function TablProduccion({ ordenes, loading, onCargar, proceso, rol }: any) {
+function TablProduccion({ ordenes, loading, onCargar, proceso, rol, nombreUsuario }: any) {
   const [filtro, setFiltro] = useState('todas');
   const [search, setSearch] = useState('');
   const [editando, setEditando] = useState<any>(null);
@@ -225,6 +221,10 @@ function TablProduccion({ ordenes, loading, onCargar, proceso, rol }: any) {
   const [modalImp, setModalImp] = useState<any>(null);
   const [impEstado, setImpEstado] = useState('');
   const [impMotivo, setImpMotivo] = useState('');
+  const [modalMts, setModalMts] = useState<any>(null);
+  const [mtsNuevo, setMtsNuevo] = useState('');
+  const [modalTrabajo, setModalTrabajo] = useState<any>(null);
+  const [trabajoEstado, setTrabajoEstado] = useState('');
 
   const esAdminODiseno = rol === 'admin' || rol === 'diseno';
   const esOperario = rol === 'encargado' || rol === 'operario_impresion' || rol === 'operario_terminacion';
@@ -244,27 +244,67 @@ function TablProduccion({ ordenes, loading, onCargar, proceso, rol }: any) {
     return matchFiltro && matchSearch;
   });
 
-  async function guardarCampo(id: number, campo: string, valor: any) {
-    setGuardando(true);
-    await supabase.from('ordenes_produccion').update({ [campo]: valor }).eq('id', id);
+  async function guardarCampo(id: number, campos: any) {
+    await supabase.from('ordenes_produccion').update(campos).eq('id', id);
     onCargar();
-    setGuardando(false);
   }
 
   async function guardarImp() {
     if (!impEstado) { alert('Seleccioná OK o NO.'); return; }
     if (impEstado === 'NO' && !impMotivo) { alert('El motivo es obligatorio cuando IMP = NO.'); return; }
     setGuardando(true);
-    await supabase.from('ordenes_produccion').update({ imp_estado: impEstado, imp_motivo: impEstado === 'NO' ? impMotivo : null }).eq('id', modalImp.id);
+    await guardarCampo(modalImp.id, {
+      imp_estado: impEstado,
+      imp_motivo: impEstado === 'NO' ? impMotivo : null,
+      imp_operario: nombreUsuario,
+    });
     setModalImp(null); setImpEstado(''); setImpMotivo('');
-    onCargar();
     setGuardando(false);
+  }
+
+  async function guardarMts() {
+    if (!mtsNuevo) { alert('Ingresá los metros.'); return; }
+    setGuardando(true);
+    const nuevoEstado = parseFloat(mtsNuevo) >= Number(modalMts.mts_pedidos) ? 'TERMINADO' : 'EN PRODUCCION';
+    await guardarCampo(modalMts.id, {
+      mts_impresos: parseFloat(mtsNuevo),
+      mts_operario: nombreUsuario,
+      estado: nuevoEstado,
+    });
+    setModalMts(null); setMtsNuevo('');
+    setGuardando(false);
+  }
+
+  async function guardarTrabajo() {
+    if (!trabajoEstado) { alert('Seleccioná OK o NO.'); return; }
+    setGuardando(true);
+    await guardarCampo(modalTrabajo.id, {
+      trabajo_completo: trabajoEstado,
+      trabajo_operario: nombreUsuario,
+      fecha_fin: trabajoEstado === 'OK' ? new Date().toISOString().split('T')[0] : null,
+    });
+    setModalTrabajo(null); setTrabajoEstado('');
+    setGuardando(false);
+  }
+
+  async function guardarPrep(id: number, valor: boolean) {
+    const orden = ordenes.find((o: any) => o.id === id);
+    if (!orden) return;
+    const puedeProducir = (orden.anticipo === 'SI' || orden.anticipo === 'N/A') && valor;
+    await guardarCampo(id, { prep_tela: valor, puede_producir: puedeProducir, prep_operario: nombreUsuario });
   }
 
   async function eliminar(o: any) {
     if (!confirm(`¿Eliminar la OT N${o.n} — ${o.cliente} — ${o.diseno}?`)) return;
     await supabase.from('ordenes_produccion').delete().eq('id', o.id);
     onCargar();
+  }
+
+  function getRowBg(o: any) {
+    if (o.trabajo_completo === 'OK') return '#c8e6c9';
+    if (o.imp_estado === 'OK') return '#e8f5e9';
+    if (o.imp_estado === 'NO') return '#ffebee';
+    return 'transparent';
   }
 
   const stats = {
@@ -304,133 +344,153 @@ function TablProduccion({ ordenes, loading, onCargar, proceso, rol }: any) {
               background: filtro === f.key ? '#1a1a2e' : '#fff', color: filtro === f.key ? '#fff' : '#555'
             }}>{f.label}</button>
           ))}
-          <input placeholder="BUSCAR CLIENTE, DISEÑO U OT..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, maxWidth: 280, marginLeft: 'auto', textTransform: 'uppercase' }} />
+          <input placeholder="BUSCAR..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, maxWidth: 220, marginLeft: 'auto' }} />
         </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
-              <tr style={{ background: '#f5f5f7' }}>
+              <tr style={{ background: '#1a1a2e' }}>
                 {['N','PROD','FECHA','OT','MÁQUINA','CLIENTE','DISEÑO','MTS PED.','MTS IMP.','PERFIL','TELA','C/S APROB','ID','IMP','PREP.','TERMINACIÓN','TRABAJO COMP.','FECHA FIN','PREP TELA','ANTICIPO','ACCIONES'].map(h =>
-                  <th key={h} style={{ ...th, whiteSpace: 'nowrap', fontSize: 11, textTransform: 'uppercase' }}>{h}</th>
+                  <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 10, color: 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap', fontWeight: 500, letterSpacing: 0.5 }}>{h}</th>
                 )}
               </tr>
             </thead>
             <tbody>
               {loading && <tr><td colSpan={21} style={{ padding: 20, textAlign: 'center', color: '#888' }}>CARGANDO...</td></tr>}
               {!loading && filtered.length === 0 && <tr><td colSpan={21} style={{ padding: 20, textAlign: 'center', color: '#888' }}>SIN ÓRDENES REGISTRADAS</td></tr>}
-              {filtered.map((o: any) => {
-                const completo = o.trabajo_completo === 'OK';
-                const rowBg = completo ? '#e8f4ea' : 'transparent';
-                return (
-                  <tr key={o.id} style={{ background: rowBg }}>
-                    <td style={{ ...td, fontWeight: 700, fontSize: 13 }}>{o.n}</td>
-                    <td style={{ ...td, fontWeight: 700, color: o.puede_producir ? '#3B6D11' : '#c00', textAlign: 'center' }}>
-                      {o.puede_producir ? 'SI' : 'NO'}
-                    </td>
-                    <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.fecha_pedido}</td>
-                    <td style={{ ...td, fontFamily: 'monospace', fontSize: 11, whiteSpace: 'nowrap' }}>{o.nro_ot}</td>
-                    <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.equipo || '—'}</td>
-                    <td style={{ ...td, whiteSpace: 'nowrap', fontWeight: 500 }}>{o.cliente}</td>
-                    <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.diseno}</td>
-                    <td style={{ ...td, textAlign: 'center' }}>{o.mts_pedidos}</td>
-                    <td style={{ ...td, textAlign: 'center' }}>
-                      {esOperario && o.puede_producir && o.trabajo_completo !== 'OK' ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <input type="number" defaultValue={o.mts_impresos || 0} style={{ ...inp, width: 70, padding: '3px 6px', fontSize: 12 }}
-                            onBlur={e => guardarCampo(o.id, 'mts_impresos', parseFloat(e.target.value))} />
-                        </div>
-                      ) : (
-                        <span style={{ fontWeight: 500 }}>{o.mts_impresos || 0}</span>
-                      )}
-                    </td>
-                    <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.perfil || '—'}</td>
-                    <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.tela || '—'}</td>
-                    <td style={{ ...td, textAlign: 'center', whiteSpace: 'nowrap' }}>{o.c_aprob || '—'}</td>
-                    <td style={{ ...td, fontFamily: 'monospace', fontSize: 11, color: '#e85d2f', whiteSpace: 'nowrap' }}>{o.id_hype || '—'}</td>
-                    <td style={{ ...td, textAlign: 'center' }}>
-                      {esOperario && o.puede_producir ? (
-                        <button onClick={() => { setModalImp(o); setImpEstado(o.imp_estado || ''); setImpMotivo(o.imp_motivo || ''); }}
-                          style={{ ...btn, fontSize: 11, padding: '3px 8px', background: o.imp_estado === 'OK' ? '#e8f4ea' : o.imp_estado === 'NO' ? '#fee' : '#f0f0f0', color: o.imp_estado === 'OK' ? '#3B6D11' : o.imp_estado === 'NO' ? '#c00' : '#888', border: '1px solid #ddd' }}>
-                          {o.imp_estado || '—'}
-                        </button>
-                      ) : (
-                        <span style={{ color: o.imp_estado === 'OK' ? '#3B6D11' : o.imp_estado === 'NO' ? '#c00' : '#888', fontWeight: 500 }}>{o.imp_estado || '—'}</span>
-                      )}
-                    </td>
-                    <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.preparacion || '—'}</td>
-                    <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.terminacion || '—'}</td>
-                    <td style={{ ...td, textAlign: 'center' }}>
-                      {esOperario && o.puede_producir ? (
-                        <select defaultValue={o.trabajo_completo || ''} onChange={e => guardarCampo(o.id, 'trabajo_completo', e.target.value)} style={{ ...inp, width: 70, padding: '3px 6px', fontSize: 12 }}>
-                          <option value="">—</option>
-                          <option value="OK">OK</option>
-                          <option value="NO">NO</option>
-                        </select>
-                      ) : (
-                        <span style={{ fontWeight: 700, color: o.trabajo_completo === 'OK' ? '#3B6D11' : '#888' }}>{o.trabajo_completo || '—'}</span>
-                      )}
-                    </td>
-                    <td style={{ ...td, textAlign: 'center' }}>
-                      {esOperario && o.puede_producir ? (
-                        <input type="date" defaultValue={o.fecha_fin || ''} style={{ ...inp, width: 130, padding: '3px 6px', fontSize: 12 }}
-                          onBlur={e => guardarCampo(o.id, 'fecha_fin', e.target.value || null)} />
-                      ) : (
-                        <span>{o.fecha_fin || '—'}</span>
-                      )}
-                    </td>
-                    <td style={{ ...td, textAlign: 'center' }}>
-                      {esOperario && o.puede_producir ? (
-                        <select defaultValue={o.prep_tela ? 'SI' : 'NO'} onChange={e => guardarCampo(o.id, 'prep_tela', e.target.value === 'SI')} style={{ ...inp, width: 60, padding: '3px 6px', fontSize: 12 }}>
-                          <option value="NO">NO</option>
-                          <option value="SI">SI</option>
-                        </select>
-                      ) : (
-                        <span style={{ fontWeight: 500, color: o.prep_tela ? '#3B6D11' : '#888' }}>{o.prep_tela ? 'SI' : 'NO'}</span>
-                      )}
-                    </td>
-                    <td style={{ ...td, textAlign: 'center' }}>
-                      {esAdministrativo ? (
-                        <select defaultValue={o.anticipo || 'PENDIENTE'} onChange={e => {
-                          const nuevoAnticipo = e.target.value;
-                          const puedeProducir = (nuevoAnticipo === 'SI' || nuevoAnticipo === 'N/A') && o.prep_tela;
-                          guardarCampo(o.id, 'anticipo', nuevoAnticipo);
-                          guardarCampo(o.id, 'puede_producir', puedeProducir);
-                        }} style={{ ...inp, width: 100, padding: '3px 6px', fontSize: 12 }}>
-                          <option value="PENDIENTE">PENDIENTE</option>
-                          <option value="SI">SI</option>
-                          <option value="N/A">N/A</option>
-                        </select>
-                      ) : (
-                        <span style={{ fontWeight: 500, color: o.anticipo === 'PENDIENTE' ? '#c00' : '#3B6D11' }}>{o.anticipo || 'PENDIENTE'}</span>
-                      )}
-                    </td>
-                    <td style={{ ...td, whiteSpace: 'nowrap' }}>
-                      {esAdminODiseno && (
-                        <>
-                          <button onClick={() => setEditando({...o})} style={{ ...btn, fontSize: 11, padding: '3px 8px', marginRight: 4 }}>EDITAR</button>
-                          {esAdmin && <button onClick={() => eliminar(o)} style={{ ...btn, fontSize: 11, padding: '3px 8px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>ELIM.</button>}
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+              {filtered.map((o: any, idx: number) => (
+                <tr key={o.id} style={{ background: getRowBg(o), borderBottom: '1px solid #ddd' }}>
+                  <td style={{ ...td, fontWeight: 700, fontSize: 13 }}>{o.n}</td>
+                  <td style={{ ...td, fontWeight: 700, color: o.puede_producir ? '#3B6D11' : '#c00', textAlign: 'center' }}>
+                    {o.puede_producir ? 'SI' : 'NO'}
+                  </td>
+                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.fecha_pedido}</td>
+                  <td style={{ ...td, fontFamily: 'monospace', fontSize: 11, whiteSpace: 'nowrap' }}>{o.nro_ot}</td>
+                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.equipo || '—'}</td>
+                  <td style={{ ...td, whiteSpace: 'nowrap', fontWeight: 500 }}>{o.cliente}</td>
+                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.diseno}</td>
+                  <td style={{ ...td, textAlign: 'center' }}>{o.mts_pedidos}</td>
+                  <td style={{ ...td, textAlign: 'center' }}>
+                    {esOperario && o.puede_producir && o.trabajo_completo !== 'OK' ? (
+                      <button onClick={() => { setModalMts(o); setMtsNuevo(o.mts_impresos || ''); }}
+                        style={{ ...btn, fontSize: 11, padding: '3px 8px', background: '#e8f0fb', color: '#185FA5', border: '1px solid #b3c8f0' }}>
+                        {o.mts_impresos || 0} ✎
+                      </button>
+                    ) : (
+                      <span style={{ fontWeight: 500 }}>{o.mts_impresos || 0}</span>
+                    )}
+                    {o.mts_operario && <div style={{ fontSize: 10, color: '#888' }}>{o.mts_operario}</div>}
+                  </td>
+                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.perfil || '—'}</td>
+                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.tela || '—'}</td>
+                  <td style={{ ...td, textAlign: 'center', whiteSpace: 'nowrap' }}>{o.c_aprob || '—'}</td>
+                  <td style={{ ...td, fontFamily: 'monospace', fontSize: 11, color: '#e85d2f', whiteSpace: 'nowrap' }}>{o.id_hype || '—'}</td>
+                  <td style={{ ...td, textAlign: 'center' }}>
+                    {esOperario && o.puede_producir ? (
+                      <button onClick={() => { setModalImp(o); setImpEstado(o.imp_estado || ''); setImpMotivo(o.imp_motivo || ''); }}
+                        style={{ ...btn, fontSize: 11, padding: '3px 8px',
+                          background: o.imp_estado === 'OK' ? '#c8e6c9' : o.imp_estado === 'NO' ? '#ffcdd2' : '#f0f0f0',
+                          color: o.imp_estado === 'OK' ? '#2e7d32' : o.imp_estado === 'NO' ? '#c62828' : '#888',
+                          border: '1px solid #ddd' }}>
+                        {o.imp_estado || '—'} ✎
+                      </button>
+                    ) : (
+                      <span style={{ fontWeight: 700, color: o.imp_estado === 'OK' ? '#2e7d32' : o.imp_estado === 'NO' ? '#c62828' : '#888' }}>{o.imp_estado || '—'}</span>
+                    )}
+                    {o.imp_operario && <div style={{ fontSize: 10, color: '#888' }}>{o.imp_operario}</div>}
+                  </td>
+                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.preparacion || '—'}</td>
+                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.terminacion || '—'}</td>
+                  <td style={{ ...td, textAlign: 'center' }}>
+                    {esOperario && o.puede_producir ? (
+                      <button onClick={() => { setModalTrabajo(o); setTrabajoEstado(o.trabajo_completo || ''); }}
+                        style={{ ...btn, fontSize: 11, padding: '3px 8px',
+                          background: o.trabajo_completo === 'OK' ? '#a5d6a7' : '#f0f0f0',
+                          color: o.trabajo_completo === 'OK' ? '#1b5e20' : '#888',
+                          border: '1px solid #ddd' }}>
+                        {o.trabajo_completo || '—'} ✎
+                      </button>
+                    ) : (
+                      <span style={{ fontWeight: 700, color: o.trabajo_completo === 'OK' ? '#1b5e20' : '#888' }}>{o.trabajo_completo || '—'}</span>
+                    )}
+                    {o.trabajo_operario && <div style={{ fontSize: 10, color: '#888' }}>{o.trabajo_operario}</div>}
+                  </td>
+                  <td style={{ ...td, textAlign: 'center', whiteSpace: 'nowrap' }}>{o.fecha_fin || '—'}</td>
+                  <td style={{ ...td, textAlign: 'center' }}>
+                    {esOperario && o.puede_producir ? (
+                      <button onClick={() => guardarPrep(o.id, !o.prep_tela)}
+                        style={{ ...btn, fontSize: 11, padding: '3px 8px',
+                          background: o.prep_tela ? '#c8e6c9' : '#f0f0f0',
+                          color: o.prep_tela ? '#2e7d32' : '#888',
+                          border: '1px solid #ddd' }}>
+                        {o.prep_tela ? 'SI' : 'NO'}
+                      </button>
+                    ) : (
+                      <span style={{ fontWeight: 700, color: o.prep_tela ? '#2e7d32' : '#888' }}>{o.prep_tela ? 'SI' : 'NO'}</span>
+                    )}
+                  </td>
+                  <td style={{ ...td, textAlign: 'center' }}>
+                    {esAdministrativo ? (
+                      <select defaultValue={o.anticipo || 'PENDIENTE'} onChange={e => {
+                        const nuevoAnticipo = e.target.value;
+                        const puedeProducir = (nuevoAnticipo === 'SI' || nuevoAnticipo === 'N/A') && o.prep_tela;
+                        guardarCampo(o.id, { anticipo: nuevoAnticipo, puede_producir: puedeProducir });
+                      }} style={{ ...inp, width: 100, padding: '3px 6px', fontSize: 12 }}>
+                        <option value="PENDIENTE">PENDIENTE</option>
+                        <option value="SI">SI</option>
+                        <option value="N/A">N/A</option>
+                      </select>
+                    ) : (
+                      <span style={{ fontWeight: 500, color: o.anticipo === 'PENDIENTE' ? '#c00' : '#3B6D11' }}>{o.anticipo || 'PENDIENTE'}</span>
+                    )}
+                  </td>
+                  <td style={{ ...td, whiteSpace: 'nowrap' }}>
+                    {esAdminODiseno && (
+                      <>
+                        <button onClick={() => setEditando({...o})} style={{ ...btn, fontSize: 11, padding: '3px 8px', marginRight: 4 }}>EDITAR</button>
+                        {esAdmin && <button onClick={() => eliminar(o)} style={{ ...btn, fontSize: 11, padding: '3px 8px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>ELIM.</button>}
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Modal MTS */}
+      {modalMts && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 400 }}>
+            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>METROS IMPRESOS</div>
+            <div style={{ fontSize: 13, color: '#888', marginBottom: 4 }}>N {modalMts.n} — {modalMts.cliente} — {modalMts.diseno}</div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 20 }}>Operario: <strong>{nombreUsuario}</strong></div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={lbl}>MTS IMPRESOS</label>
+              <input type="number" value={mtsNuevo} onChange={e => setMtsNuevo(e.target.value)} placeholder="0" style={inp} />
+              <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>MTS PEDIDOS: {modalMts.mts_pedidos}</div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+              <button onClick={() => { setModalMts(null); setMtsNuevo(''); }} style={btn}>CANCELAR</button>
+              <button onClick={guardarMts} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>GUARDAR</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal IMP */}
       {modalImp && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 420 }}>
             <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>CONFIRMACIÓN DE IMPRESIÓN</div>
-            <div style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>N {modalImp.n} — {modalImp.cliente} — {modalImp.diseno}</div>
+            <div style={{ fontSize: 13, color: '#888', marginBottom: 4 }}>N {modalImp.n} — {modalImp.cliente} — {modalImp.diseno}</div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 20 }}>Operario: <strong>{nombreUsuario}</strong></div>
             <div style={{ marginBottom: 12 }}>
               <label style={lbl}>ESTADO</label>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => setImpEstado('OK')} style={{ ...btn, flex: 1, background: impEstado === 'OK' ? '#3B6D11' : '#f0f0f0', color: impEstado === 'OK' ? '#fff' : '#333', fontWeight: 700 }}>OK</button>
-                <button onClick={() => setImpEstado('NO')} style={{ ...btn, flex: 1, background: impEstado === 'NO' ? '#c00' : '#f0f0f0', color: impEstado === 'NO' ? '#fff' : '#333', fontWeight: 700 }}>NO</button>
+                <button onClick={() => setImpEstado('OK')} style={{ ...btn, flex: 1, background: impEstado === 'OK' ? '#2e7d32' : '#f0f0f0', color: impEstado === 'OK' ? '#fff' : '#333', fontWeight: 700 }}>OK</button>
+                <button onClick={() => setImpEstado('NO')} style={{ ...btn, flex: 1, background: impEstado === 'NO' ? '#c62828' : '#f0f0f0', color: impEstado === 'NO' ? '#fff' : '#333', fontWeight: 700 }}>NO</button>
               </div>
             </div>
             {impEstado === 'NO' && (
@@ -445,6 +505,33 @@ function TablProduccion({ ordenes, loading, onCargar, proceso, rol }: any) {
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
               <button onClick={() => { setModalImp(null); setImpEstado(''); setImpMotivo(''); }} style={btn}>CANCELAR</button>
               <button onClick={guardarImp} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>GUARDAR</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Trabajo Completo */}
+      {modalTrabajo && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 420 }}>
+            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>TRABAJO COMPLETO</div>
+            <div style={{ fontSize: 13, color: '#888', marginBottom: 4 }}>N {modalTrabajo.n} — {modalTrabajo.cliente} — {modalTrabajo.diseno}</div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 20 }}>Operario: <strong>{nombreUsuario}</strong></div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={lbl}>ESTADO</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => setTrabajoEstado('OK')} style={{ ...btn, flex: 1, background: trabajoEstado === 'OK' ? '#1b5e20' : '#f0f0f0', color: trabajoEstado === 'OK' ? '#fff' : '#333', fontWeight: 700 }}>OK</button>
+                <button onClick={() => setTrabajoEstado('NO')} style={{ ...btn, flex: 1, background: trabajoEstado === 'NO' ? '#c62828' : '#f0f0f0', color: trabajoEstado === 'NO' ? '#fff' : '#333', fontWeight: 700 }}>NO</button>
+              </div>
+            </div>
+            {trabajoEstado === 'OK' && (
+              <div style={{ padding: '10px 14px', background: '#e8f5e9', color: '#2e7d32', borderRadius: 8, fontSize: 13, marginBottom: 12 }}>
+                ✓ Se registrará la fecha de hoy como fecha fin automáticamente.
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+              <button onClick={() => { setModalTrabajo(null); setTrabajoEstado(''); }} style={btn}>CANCELAR</button>
+              <button onClick={guardarTrabajo} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>GUARDAR</button>
             </div>
           </div>
         </div>
@@ -1777,4 +1864,4 @@ const lbl: React.CSSProperties = { fontSize: 12, color: '#888', display: 'block'
 const dropdown: React.CSSProperties = { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #ddd', borderRadius: 8, zIndex: 100, maxHeight: 200, overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' };
 const ddItem: React.CSSProperties = { padding: '8px 12px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid #f0f0f0' };
 const th: React.CSSProperties = { textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid #eee', fontSize: 11, color: '#888', fontWeight: 500 };
-const td: React.CSSProperties = { padding: '9px 12px', borderBottom: '1px solid #f5f5f5', color: '#1a1a2e' };
+const td: React.CSSProperties = { padding: '9px 12px', borderBottom: '1px solid #ddd', color: '#1a1a2e' };
