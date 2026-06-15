@@ -19,12 +19,21 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [logueado, setLogueado] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [rol, setRol] = useState('');
+  const [nombreUsuario, setNombreUsuario] = useState('');
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setLogueado(!!session);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        const { data: userData } = await supabase.from('usuarios').select('*').eq('email', session.user.email).single();
+        if (userData) {
+          setRol(userData.rol);
+          setNombreUsuario(userData.nombre);
+        }
+        setLogueado(true);
+        cargarTodo();
+      }
       setCheckingAuth(false);
-      if (session) cargarTodo();
     });
   }, []);
 
@@ -50,24 +59,42 @@ export default function Home() {
   async function cerrarSesion() {
     await supabase.auth.signOut();
     setLogueado(false);
+    setRol('');
+    setNombreUsuario('');
+  }
+
+  function handleLogin(rolUsuario: string, nombre: string) {
+    setRol(rolUsuario);
+    setNombreUsuario(nombre);
+    setLogueado(true);
+    cargarTodo();
   }
 
   if (checkingAuth) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a1a2e', color: '#fff' }}>Cargando...</div>;
-  if (!logueado) return <Login onLogin={() => { setLogueado(true); cargarTodo(); }} />;
+  if (!logueado) return <Login onLogin={handleLogin} />;
+
+  const esAdmin = rol === 'admin';
+  const esDiseno = rol === 'diseno';
+  const esComercial = rol === 'comercial';
+  const esAdministrativo = rol === 'administrativo';
+  const esEncargado = rol === 'encargado';
+  const esOperarioImpresion = rol === 'operario_impresion';
+  const esOperarioTerminacion = rol === 'operario_terminacion';
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '▦' },
-    { id: 'ingresos', label: 'Ingresos', icon: '↓' },
-    { id: 'egresos', label: 'Egresos', icon: '↑' },
-    { id: 'stockTH', label: 'Stock TH', icon: '◫' },
-    { id: 'stockTC', label: 'Stock TC', icon: '◫' },
-    { id: 'clientes', label: 'Clientes', icon: '♟' },
-    { id: 'telas', label: 'Telas', icon: '≡' },
-    { id: 'colores', label: 'Colores', icon: '◉' },
-    { id: 'empleados', label: 'Empleados', icon: '👤' },
-    { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰' },
-    { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰' },
-  ];
+    { id: 'dashboard', label: 'Dashboard', icon: '▦', roles: ['admin', 'diseno', 'comercial', 'administrativo', 'encargado'] },
+    { id: 'ingresos', label: 'Ingresos', icon: '↓', roles: ['admin'] },
+    { id: 'egresos', label: 'Egresos', icon: '↑', roles: ['admin'] },
+    { id: 'stockTH', label: 'Stock TH', icon: '◫', roles: ['admin', 'diseno'] },
+    { id: 'stockTC', label: 'Stock TC', icon: '◫', roles: ['admin', 'diseno'] },
+    { id: 'clientes', label: 'Clientes', icon: '♟', roles: ['admin'] },
+    { id: 'telas', label: 'Telas', icon: '≡', roles: ['admin'] },
+    { id: 'colores', label: 'Colores', icon: '◉', roles: ['admin'] },
+    { id: 'empleados', label: 'Empleados', icon: '👤', roles: ['admin'] },
+    { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰', roles: ['admin'] },
+    { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰', roles: ['admin'] },
+    { id: 'produccion', label: 'Producción', icon: '⚙', roles: ['admin'] },
+  ].filter(n => n.roles.includes(rol));
 
   function calcStock() {
     const stockMap: any = {};
@@ -88,6 +115,10 @@ export default function Home() {
         <div style={{ padding: '18px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
           <img src="/logo.png" alt="HYPE printlab" style={{ width: '100%', maxWidth: 160, display: 'block' }} />
           <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: 3, marginTop: 6 }}>STOCK & PRODUCCIÓN</div>
+        </div>
+        <div style={{ padding: '8px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{nombreUsuario}</div>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: 1 }}>{rol}</div>
         </div>
         {navItems.map(n => (
           <div key={n.id} onClick={() => setPagina(n.id)} style={{
@@ -110,17 +141,18 @@ export default function Home() {
         {loading && <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>Cargando...</div>}
         {!loading && (
           <>
-            {pagina === 'dashboard' && <Dashboard ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} calcStock={calcStock} />}
-            {pagina === 'ingresos' && <Ingresos clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
-            {pagina === 'egresos' && <Egresos ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
+            {pagina === 'dashboard' && <Dashboard ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} calcStock={calcStock} rol={rol} />}
+            {pagina === 'ingresos' && esAdmin && <Ingresos clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
+            {pagina === 'egresos' && esAdmin && <Egresos ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
             {pagina === 'stockTH' && <StockTH calcStock={calcStock} ingresos={ingresos} />}
             {pagina === 'stockTC' && <StockTC calcStock={calcStock} ingresos={ingresos} />}
-            {pagina === 'clientes' && <Clientes clientes={clientes} onGuardar={cargarTodo} />}
-            {pagina === 'telas' && <Telas telas={telas} onGuardar={cargarTodo} />}
-            {pagina === 'colores' && <Colores colores={colores} onGuardar={cargarTodo} />}
-            {pagina === 'empleados' && <Empleados empleados={empleados} onGuardar={cargarTodo} />}
-            {pagina === 'historialIngresos' && <HistorialIngresos ingresos={ingresos} onGuardar={cargarTodo} clientes={clientes} telas={telas} empleados={empleados} />}
-            {pagina === 'historialEgresos' && <HistorialEgresos egresos={egresos} onGuardar={cargarTodo} />}
+            {pagina === 'clientes' && esAdmin && <Clientes clientes={clientes} onGuardar={cargarTodo} />}
+            {pagina === 'telas' && esAdmin && <Telas telas={telas} onGuardar={cargarTodo} />}
+            {pagina === 'colores' && esAdmin && <Colores colores={colores} onGuardar={cargarTodo} />}
+            {pagina === 'empleados' && esAdmin && <Empleados empleados={empleados} onGuardar={cargarTodo} />}
+            {pagina === 'historialIngresos' && esAdmin && <HistorialIngresos ingresos={ingresos} onGuardar={cargarTodo} clientes={clientes} telas={telas} empleados={empleados} />}
+            {pagina === 'historialEgresos' && esAdmin && <HistorialEgresos egresos={egresos} onGuardar={cargarTodo} />}
+            {pagina === 'produccion' && esAdmin && <Produccion />}
           </>
         )}
       </div>
@@ -128,7 +160,23 @@ export default function Home() {
   );
 }
 
-function Dashboard({ ingresos, egresos, clientes, telas, calcStock }: any) {
+function Produccion() {
+  return (
+    <div>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 18, fontWeight: 500 }}>Producción</div>
+        <div style={{ fontSize: 13, color: '#888' }}>Módulo en desarrollo</div>
+      </div>
+      <div style={{ background: '#fff', borderRadius: 12, padding: 40, border: '1px solid #eee', textAlign: 'center' }}>
+        <div style={{ fontSize: 40, marginBottom: 16 }}>⚙️</div>
+        <div style={{ fontSize: 16, fontWeight: 500, color: '#1a1a2e', marginBottom: 8 }}>Módulo de Producción</div>
+        <div style={{ fontSize: 13, color: '#888' }}>Este módulo está en desarrollo. Próximamente disponible.</div>
+      </div>
+    </div>
+  );
+}
+
+function Dashboard({ ingresos, egresos, clientes, telas, calcStock, rol }: any) {
   const stock = calcStock();
   const totalTC = Object.entries(stock).filter(([id]: any) => id.startsWith('TC')).reduce((s: number, [, v]: any) => s + v.ing - v.egr, 0);
   const totalTH = Object.entries(stock).filter(([id]: any) => id.startsWith('TH')).reduce((s: number, [, v]: any) => s + v.ing - v.egr, 0);
@@ -570,12 +618,10 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}>
           <div><label style={lbl}>Fecha</label><input type="date" value={fecha} onChange={e => setFecha(e.target.value)} style={inp} /></div>
-
           <div>
             <label style={lbl}>Nro. remito origen <span style={{ fontSize: 10, color: '#aaa' }}>(opcional)</span></label>
             <input type="number" value={remitoOrigen} onChange={e => buscarPorRemito(e.target.value)} placeholder="00145" style={inp} />
           </div>
-
           <div style={{ position: 'relative' }}>
             <label style={lbl}>Buscar por ID <span style={{ background: '#e8f4ea', color: '#3B6D11', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>completa todo</span></label>
             <input value={busqId} onChange={e => { setBusqId(e.target.value); setShowId(true); if (!e.target.value) { setIdHype(''); setDisponibles(0); } }} placeholder="Ej: TCS001045BLA" style={inp} />
@@ -589,7 +635,6 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
               </div>
             )}
           </div>
-
           <div style={{ position: 'relative' }}>
             <label style={lbl}>Cliente <span style={{ background: '#e8f4ea', color: '#3B6D11', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>completa ID</span></label>
             <input value={busqCli} onChange={e => { setBusqCli(e.target.value); setCliente(e.target.value); setShowCli(true); buscarPorCampos(e.target.value, tela, color); }} placeholder="Escribí para buscar..." style={inp} />
@@ -601,7 +646,6 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
               </div>
             )}
           </div>
-
           <div style={{ position: 'relative' }}>
             <label style={lbl}>Tela <span style={{ background: '#e8f4ea', color: '#3B6D11', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>completa ID</span></label>
             <input value={busqTela} onChange={e => { setBusqTela(e.target.value); setTela(e.target.value); setShowTela(true); buscarPorCampos(cliente, e.target.value, color); }} placeholder="Escribí para buscar..." style={inp} />
@@ -613,7 +657,6 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
               </div>
             )}
           </div>
-
           <div style={{ position: 'relative' }}>
             <label style={lbl}>Color <span style={{ background: '#e8f4ea', color: '#3B6D11', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>completa ID</span></label>
             <input value={busqColor} onChange={e => { setBusqColor(e.target.value); setColor(e.target.value); setShowColor(true); buscarPorCampos(cliente, tela, e.target.value); }} placeholder="Escribí para buscar..." style={inp} />
@@ -625,14 +668,11 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
               </div>
             )}
           </div>
-
           <div><label style={lbl}>Observaciones</label><input value={obs} onChange={e => setObs(e.target.value)} placeholder="Diseño, detalle..." style={inp} /></div>
-
           <div>
             <label style={lbl}>ID <span style={{ background: '#e8f4ea', color: '#3B6D11', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>automático</span></label>
             <div style={{ background: '#1a1a2e', color: idHype ? '#e85d2f' : '#666', fontFamily: 'monospace', fontSize: 13, fontWeight: 700, padding: '8px 12px', borderRadius: 8 }}>{idHype || '---'}</div>
           </div>
-
           <div><label style={lbl}>Mts disponibles</label><input value={disponibles ? disponibles + ' mts' : '---'} readOnly style={{ ...inp, background: '#f5f5f7', color: disponibles > 0 ? '#3B6D11' : '#888', fontWeight: 500 }} /></div>
           <div><label style={lbl}>Mts a egresar</label><input type="number" value={mts} onChange={e => validarMts(e.target.value)} placeholder="0" style={inp} /></div>
           <div><label style={lbl}>Nro. bultos</label><input type="number" value={bultos} onChange={e => setBultos(e.target.value)} placeholder="0" style={inp} /></div>

@@ -7,8 +7,8 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export default function Login({ onLogin }: { onLogin: () => void }) {
-  const [email, setEmail] = useState('');
+export default function Login({ onLogin }: { onLogin: (rol: string, nombre: string) => void }) {
+  const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,11 +16,30 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
   async function handleLogin() {
     setLoading(true);
     setError('');
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setError('Email o contraseña incorrectos.');
+
+    // Primero intentamos login con email (usuarios con @)
+    if (usuario.includes('@')) {
+      const { data, error: authError } = await supabase.auth.signInWithPassword({ email: usuario, password });
+      if (authError) {
+        setError('Email o contraseña incorrectos.');
+        setLoading(false);
+        return;
+      }
+      // Buscar rol en tabla usuarios
+      const { data: userData } = await supabase.from('usuarios').select('*').eq('email', usuario).single();
+      if (userData) {
+        onLogin(userData.rol, userData.nombre);
+      } else {
+        onLogin('admin', 'Usuario');
+      }
     } else {
-      onLogin();
+      // Login con usuario/contraseña para operarios
+      const { data: operario } = await supabase.from('operarios').select('*').eq('usuario', usuario.toLowerCase()).eq('password', password).single();
+      if (operario) {
+        onLogin(operario.rol, operario.nombre);
+      } else {
+        setError('Usuario o contraseña incorrectos.');
+      }
     }
     setLoading(false);
   }
@@ -33,12 +52,12 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
           <div style={{ fontSize: 11, color: '#888', letterSpacing: 3, textTransform: 'uppercase', marginTop: 4 }}>Stock & Producción</div>
         </div>
         <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 4 }}>Email</label>
+          <label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 4 }}>Usuario o Email</label>
           <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="usuario@hype.com"
+            type="text"
+            value={usuario}
+            onChange={e => setUsuario(e.target.value)}
+            placeholder="usuario o email@hype.com"
             style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' as const }}
           />
         </div>
