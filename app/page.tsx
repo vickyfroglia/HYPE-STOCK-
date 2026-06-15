@@ -75,25 +75,23 @@ export default function Home() {
 
   const esAdmin = rol === 'admin';
   const esDiseno = rol === 'diseno';
-  const esComercial = rol === 'comercial';
-  const esAdministrativo = rol === 'administrativo';
-  const esEncargado = rol === 'encargado';
-  const esOperarioImpresion = rol === 'operario_impresion';
-  const esOperarioTerminacion = rol === 'operario_terminacion';
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '▦', roles: ['admin', 'diseno', 'comercial', 'administrativo', 'encargado'] },
-    { id: 'ingresos', label: 'Ingresos', icon: '↓', roles: ['admin'] },
-    { id: 'egresos', label: 'Egresos', icon: '↑', roles: ['admin'] },
-    { id: 'stockTH', label: 'Stock TH', icon: '◫', roles: ['admin', 'diseno'] },
-    { id: 'stockTC', label: 'Stock TC', icon: '◫', roles: ['admin', 'diseno'] },
-    { id: 'clientes', label: 'Clientes', icon: '♟', roles: ['admin'] },
-    { id: 'telas', label: 'Telas', icon: '≡', roles: ['admin'] },
-    { id: 'colores', label: 'Colores', icon: '◉', roles: ['admin'] },
-    { id: 'empleados', label: 'Empleados', icon: '👤', roles: ['admin'] },
-    { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰', roles: ['admin'] },
-    { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰', roles: ['admin'] },
-    { id: 'produccion', label: 'Producción', icon: '⚙', roles: ['admin'] },
+    { id: 'dashboard', label: 'Dashboard', icon: '▦', roles: ['admin', 'diseno', 'comercial', 'administrativo', 'encargado'], sep: false },
+    { id: '__stock__', label: 'STOCK', icon: '', roles: ['admin', 'diseno'], sep: true },
+    { id: 'ingresos', label: 'Ingresos', icon: '↓', roles: ['admin'], sep: false },
+    { id: 'egresos', label: 'Egresos', icon: '↑', roles: ['admin'], sep: false },
+    { id: 'stockTH', label: 'Stock TH', icon: '◫', roles: ['admin', 'diseno'], sep: false },
+    { id: 'stockTC', label: 'Stock TC', icon: '◫', roles: ['admin', 'diseno'], sep: false },
+    { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰', roles: ['admin'], sep: false },
+    { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰', roles: ['admin'], sep: false },
+    { id: '__prod__', label: 'PRODUCCIÓN', icon: '', roles: ['admin'], sep: true },
+    { id: 'produccion', label: 'Producción', icon: '⚙', roles: ['admin'], sep: false },
+    { id: '__bd__', label: 'BASE DE DATOS', icon: '', roles: ['admin'], sep: true },
+    { id: 'clientes', label: 'Clientes', icon: '♟', roles: ['admin'], sep: false },
+    { id: 'telas', label: 'Telas', icon: '≡', roles: ['admin'], sep: false },
+    { id: 'colores', label: 'Colores', icon: '◉', roles: ['admin'], sep: false },
+    { id: 'empleados', label: 'Empleados', icon: '👤', roles: ['admin'], sep: false },
   ].filter(n => n.roles.includes(rol));
 
   function calcStock() {
@@ -121,14 +119,20 @@ export default function Home() {
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: 1 }}>{rol}</div>
         </div>
         {navItems.map(n => (
-          <div key={n.id} onClick={() => setPagina(n.id)} style={{
-            padding: '10px 16px', cursor: 'pointer', color: pagina === n.id ? '#fff' : 'rgba(255,255,255,0.55)',
-            background: pagina === n.id ? 'rgba(255,255,255,0.1)' : 'transparent',
-            borderLeft: pagina === n.id ? '2px solid #e85d2f' : '2px solid transparent',
-            fontSize: 13, display: 'flex', alignItems: 'center', gap: 10
-          }}>
-            <span>{n.icon}</span>{n.label}
-          </div>
+          n.sep ? (
+            <div key={n.id} style={{ padding: '12px 16px 4px', fontSize: 9, color: 'rgba(255,255,255,0.3)', letterSpacing: 2, textTransform: 'uppercase', marginTop: 8, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+              {n.label}
+            </div>
+          ) : (
+            <div key={n.id} onClick={() => setPagina(n.id)} style={{
+              padding: '10px 16px', cursor: 'pointer', color: pagina === n.id ? '#fff' : 'rgba(255,255,255,0.55)',
+              background: pagina === n.id ? 'rgba(255,255,255,0.1)' : 'transparent',
+              borderLeft: pagina === n.id ? '2px solid #e85d2f' : '2px solid transparent',
+              fontSize: 13, display: 'flex', alignItems: 'center', gap: 10
+            }}>
+              <span>{n.icon}</span>{n.label}
+            </div>
+          )
         ))}
         <div style={{ marginTop: 'auto', padding: 16 }}>
           <button onClick={cerrarSesion} style={{ width: '100%', padding: '8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: 'rgba(255,255,255,0.55)', fontSize: 12, cursor: 'pointer' }}>
