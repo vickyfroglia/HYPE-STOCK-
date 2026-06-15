@@ -165,7 +165,6 @@ function Produccion({ clientes, telas, colores, ingresos, rol, nombreUsuario }: 
   const [proceso, setProceso] = useState('DIRECTA');
   const [ordenes, setOrdenes] = useState<any[]>([]);
   const [loadingOrdenes, setLoadingOrdenes] = useState(true);
-  const esAdminODiseno = rol === 'admin' || rol === 'diseno';
 
   useEffect(() => { cargarOrdenes(); }, []);
 
@@ -185,15 +184,13 @@ function Produccion({ clientes, telas, colores, ingresos, rol, nombreUsuario }: 
           <div style={{ fontSize: 18, fontWeight: 500 }}>Producción</div>
           <div style={{ fontSize: 13, color: '#888' }}>Gestión de órdenes — {nombreUsuario}</div>
         </div>
-        {esAdminODiseno && (
-          <button onClick={() => setSubpagina(subpagina === 'nueva-ot' ? 'tablero' : 'nueva-ot')} style={{
-            padding: '7px 16px', borderRadius: 8, border: '1px solid #e85d2f', fontSize: 13, cursor: 'pointer',
-            background: subpagina === 'nueva-ot' ? '#fff' : '#e85d2f',
-            color: subpagina === 'nueva-ot' ? '#e85d2f' : '#fff'
-          }}>
-            {subpagina === 'nueva-ot' ? '← Volver al tablero' : '+ Nueva OT'}
-          </button>
-        )}
+        <button onClick={() => setSubpagina(subpagina === 'nueva-ot' ? 'tablero' : 'nueva-ot')} style={{
+          padding: '7px 16px', borderRadius: 8, border: '1px solid #e85d2f', fontSize: 13, cursor: 'pointer',
+          background: subpagina === 'nueva-ot' ? '#fff' : '#e85d2f',
+          color: subpagina === 'nueva-ot' ? '#e85d2f' : '#fff'
+        }}>
+          {subpagina === 'nueva-ot' ? '← Volver al tablero' : '+ Nueva OT'}
+        </button>
       </div>
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
@@ -208,7 +205,7 @@ function Produccion({ clientes, telas, colores, ingresos, rol, nombreUsuario }: 
       </div>
 
       {subpagina === 'tablero' && <TablProduccion ordenes={ordenesProceso} loading={loadingOrdenes} onCargar={cargarOrdenes} proceso={proceso} rol={rol} nombreUsuario={nombreUsuario} />}
-      {subpagina === 'nueva-ot' && esAdminODiseno && <NuevaOT clientes={clientes} telas={telas} colores={colores} ingresos={ingresos} proceso={proceso} onGuardar={() => { cargarOrdenes(); setSubpagina('tablero'); }} />}
+      {subpagina === 'nueva-ot' && <NuevaOT clientes={clientes} telas={telas} colores={colores} ingresos={ingresos} proceso={proceso} onGuardar={() => { cargarOrdenes(); setSubpagina('tablero'); }} />}
     </div>
   );
 }
@@ -226,10 +223,11 @@ function TablProduccion({ ordenes, loading, onCargar, proceso, rol, nombreUsuari
   const [modalTrabajo, setModalTrabajo] = useState<any>(null);
   const [trabajoEstado, setTrabajoEstado] = useState('');
 
-  const esAdminODiseno = rol === 'admin' || rol === 'diseno';
-  const esOperario = rol === 'encargado' || rol === 'operario_impresion' || rol === 'operario_terminacion';
-  const esAdministrativo = rol === 'administrativo';
-  const esAdmin = rol === 'admin';
+  // PERMISOS ABIERTOS PARA TESTING
+  const esAdminODiseno = true;
+  const esOperario = true;
+  const esAdministrativo = true;
+  const esAdmin = true;
 
   const filtered = ordenes.filter((o: any) => {
     const matchFiltro = filtro === 'todas' ? true :
@@ -263,7 +261,7 @@ function TablProduccion({ ordenes, loading, onCargar, proceso, rol, nombreUsuari
   }
 
   async function guardarMts() {
-    if (!mtsNuevo) { alert('Ingresá los metros.'); return; }
+    if (mtsNuevo === '') { alert('Ingresá los metros.'); return; }
     setGuardando(true);
     const nuevoEstado = parseFloat(mtsNuevo) >= Number(modalMts.mts_pedidos) ? 'TERMINADO' : 'EN PRODUCCION';
     await guardarCampo(modalMts.id, {
@@ -358,7 +356,7 @@ function TablProduccion({ ordenes, loading, onCargar, proceso, rol, nombreUsuari
             <tbody>
               {loading && <tr><td colSpan={21} style={{ padding: 20, textAlign: 'center', color: '#888' }}>CARGANDO...</td></tr>}
               {!loading && filtered.length === 0 && <tr><td colSpan={21} style={{ padding: 20, textAlign: 'center', color: '#888' }}>SIN ÓRDENES REGISTRADAS</td></tr>}
-              {filtered.map((o: any, idx: number) => (
+              {filtered.map((o: any) => (
                 <tr key={o.id} style={{ background: getRowBg(o), borderBottom: '1px solid #ddd' }}>
                   <td style={{ ...td, fontWeight: 700, fontSize: 13 }}>{o.n}</td>
                   <td style={{ ...td, fontWeight: 700, color: o.puede_producir ? '#3B6D11' : '#c00', textAlign: 'center' }}>
@@ -371,14 +369,10 @@ function TablProduccion({ ordenes, loading, onCargar, proceso, rol, nombreUsuari
                   <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.diseno}</td>
                   <td style={{ ...td, textAlign: 'center' }}>{o.mts_pedidos}</td>
                   <td style={{ ...td, textAlign: 'center' }}>
-                    {esOperario && o.puede_producir && o.trabajo_completo !== 'OK' ? (
-                      <button onClick={() => { setModalMts(o); setMtsNuevo(o.mts_impresos || ''); }}
-                        style={{ ...btn, fontSize: 11, padding: '3px 8px', background: '#e8f0fb', color: '#185FA5', border: '1px solid #b3c8f0' }}>
-                        {o.mts_impresos || 0} ✎
-                      </button>
-                    ) : (
-                      <span style={{ fontWeight: 500 }}>{o.mts_impresos || 0}</span>
-                    )}
+                    <button onClick={() => { setModalMts(o); setMtsNuevo(String(o.mts_impresos || 0)); }}
+                      style={{ ...btn, fontSize: 11, padding: '3px 8px', background: '#e8f0fb', color: '#185FA5', border: '1px solid #b3c8f0' }}>
+                      {o.mts_impresos || 0} ✎
+                    </button>
                     {o.mts_operario && <div style={{ fontSize: 10, color: '#888' }}>{o.mts_operario}</div>}
                   </td>
                   <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.perfil || '—'}</td>
@@ -386,71 +380,51 @@ function TablProduccion({ ordenes, loading, onCargar, proceso, rol, nombreUsuari
                   <td style={{ ...td, textAlign: 'center', whiteSpace: 'nowrap' }}>{o.c_aprob || '—'}</td>
                   <td style={{ ...td, fontFamily: 'monospace', fontSize: 11, color: '#e85d2f', whiteSpace: 'nowrap' }}>{o.id_hype || '—'}</td>
                   <td style={{ ...td, textAlign: 'center' }}>
-                    {esOperario && o.puede_producir ? (
-                      <button onClick={() => { setModalImp(o); setImpEstado(o.imp_estado || ''); setImpMotivo(o.imp_motivo || ''); }}
-                        style={{ ...btn, fontSize: 11, padding: '3px 8px',
-                          background: o.imp_estado === 'OK' ? '#c8e6c9' : o.imp_estado === 'NO' ? '#ffcdd2' : '#f0f0f0',
-                          color: o.imp_estado === 'OK' ? '#2e7d32' : o.imp_estado === 'NO' ? '#c62828' : '#888',
-                          border: '1px solid #ddd' }}>
-                        {o.imp_estado || '—'} ✎
-                      </button>
-                    ) : (
-                      <span style={{ fontWeight: 700, color: o.imp_estado === 'OK' ? '#2e7d32' : o.imp_estado === 'NO' ? '#c62828' : '#888' }}>{o.imp_estado || '—'}</span>
-                    )}
+                    <button onClick={() => { setModalImp(o); setImpEstado(o.imp_estado || ''); setImpMotivo(o.imp_motivo || ''); }}
+                      style={{ ...btn, fontSize: 11, padding: '3px 8px',
+                        background: o.imp_estado === 'OK' ? '#c8e6c9' : o.imp_estado === 'NO' ? '#ffcdd2' : '#f0f0f0',
+                        color: o.imp_estado === 'OK' ? '#2e7d32' : o.imp_estado === 'NO' ? '#c62828' : '#888',
+                        border: '1px solid #ddd' }}>
+                      {o.imp_estado || '—'} ✎
+                    </button>
                     {o.imp_operario && <div style={{ fontSize: 10, color: '#888' }}>{o.imp_operario}</div>}
                   </td>
                   <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.preparacion || '—'}</td>
                   <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.terminacion || '—'}</td>
                   <td style={{ ...td, textAlign: 'center' }}>
-                    {esOperario && o.puede_producir ? (
-                      <button onClick={() => { setModalTrabajo(o); setTrabajoEstado(o.trabajo_completo || ''); }}
-                        style={{ ...btn, fontSize: 11, padding: '3px 8px',
-                          background: o.trabajo_completo === 'OK' ? '#a5d6a7' : '#f0f0f0',
-                          color: o.trabajo_completo === 'OK' ? '#1b5e20' : '#888',
-                          border: '1px solid #ddd' }}>
-                        {o.trabajo_completo || '—'} ✎
-                      </button>
-                    ) : (
-                      <span style={{ fontWeight: 700, color: o.trabajo_completo === 'OK' ? '#1b5e20' : '#888' }}>{o.trabajo_completo || '—'}</span>
-                    )}
+                    <button onClick={() => { setModalTrabajo(o); setTrabajoEstado(o.trabajo_completo || ''); }}
+                      style={{ ...btn, fontSize: 11, padding: '3px 8px',
+                        background: o.trabajo_completo === 'OK' ? '#a5d6a7' : '#f0f0f0',
+                        color: o.trabajo_completo === 'OK' ? '#1b5e20' : '#888',
+                        border: '1px solid #ddd' }}>
+                      {o.trabajo_completo || '—'} ✎
+                    </button>
                     {o.trabajo_operario && <div style={{ fontSize: 10, color: '#888' }}>{o.trabajo_operario}</div>}
                   </td>
                   <td style={{ ...td, textAlign: 'center', whiteSpace: 'nowrap' }}>{o.fecha_fin || '—'}</td>
                   <td style={{ ...td, textAlign: 'center' }}>
-                    {esOperario && o.puede_producir ? (
-                      <button onClick={() => guardarPrep(o.id, !o.prep_tela)}
-                        style={{ ...btn, fontSize: 11, padding: '3px 8px',
-                          background: o.prep_tela ? '#c8e6c9' : '#f0f0f0',
-                          color: o.prep_tela ? '#2e7d32' : '#888',
-                          border: '1px solid #ddd' }}>
-                        {o.prep_tela ? 'SI' : 'NO'}
-                      </button>
-                    ) : (
-                      <span style={{ fontWeight: 700, color: o.prep_tela ? '#2e7d32' : '#888' }}>{o.prep_tela ? 'SI' : 'NO'}</span>
-                    )}
+                    <button onClick={() => guardarPrep(o.id, !o.prep_tela)}
+                      style={{ ...btn, fontSize: 11, padding: '3px 8px',
+                        background: o.prep_tela ? '#c8e6c9' : '#f0f0f0',
+                        color: o.prep_tela ? '#2e7d32' : '#888',
+                        border: '1px solid #ddd' }}>
+                      {o.prep_tela ? 'SI' : 'NO'}
+                    </button>
                   </td>
                   <td style={{ ...td, textAlign: 'center' }}>
-                    {esAdministrativo ? (
-                      <select defaultValue={o.anticipo || 'PENDIENTE'} onChange={e => {
-                        const nuevoAnticipo = e.target.value;
-                        const puedeProducir = (nuevoAnticipo === 'SI' || nuevoAnticipo === 'N/A') && o.prep_tela;
-                        guardarCampo(o.id, { anticipo: nuevoAnticipo, puede_producir: puedeProducir });
-                      }} style={{ ...inp, width: 100, padding: '3px 6px', fontSize: 12 }}>
-                        <option value="PENDIENTE">PENDIENTE</option>
-                        <option value="SI">SI</option>
-                        <option value="N/A">N/A</option>
-                      </select>
-                    ) : (
-                      <span style={{ fontWeight: 500, color: o.anticipo === 'PENDIENTE' ? '#c00' : '#3B6D11' }}>{o.anticipo || 'PENDIENTE'}</span>
-                    )}
+                    <select defaultValue={o.anticipo || 'PENDIENTE'} onChange={e => {
+                      const nuevoAnticipo = e.target.value;
+                      const puedeProducir = (nuevoAnticipo === 'SI' || nuevoAnticipo === 'N/A') && o.prep_tela;
+                      guardarCampo(o.id, { anticipo: nuevoAnticipo, puede_producir: puedeProducir });
+                    }} style={{ ...inp, width: 100, padding: '3px 6px', fontSize: 12 }}>
+                      <option value="PENDIENTE">PENDIENTE</option>
+                      <option value="SI">SI</option>
+                      <option value="N/A">N/A</option>
+                    </select>
                   </td>
                   <td style={{ ...td, whiteSpace: 'nowrap' }}>
-                    {esAdminODiseno && (
-                      <>
-                        <button onClick={() => setEditando({...o})} style={{ ...btn, fontSize: 11, padding: '3px 8px', marginRight: 4 }}>EDITAR</button>
-                        {esAdmin && <button onClick={() => eliminar(o)} style={{ ...btn, fontSize: 11, padding: '3px 8px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>ELIM.</button>}
-                      </>
-                    )}
+                    <button onClick={() => setEditando({...o})} style={{ ...btn, fontSize: 11, padding: '3px 8px', marginRight: 4 }}>EDITAR</button>
+                    <button onClick={() => eliminar(o)} style={{ ...btn, fontSize: 11, padding: '3px 8px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>ELIM.</button>
                   </td>
                 </tr>
               ))}
@@ -468,12 +442,12 @@ function TablProduccion({ ordenes, loading, onCargar, proceso, rol, nombreUsuari
             <div style={{ fontSize: 12, color: '#888', marginBottom: 20 }}>Operario: <strong>{nombreUsuario}</strong></div>
             <div style={{ marginBottom: 12 }}>
               <label style={lbl}>MTS IMPRESOS</label>
-              <input type="number" value={mtsNuevo} onChange={e => setMtsNuevo(e.target.value)} placeholder="0" style={inp} />
+              <input type="number" value={mtsNuevo} onChange={e => setMtsNuevo(e.target.value)} placeholder="0" style={inp} autoFocus />
               <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>MTS PEDIDOS: {modalMts.mts_pedidos}</div>
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
               <button onClick={() => { setModalMts(null); setMtsNuevo(''); }} style={btn}>CANCELAR</button>
-              <button onClick={guardarMts} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>GUARDAR</button>
+              <button onClick={guardarMts} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>{guardando ? 'GUARDANDO...' : 'GUARDAR'}</button>
             </div>
           </div>
         </div>
@@ -504,7 +478,7 @@ function TablProduccion({ ordenes, loading, onCargar, proceso, rol, nombreUsuari
             )}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
               <button onClick={() => { setModalImp(null); setImpEstado(''); setImpMotivo(''); }} style={btn}>CANCELAR</button>
-              <button onClick={guardarImp} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>GUARDAR</button>
+              <button onClick={guardarImp} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>{guardando ? 'GUARDANDO...' : 'GUARDAR'}</button>
             </div>
           </div>
         </div>
@@ -526,12 +500,12 @@ function TablProduccion({ ordenes, loading, onCargar, proceso, rol, nombreUsuari
             </div>
             {trabajoEstado === 'OK' && (
               <div style={{ padding: '10px 14px', background: '#e8f5e9', color: '#2e7d32', borderRadius: 8, fontSize: 13, marginBottom: 12 }}>
-                ✓ Se registrará la fecha de hoy como fecha fin automáticamente.
+                ✓ SE REGISTRARÁ LA FECHA DE HOY COMO FECHA FIN AUTOMÁTICAMENTE.
               </div>
             )}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
               <button onClick={() => { setModalTrabajo(null); setTrabajoEstado(''); }} style={btn}>CANCELAR</button>
-              <button onClick={guardarTrabajo} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>GUARDAR</button>
+              <button onClick={guardarTrabajo} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>{guardando ? 'GUARDANDO...' : 'GUARDAR'}</button>
             </div>
           </div>
         </div>
