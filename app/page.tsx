@@ -66,9 +66,13 @@ export default function Home() {
   if (!logueado) return <Login onLogin={handleLogin} />;
 
   const esAdmin = rol === 'admin';
+  const esDiseno = rol === 'diseno';
+  const esAdminODiseno = rol === 'admin' || rol === 'diseno';
+  const esOperario = rol === 'encargado' || rol === 'operario_impresion' || rol === 'operario_terminacion';
+  const esAdministrativo = rol === 'administrativo';
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '▦', roles: ['admin', 'diseno', 'comercial', 'administrativo', 'encargado'], sep: false },
+    { id: 'dashboard', label: 'Dashboard', icon: '▦', roles: ['admin', 'diseno', 'comercial', 'administrativo', 'encargado', 'operario_impresion', 'operario_terminacion'], sep: false },
     { id: '__stock__', label: 'STOCK', icon: '', roles: ['admin', 'diseno'], sep: true },
     { id: 'ingresos', label: 'Ingresos', icon: '↓', roles: ['admin'], sep: false },
     { id: 'egresos', label: 'Egresos', icon: '↑', roles: ['admin'], sep: false },
@@ -76,8 +80,8 @@ export default function Home() {
     { id: 'stockTC', label: 'Stock TC', icon: '◫', roles: ['admin', 'diseno'], sep: false },
     { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰', roles: ['admin'], sep: false },
     { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰', roles: ['admin'], sep: false },
-    { id: '__prod__', label: 'PRODUCCIÓN', icon: '', roles: ['admin'], sep: true },
-    { id: 'produccion', label: 'Producción', icon: '⚙', roles: ['admin'], sep: false },
+    { id: '__prod__', label: 'PRODUCCIÓN', icon: '', roles: ['admin', 'diseno', 'comercial', 'administrativo', 'encargado', 'operario_impresion', 'operario_terminacion'], sep: true },
+    { id: 'produccion', label: 'Producción', icon: '⚙', roles: ['admin', 'diseno', 'comercial', 'administrativo', 'encargado', 'operario_impresion', 'operario_terminacion'], sep: false },
     { id: '__bd__', label: 'BASE DE DATOS', icon: '', roles: ['admin'], sep: true },
     { id: 'clientes', label: 'Clientes', icon: '♟', roles: ['admin'], sep: false },
     { id: 'telas', label: 'Telas', icon: '≡', roles: ['admin'], sep: false },
@@ -143,7 +147,7 @@ export default function Home() {
             {pagina === 'empleados' && esAdmin && <Empleados empleados={empleados} onGuardar={cargarTodo} />}
             {pagina === 'historialIngresos' && esAdmin && <HistorialIngresos ingresos={ingresos} onGuardar={cargarTodo} clientes={clientes} telas={telas} empleados={empleados} />}
             {pagina === 'historialEgresos' && esAdmin && <HistorialEgresos egresos={egresos} onGuardar={cargarTodo} />}
-            {pagina === 'produccion' && esAdmin && <Produccion clientes={clientes} telas={telas} colores={colores} ingresos={ingresos} />}
+            {pagina === 'produccion' && <Produccion clientes={clientes} telas={telas} colores={colores} ingresos={ingresos} rol={rol} />}
           </>
         )}
       </div>
@@ -158,12 +162,14 @@ const PERFILES: any = {
 };
 const PREPARACIONES = ['Sin preparación', 'Apertura y reencanutado', 'Planchado', 'Pret y planchado', 'Reencanutado'];
 const TERMINACIONES = ['Solo fijado', 'Post y fijado'];
+const MOTIVOS_IMP = ['Falla de máquina', 'Tela fallada', 'Falta de tinta', 'Archivo con error', 'Faltante de tela'];
 
-function Produccion({ clientes, telas, colores, ingresos }: any) {
+function Produccion({ clientes, telas, colores, ingresos, rol }: any) {
   const [subpagina, setSubpagina] = useState('tablero');
   const [proceso, setProceso] = useState('DIRECTA');
   const [ordenes, setOrdenes] = useState<any[]>([]);
   const [loadingOrdenes, setLoadingOrdenes] = useState(true);
+  const esAdminODiseno = rol === 'admin' || rol === 'diseno';
 
   useEffect(() => { cargarOrdenes(); }, []);
 
@@ -183,18 +189,20 @@ function Produccion({ clientes, telas, colores, ingresos }: any) {
           <div style={{ fontSize: 18, fontWeight: 500 }}>Producción</div>
           <div style={{ fontSize: 13, color: '#888' }}>Gestión de órdenes</div>
         </div>
-        <button onClick={() => setSubpagina(subpagina === 'nueva-ot' ? 'tablero' : 'nueva-ot')} style={{
-          padding: '7px 16px', borderRadius: 8, border: '1px solid #e85d2f', fontSize: 13, cursor: 'pointer',
-          background: subpagina === 'nueva-ot' ? '#fff' : '#e85d2f',
-          color: subpagina === 'nueva-ot' ? '#e85d2f' : '#fff'
-        }}>
-          {subpagina === 'nueva-ot' ? '← Volver al tablero' : '+ Nueva OT'}
-        </button>
+        {esAdminODiseno && (
+          <button onClick={() => setSubpagina(subpagina === 'nueva-ot' ? 'tablero' : 'nueva-ot')} style={{
+            padding: '7px 16px', borderRadius: 8, border: '1px solid #e85d2f', fontSize: 13, cursor: 'pointer',
+            background: subpagina === 'nueva-ot' ? '#fff' : '#e85d2f',
+            color: subpagina === 'nueva-ot' ? '#e85d2f' : '#fff'
+          }}>
+            {subpagina === 'nueva-ot' ? '← Volver al tablero' : '+ Nueva OT'}
+          </button>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
         {['DIRECTA', 'MUESTRAS'].map(p => (
-          <button key={p} onClick={() => setProceso(p)} style={{
+          <button key={p} onClick={() => { setProceso(p); setSubpagina('tablero'); }} style={{
             padding: '8px 24px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, cursor: 'pointer',
             background: proceso === p ? '#1a1a2e' : '#fff',
             color: proceso === p ? '#fff' : '#555',
@@ -203,27 +211,32 @@ function Produccion({ clientes, telas, colores, ingresos }: any) {
         ))}
       </div>
 
-      {subpagina === 'tablero' && <TablProduccion ordenes={ordenesProceso} loading={loadingOrdenes} onCargar={cargarOrdenes} proceso={proceso} />}
-      {subpagina === 'nueva-ot' && <NuevaOT clientes={clientes} telas={telas} colores={colores} ingresos={ingresos} proceso={proceso} onGuardar={() => { cargarOrdenes(); setSubpagina('tablero'); }} />}
+      {subpagina === 'tablero' && <TablProduccion ordenes={ordenesProceso} loading={loadingOrdenes} onCargar={cargarOrdenes} proceso={proceso} rol={rol} />}
+      {subpagina === 'nueva-ot' && esAdminODiseno && <NuevaOT clientes={clientes} telas={telas} colores={colores} ingresos={ingresos} proceso={proceso} onGuardar={() => { cargarOrdenes(); setSubpagina('tablero'); }} />}
     </div>
   );
 }
 
-function TablProduccion({ ordenes, loading, onCargar, proceso }: any) {
+function TablProduccion({ ordenes, loading, onCargar, proceso, rol }: any) {
   const [filtro, setFiltro] = useState('todas');
   const [search, setSearch] = useState('');
-  const [registrando, setRegistrando] = useState<any>(null);
-  const [mtsReg, setMtsReg] = useState('');
-  const [operario, setOperario] = useState('');
-  const [maquinaReg, setMaquinaReg] = useState('');
+  const [editando, setEditando] = useState<any>(null);
   const [guardando, setGuardando] = useState(false);
+  const [modalImp, setModalImp] = useState<any>(null);
+  const [impEstado, setImpEstado] = useState('');
+  const [impMotivo, setImpMotivo] = useState('');
+
+  const esAdminODiseno = rol === 'admin' || rol === 'diseno';
+  const esOperario = rol === 'encargado' || rol === 'operario_impresion' || rol === 'operario_terminacion';
+  const esAdministrativo = rol === 'administrativo';
+  const esAdmin = rol === 'admin';
 
   const filtered = ordenes.filter((o: any) => {
     const matchFiltro = filtro === 'todas' ? true :
       filtro === 'produccion' ? o.estado === 'EN PRODUCCION' :
       filtro === 'bloqueadas' ? !o.puede_producir :
-      filtro === 'terminadas' ? o.estado === 'TERMINADO' :
-      filtro === 'entregar' ? o.estado === 'LISTO ENTREGAR' : true;
+      filtro === 'terminadas' ? o.trabajo_completo === 'OK' :
+      filtro === 'pendientes' ? o.estado === 'PENDIENTE' : true;
     const matchSearch = !search ||
       (o.cliente || '').toLowerCase().includes(search.toLowerCase()) ||
       (o.diseno || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -231,53 +244,44 @@ function TablProduccion({ ordenes, loading, onCargar, proceso }: any) {
     return matchFiltro && matchSearch;
   });
 
-  const stats = {
-    activas: ordenes.filter((o: any) => o.estado === 'EN PRODUCCION').length,
-    bloqueadas: ordenes.filter((o: any) => !o.puede_producir).length,
-    entregar: ordenes.filter((o: any) => o.estado === 'LISTO ENTREGAR').length,
-    mts: ordenes.reduce((s: number, o: any) => s + Number(o.mts_impresos || 0), 0),
-  };
-
-  function estadoBadge(o: any) {
-    if (!o.puede_producir) {
-      const motivo = o.anticipo === 'PENDIENTE' ? 'Anticipo pend.' : 'Tela sin prep.';
-      return <span style={{ background: '#fee', color: '#c00', fontSize: 11, padding: '2px 8px', borderRadius: 6 }}>🔒 {motivo}</span>;
-    }
-    if (o.estado === 'TERMINADO') return <span style={{ background: '#e8f4ea', color: '#3B6D11', fontSize: 11, padding: '2px 8px', borderRadius: 6 }}>✓ Terminado</span>;
-    if (o.estado === 'LISTO ENTREGAR') return <span style={{ background: '#FAEEDA', color: '#854F0B', fontSize: 11, padding: '2px 8px', borderRadius: 6 }}>📦 Listo p/ entregar</span>;
-    if (o.estado === 'EN PRODUCCION') return <span style={{ background: '#e8f0fb', color: '#185FA5', fontSize: 11, padding: '2px 8px', borderRadius: 6 }}>⚡ En producción</span>;
-    return <span style={{ background: '#f0f0f0', color: '#888', fontSize: 11, padding: '2px 8px', borderRadius: 6 }}>Pendiente</span>;
-  }
-
-  async function guardarRegistro() {
-    if (!operario || !maquinaReg || !parseFloat(mtsReg)) { alert('Completá operario, máquina y metros.'); return; }
+  async function guardarCampo(id: number, campo: string, valor: any) {
     setGuardando(true);
-    const hora = new Date();
-    const turno = hora.getHours() >= 6 && hora.getHours() < 18 ? 'DIA' : 'NOCHE';
-    await supabase.from('registros_impresion').insert([{
-      orden_id: registrando.id,
-      operario,
-      maquina: maquinaReg,
-      mts_impresos: parseFloat(mtsReg),
-      turno,
-      fecha: new Date().toISOString().split('T')[0],
-    }]);
-    const nuevoTotal = Number(registrando.mts_impresos || 0) + parseFloat(mtsReg);
-    const nuevoEstado = nuevoTotal >= Number(registrando.mts_pedidos) ? 'TERMINADO' : 'EN PRODUCCION';
-    await supabase.from('ordenes_produccion').update({ mts_impresos: nuevoTotal, estado: nuevoEstado }).eq('id', registrando.id);
-    setRegistrando(null); setMtsReg(''); setOperario(''); setMaquinaReg('');
+    await supabase.from('ordenes_produccion').update({ [campo]: valor }).eq('id', id);
     onCargar();
     setGuardando(false);
   }
+
+  async function guardarImp() {
+    if (!impEstado) { alert('Seleccioná OK o NO.'); return; }
+    if (impEstado === 'NO' && !impMotivo) { alert('El motivo es obligatorio cuando IMP = NO.'); return; }
+    setGuardando(true);
+    await supabase.from('ordenes_produccion').update({ imp_estado: impEstado, imp_motivo: impEstado === 'NO' ? impMotivo : null }).eq('id', modalImp.id);
+    setModalImp(null); setImpEstado(''); setImpMotivo('');
+    onCargar();
+    setGuardando(false);
+  }
+
+  async function eliminar(o: any) {
+    if (!confirm(`¿Eliminar la OT N${o.n} — ${o.cliente} — ${o.diseno}?`)) return;
+    await supabase.from('ordenes_produccion').delete().eq('id', o.id);
+    onCargar();
+  }
+
+  const stats = {
+    activas: ordenes.filter((o: any) => o.estado === 'EN PRODUCCION').length,
+    bloqueadas: ordenes.filter((o: any) => !o.puede_producir).length,
+    completas: ordenes.filter((o: any) => o.trabajo_completo === 'OK').length,
+    total: ordenes.length,
+  };
 
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
         {[
-          { label: 'En producción', value: stats.activas, color: '#185FA5' },
-          { label: 'Bloqueadas', value: stats.bloqueadas, color: '#c00' },
-          { label: 'Listas p/ entregar', value: stats.entregar, color: '#3B6D11' },
-          { label: 'Mts impresos', value: stats.mts.toLocaleString(), color: '#1a1a2e' },
+          { label: 'TOTAL OTS', value: stats.total, color: '#1a1a2e' },
+          { label: 'EN PRODUCCIÓN', value: stats.activas, color: '#185FA5' },
+          { label: 'BLOQUEADAS', value: stats.bloqueadas, color: '#c00' },
+          { label: 'COMPLETADAS', value: stats.completas, color: '#3B6D11' },
         ].map((m, i) => (
           <div key={i} style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
             <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>{m.label}</div>
@@ -289,57 +293,123 @@ function TablProduccion({ ordenes, loading, onCargar, proceso }: any) {
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
         <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           {[
-            { key: 'todas', label: 'Todas' },
-            { key: 'produccion', label: 'En producción' },
-            { key: 'bloqueadas', label: 'Bloqueadas' },
-            { key: 'terminadas', label: 'Terminadas' },
-            { key: 'entregar', label: 'Listas p/ entregar' },
+            { key: 'todas', label: 'TODAS' },
+            { key: 'pendientes', label: 'PENDIENTES' },
+            { key: 'produccion', label: 'EN PRODUCCIÓN' },
+            { key: 'bloqueadas', label: 'BLOQUEADAS' },
+            { key: 'terminadas', label: 'COMPLETADAS' },
           ].map(f => (
             <button key={f.key} onClick={() => setFiltro(f.key)} style={{
               padding: '5px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 12, cursor: 'pointer',
               background: filtro === f.key ? '#1a1a2e' : '#fff', color: filtro === f.key ? '#fff' : '#555'
             }}>{f.label}</button>
           ))}
-          <input placeholder="Buscar cliente, diseño u OT..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, maxWidth: 250, marginLeft: 'auto' }} />
+          <input placeholder="BUSCAR CLIENTE, DISEÑO U OT..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, maxWidth: 280, marginLeft: 'auto', textTransform: 'uppercase' }} />
         </div>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
-              <tr>
-                {['N','OT','Máquina','Perfil','Cliente','Diseño','Tela','Mts ped.','Mts imp.','Prep.','Terminación','Estado','Acciones'].map(h =>
-                  <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>
+              <tr style={{ background: '#f5f5f7' }}>
+                {['N','PROD','FECHA','OT','MÁQUINA','CLIENTE','DISEÑO','MTS PED.','MTS IMP.','PERFIL','TELA','C/S APROB','ID','IMP','PREP.','TERMINACIÓN','TRABAJO COMP.','FECHA FIN','PREP TELA','ANTICIPO','ACCIONES'].map(h =>
+                  <th key={h} style={{ ...th, whiteSpace: 'nowrap', fontSize: 11, textTransform: 'uppercase' }}>{h}</th>
                 )}
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={13} style={{ padding: 20, textAlign: 'center', color: '#888' }}>Cargando...</td></tr>}
-              {!loading && filtered.length === 0 && <tr><td colSpan={13} style={{ padding: 20, textAlign: 'center', color: '#888' }}>Sin órdenes registradas</td></tr>}
+              {loading && <tr><td colSpan={21} style={{ padding: 20, textAlign: 'center', color: '#888' }}>CARGANDO...</td></tr>}
+              {!loading && filtered.length === 0 && <tr><td colSpan={21} style={{ padding: 20, textAlign: 'center', color: '#888' }}>SIN ÓRDENES REGISTRADAS</td></tr>}
               {filtered.map((o: any) => {
-                const pct = o.mts_pedidos > 0 ? Math.min(100, Math.round((Number(o.mts_impresos) / Number(o.mts_pedidos)) * 100)) : 0;
+                const completo = o.trabajo_completo === 'OK';
+                const rowBg = completo ? '#e8f4ea' : 'transparent';
                 return (
-                  <tr key={o.id} style={{ opacity: !o.puede_producir ? 0.55 : 1 }}>
-                    <td style={{ ...td, fontWeight: 500 }}>{o.n}</td>
+                  <tr key={o.id} style={{ background: rowBg }}>
+                    <td style={{ ...td, fontWeight: 700, fontSize: 13 }}>{o.n}</td>
+                    <td style={{ ...td, fontWeight: 700, color: o.puede_producir ? '#3B6D11' : '#c00', textAlign: 'center' }}>
+                      {o.puede_producir ? 'SI' : 'NO'}
+                    </td>
+                    <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.fecha_pedido}</td>
                     <td style={{ ...td, fontFamily: 'monospace', fontSize: 11, whiteSpace: 'nowrap' }}>{o.nro_ot}</td>
-                    <td style={td}>{o.equipo || '—'}</td>
-                    <td style={td}>{o.perfil || '—'}</td>
-                    <td style={{ ...td, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.cliente}</td>
-                    <td style={{ ...td, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.diseno}</td>
-                    <td style={{ ...td, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.tela || '—'}</td>
+                    <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.equipo || '—'}</td>
+                    <td style={{ ...td, whiteSpace: 'nowrap', fontWeight: 500 }}>{o.cliente}</td>
+                    <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.diseno}</td>
                     <td style={{ ...td, textAlign: 'center' }}>{o.mts_pedidos}</td>
                     <td style={{ ...td, textAlign: 'center' }}>
-                      <div style={{ fontSize: 12, fontWeight: 500 }}>{o.mts_impresos || 0}</div>
-                      <div style={{ height: 3, background: '#f0f0f0', borderRadius: 2, marginTop: 3, width: 50 }}>
-                        <div style={{ height: 3, background: pct >= 100 ? '#3B6D11' : '#e85d2f', borderRadius: 2, width: `${pct}%` }} />
-                      </div>
+                      {esOperario && o.puede_producir && o.trabajo_completo !== 'OK' ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <input type="number" defaultValue={o.mts_impresos || 0} style={{ ...inp, width: 70, padding: '3px 6px', fontSize: 12 }}
+                            onBlur={e => guardarCampo(o.id, 'mts_impresos', parseFloat(e.target.value))} />
+                        </div>
+                      ) : (
+                        <span style={{ fontWeight: 500 }}>{o.mts_impresos || 0}</span>
+                      )}
                     </td>
-                    <td style={td}>{o.preparacion || '—'}</td>
-                    <td style={td}>{o.terminacion || '—'}</td>
-                    <td style={td}>{estadoBadge(o)}</td>
-                    <td style={td}>
-                      {o.puede_producir && o.estado !== 'TERMINADO' && (
-                        <button onClick={() => { setRegistrando(o); setMaquinaReg(o.equipo || ''); }} style={{ ...btn, fontSize: 12, padding: '4px 10px', background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>
-                          + Mts
+                    <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.perfil || '—'}</td>
+                    <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.tela || '—'}</td>
+                    <td style={{ ...td, textAlign: 'center', whiteSpace: 'nowrap' }}>{o.c_aprob || '—'}</td>
+                    <td style={{ ...td, fontFamily: 'monospace', fontSize: 11, color: '#e85d2f', whiteSpace: 'nowrap' }}>{o.id_hype || '—'}</td>
+                    <td style={{ ...td, textAlign: 'center' }}>
+                      {esOperario && o.puede_producir ? (
+                        <button onClick={() => { setModalImp(o); setImpEstado(o.imp_estado || ''); setImpMotivo(o.imp_motivo || ''); }}
+                          style={{ ...btn, fontSize: 11, padding: '3px 8px', background: o.imp_estado === 'OK' ? '#e8f4ea' : o.imp_estado === 'NO' ? '#fee' : '#f0f0f0', color: o.imp_estado === 'OK' ? '#3B6D11' : o.imp_estado === 'NO' ? '#c00' : '#888', border: '1px solid #ddd' }}>
+                          {o.imp_estado || '—'}
                         </button>
+                      ) : (
+                        <span style={{ color: o.imp_estado === 'OK' ? '#3B6D11' : o.imp_estado === 'NO' ? '#c00' : '#888', fontWeight: 500 }}>{o.imp_estado || '—'}</span>
+                      )}
+                    </td>
+                    <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.preparacion || '—'}</td>
+                    <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.terminacion || '—'}</td>
+                    <td style={{ ...td, textAlign: 'center' }}>
+                      {esOperario && o.puede_producir ? (
+                        <select defaultValue={o.trabajo_completo || ''} onChange={e => guardarCampo(o.id, 'trabajo_completo', e.target.value)} style={{ ...inp, width: 70, padding: '3px 6px', fontSize: 12 }}>
+                          <option value="">—</option>
+                          <option value="OK">OK</option>
+                          <option value="NO">NO</option>
+                        </select>
+                      ) : (
+                        <span style={{ fontWeight: 700, color: o.trabajo_completo === 'OK' ? '#3B6D11' : '#888' }}>{o.trabajo_completo || '—'}</span>
+                      )}
+                    </td>
+                    <td style={{ ...td, textAlign: 'center' }}>
+                      {esOperario && o.puede_producir ? (
+                        <input type="date" defaultValue={o.fecha_fin || ''} style={{ ...inp, width: 130, padding: '3px 6px', fontSize: 12 }}
+                          onBlur={e => guardarCampo(o.id, 'fecha_fin', e.target.value || null)} />
+                      ) : (
+                        <span>{o.fecha_fin || '—'}</span>
+                      )}
+                    </td>
+                    <td style={{ ...td, textAlign: 'center' }}>
+                      {esOperario && o.puede_producir ? (
+                        <select defaultValue={o.prep_tela ? 'SI' : 'NO'} onChange={e => guardarCampo(o.id, 'prep_tela', e.target.value === 'SI')} style={{ ...inp, width: 60, padding: '3px 6px', fontSize: 12 }}>
+                          <option value="NO">NO</option>
+                          <option value="SI">SI</option>
+                        </select>
+                      ) : (
+                        <span style={{ fontWeight: 500, color: o.prep_tela ? '#3B6D11' : '#888' }}>{o.prep_tela ? 'SI' : 'NO'}</span>
+                      )}
+                    </td>
+                    <td style={{ ...td, textAlign: 'center' }}>
+                      {esAdministrativo ? (
+                        <select defaultValue={o.anticipo || 'PENDIENTE'} onChange={e => {
+                          const nuevoAnticipo = e.target.value;
+                          const puedeProducir = (nuevoAnticipo === 'SI' || nuevoAnticipo === 'N/A') && o.prep_tela;
+                          guardarCampo(o.id, 'anticipo', nuevoAnticipo);
+                          guardarCampo(o.id, 'puede_producir', puedeProducir);
+                        }} style={{ ...inp, width: 100, padding: '3px 6px', fontSize: 12 }}>
+                          <option value="PENDIENTE">PENDIENTE</option>
+                          <option value="SI">SI</option>
+                          <option value="N/A">N/A</option>
+                        </select>
+                      ) : (
+                        <span style={{ fontWeight: 500, color: o.anticipo === 'PENDIENTE' ? '#c00' : '#3B6D11' }}>{o.anticipo || 'PENDIENTE'}</span>
+                      )}
+                    </td>
+                    <td style={{ ...td, whiteSpace: 'nowrap' }}>
+                      {esAdminODiseno && (
+                        <>
+                          <button onClick={() => setEditando({...o})} style={{ ...btn, fontSize: 11, padding: '3px 8px', marginRight: 4 }}>EDITAR</button>
+                          {esAdmin && <button onClick={() => eliminar(o)} style={{ ...btn, fontSize: 11, padding: '3px 8px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>ELIM.</button>}
+                        </>
                       )}
                     </td>
                   </tr>
@@ -350,36 +420,108 @@ function TablProduccion({ ordenes, loading, onCargar, proceso }: any) {
         </div>
       </div>
 
-      {registrando && (
+      {/* Modal IMP */}
+      {modalImp && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 480 }}>
-            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>Registrar metros impresos</div>
-            <div style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>N {registrando.n} — {registrando.cliente} — {registrando.diseno}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div>
-                <label style={lbl}>Operario</label>
-                <input value={operario} onChange={e => setOperario(e.target.value)} placeholder="Nombre del operario" style={inp} />
+          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 420 }}>
+            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>CONFIRMACIÓN DE IMPRESIÓN</div>
+            <div style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>N {modalImp.n} — {modalImp.cliente} — {modalImp.diseno}</div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={lbl}>ESTADO</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => setImpEstado('OK')} style={{ ...btn, flex: 1, background: impEstado === 'OK' ? '#3B6D11' : '#f0f0f0', color: impEstado === 'OK' ? '#fff' : '#333', fontWeight: 700 }}>OK</button>
+                <button onClick={() => setImpEstado('NO')} style={{ ...btn, flex: 1, background: impEstado === 'NO' ? '#c00' : '#f0f0f0', color: impEstado === 'NO' ? '#fff' : '#333', fontWeight: 700 }}>NO</button>
               </div>
-              <div>
-                <label style={lbl}>Máquina</label>
-                <select value={maquinaReg} onChange={e => setMaquinaReg(e.target.value)} style={inp}>
+            </div>
+            {impEstado === 'NO' && (
+              <div style={{ marginBottom: 12 }}>
+                <label style={lbl}>MOTIVO (OBLIGATORIO)</label>
+                <select value={impMotivo} onChange={e => setImpMotivo(e.target.value)} style={inp}>
+                  <option value="">Seleccionar motivo...</option>
+                  {MOTIVOS_IMP.map(m => <option key={m} value={m}>{m.toUpperCase()}</option>)}
+                </select>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+              <button onClick={() => { setModalImp(null); setImpEstado(''); setImpMotivo(''); }} style={btn}>CANCELAR</button>
+              <button onClick={guardarImp} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>GUARDAR</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar OT */}
+      {editando && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 600, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 16 }}>EDITAR OT — N {editando.n}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div><label style={lbl}>FECHA PEDIDO</label><input type="date" value={editando.fecha_pedido || ''} onChange={e => setEditando({...editando, fecha_pedido: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>NRO. OT</label><input value={editando.nro_ot || ''} onChange={e => setEditando({...editando, nro_ot: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>CLIENTE</label><input value={editando.cliente || ''} onChange={e => setEditando({...editando, cliente: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>DISEÑO</label><input value={editando.diseno || ''} onChange={e => setEditando({...editando, diseno: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>MÁQUINA</label>
+                <select value={editando.equipo || ''} onChange={e => setEditando({...editando, equipo: e.target.value, perfil: ''})} style={inp}>
                   <option value="">Seleccionar</option>
                   {MAQUINAS_DIRECTA.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
-              <div style={{ gridColumn: '1/-1' }}>
-                <label style={lbl}>Mts impresos en este registro</label>
-                <input type="number" value={mtsReg} onChange={e => setMtsReg(e.target.value)} placeholder="0" style={inp} />
-                <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
-                  Impresos hasta ahora: {registrando.mts_impresos || 0} / {registrando.mts_pedidos} mts
-                </div>
+              <div><label style={lbl}>PERFIL</label>
+                <select value={editando.perfil || ''} onChange={e => setEditando({...editando, perfil: e.target.value})} style={inp}>
+                  <option value="">Seleccionar</option>
+                  {(PERFILES[editando.equipo] || []).map((p: string) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              <div><label style={lbl}>TELA</label><input value={editando.tela || ''} onChange={e => setEditando({...editando, tela: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>MTS PEDIDOS</label><input type="number" value={editando.mts_pedidos || ''} onChange={e => setEditando({...editando, mts_pedidos: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>C. APROBACIÓN</label>
+                <select value={editando.c_aprob || ''} onChange={e => setEditando({...editando, c_aprob: e.target.value})} style={inp}>
+                  <option value="C APROB">C/ APROBACIÓN</option>
+                  <option value="S/APROB">S/ APROBACIÓN</option>
+                </select>
+              </div>
+              <div><label style={lbl}>PREPARACIÓN</label>
+                <select value={editando.preparacion || ''} onChange={e => setEditando({...editando, preparacion: e.target.value})} style={inp}>
+                  {PREPARACIONES.map(p => <option key={p} value={p}>{p.toUpperCase()}</option>)}
+                </select>
+              </div>
+              <div><label style={lbl}>TERMINACIÓN</label>
+                <select value={editando.terminacion || ''} onChange={e => setEditando({...editando, terminacion: e.target.value})} style={inp}>
+                  {TERMINACIONES.map(t => <option key={t} value={t}>{t.toUpperCase()}</option>)}
+                </select>
+              </div>
+              <div><label style={lbl}>ANTICIPO</label>
+                <select value={editando.anticipo || 'PENDIENTE'} onChange={e => setEditando({...editando, anticipo: e.target.value})} style={inp}>
+                  <option value="PENDIENTE">PENDIENTE</option>
+                  <option value="SI">SI</option>
+                  <option value="N/A">N/A</option>
+                </select>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
-              <button onClick={() => { setRegistrando(null); setMtsReg(''); setOperario(''); setMaquinaReg(''); }} style={btn}>Cancelar</button>
-              <button onClick={guardarRegistro} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>
-                {guardando ? 'Guardando...' : 'Guardar'}
-              </button>
+              <button onClick={() => setEditando(null)} style={btn}>CANCELAR</button>
+              <button onClick={async () => {
+                setGuardando(true);
+                const puedeProducir = (editando.anticipo === 'SI' || editando.anticipo === 'N/A') && editando.prep_tela;
+                await supabase.from('ordenes_produccion').update({
+                  fecha_pedido: editando.fecha_pedido,
+                  nro_ot: editando.nro_ot,
+                  cliente: editando.cliente,
+                  diseno: editando.diseno,
+                  equipo: editando.equipo,
+                  perfil: editando.perfil,
+                  tela: editando.tela,
+                  mts_pedidos: editando.mts_pedidos,
+                  c_aprob: editando.c_aprob,
+                  preparacion: editando.preparacion,
+                  terminacion: editando.terminacion,
+                  anticipo: editando.anticipo,
+                  puede_producir: puedeProducir,
+                }).eq('id', editando.id);
+                setEditando(null);
+                onCargar();
+                setGuardando(false);
+              }} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>GUARDAR CAMBIOS</button>
             </div>
           </div>
         </div>
@@ -405,9 +547,7 @@ function NuevaOT({ clientes, telas, colores, ingresos, proceso, onGuardar }: any
 
   const perfilesMaquina = equipo ? (PERFILES[equipo] || []) : [];
 
-  function selCliente(c: any) {
-    setCliente(c.nombre); setBusqCli(c.nombre); setShowCli(false);
-  }
+  function selCliente(c: any) { setCliente(c.nombre); setBusqCli(c.nombre); setShowCli(false); }
 
   function updateDiseno(idx: number, field: string, value: string) {
     setDisenos(prev => prev.map((d, i) => i !== idx ? d : { ...d, [field]: value }));
@@ -426,57 +566,40 @@ function NuevaOT({ clientes, telas, colores, ingresos, proceso, onGuardar }: any
     }));
   }
 
-  function puedeProducir() {
-    return anticipo === 'SI' || anticipo === 'N/A';
-  }
+  function puedeProducir() { return anticipo === 'SI' || anticipo === 'N/A'; }
 
   async function guardar() {
-    if (!fecha || !nroOt || !cliente) { alert('Completá fecha, OT y cliente.'); return; }
+    if (!fecha || !nroOt || !cliente) { alert('COMPLETÁ FECHA, OT Y CLIENTE.'); return; }
     const rows = disenos.filter(d => d.diseno && d.tela && parseFloat(d.mts) > 0);
-    if (!rows.length) { alert('Completá al menos un diseño con tela y metros.'); return; }
+    if (!rows.length) { alert('COMPLETÁ AL MENOS UN DISEÑO CON TELA Y METROS.'); return; }
     setGuardando(true);
     const { data: maxN } = await supabase.from('ordenes_produccion').select('n').order('n', { ascending: false }).limit(1);
     let nextN = maxN && maxN.length > 0 ? maxN[0].n + 1 : 1;
     const inserts = rows.map((d, i) => ({
-      n: nextN + i,
-      fecha_pedido: fecha,
-      nro_ot: nroOt,
-      cliente,
-      diseno: d.diseno,
-      equipo,
-      perfil,
-      tela: d.tela,
-      color: d.color,
-      sigla_color: d.siglaColor,
-      id_hype: d.idHype,
-      mts_pedidos: parseFloat(d.mts),
-      mts_impresos: 0,
-      observaciones: d.obs,
-      c_aprob: cAprob,
-      terminacion,
-      preparacion,
-      anticipo,
-      prep_tela: false,
-      puede_producir: puedeProducir(),
-      estado: 'PENDIENTE',
-      proceso,
+      n: nextN + i, fecha_pedido: fecha, nro_ot: nroOt, cliente,
+      diseno: d.diseno, equipo, perfil, tela: d.tela, color: d.color,
+      sigla_color: d.siglaColor, id_hype: d.idHype,
+      mts_pedidos: parseFloat(d.mts), mts_impresos: 0,
+      observaciones: d.obs, c_aprob: cAprob, terminacion, preparacion,
+      anticipo, prep_tela: false, puede_producir: puedeProducir(),
+      estado: 'PENDIENTE', proceso,
     }));
     const { error } = await supabase.from('ordenes_produccion').insert(inserts);
-    if (error) alert('Error: ' + error.message);
-    else { alert('OT guardada correctamente.'); onGuardar(); }
+    if (error) alert('ERROR: ' + error.message);
+    else { alert('OT GUARDADA CORRECTAMENTE.'); onGuardar(); }
     setGuardando(false);
   }
 
   return (
     <div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #eee', marginBottom: 16 }}>
-        <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>Datos generales — {proceso}</div>
+        <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>DATOS GENERALES — {proceso}</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}>
-          <div><label style={lbl}>Fecha pedido</label><input type="date" value={fecha} onChange={e => setFecha(e.target.value)} style={inp} /></div>
-          <div><label style={lbl}>Nro. OT</label><input value={nroOt} onChange={e => setNroOt(e.target.value)} placeholder="000000005748" style={inp} /></div>
+          <div><label style={lbl}>FECHA PEDIDO</label><input type="date" value={fecha} onChange={e => setFecha(e.target.value)} style={inp} /></div>
+          <div><label style={lbl}>NRO. OT</label><input value={nroOt} onChange={e => setNroOt(e.target.value)} placeholder="000000005748" style={inp} /></div>
           <div style={{ position: 'relative' }}>
-            <label style={lbl}>Cliente</label>
-            <input value={busqCli} onChange={e => { setBusqCli(e.target.value); setShowCli(true); }} placeholder="Buscar cliente..." style={inp} />
+            <label style={lbl}>CLIENTE</label>
+            <input value={busqCli} onChange={e => { setBusqCli(e.target.value); setShowCli(true); }} placeholder="BUSCAR CLIENTE..." style={inp} />
             {showCli && busqCli && (
               <div style={dropdown}>
                 {clientes.filter((c: any) => c.nombre.toLowerCase().includes(busqCli.toLowerCase())).slice(0, 8).map((c: any) => (
@@ -485,70 +608,62 @@ function NuevaOT({ clientes, telas, colores, ingresos, proceso, onGuardar }: any
               </div>
             )}
           </div>
-          <div>
-            <label style={lbl}>Máquina</label>
+          <div><label style={lbl}>MÁQUINA</label>
             <select value={equipo} onChange={e => { setEquipo(e.target.value); setPerfil(''); }} style={inp}>
-              <option value="">Seleccionar</option>
+              <option value="">SELECCIONAR</option>
               {MAQUINAS_DIRECTA.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
-          {equipo && (
-            <div>
-              <label style={lbl}>Perfil</label>
-              <select value={perfil} onChange={e => setPerfil(e.target.value)} style={inp}>
-                <option value="">Seleccionar</option>
-                {perfilesMaquina.map((p: string) => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-          )}
-          <div>
-            <label style={lbl}>Anticipo</label>
+          {equipo && <div><label style={lbl}>PERFIL</label>
+            <select value={perfil} onChange={e => setPerfil(e.target.value)} style={inp}>
+              <option value="">SELECCIONAR</option>
+              {perfilesMaquina.map((p: string) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>}
+          <div><label style={lbl}>ANTICIPO</label>
             <select value={anticipo} onChange={e => setAnticipo(e.target.value)} style={inp}>
-              <option value="PENDIENTE">Pendiente</option>
-              <option value="SI">Si</option>
+              <option value="PENDIENTE">PENDIENTE</option>
+              <option value="SI">SI</option>
               <option value="N/A">N/A</option>
             </select>
           </div>
-          <div>
-            <label style={lbl}>C. Aprobación</label>
+          <div><label style={lbl}>C. APROBACIÓN</label>
             <select value={cAprob} onChange={e => setCAprob(e.target.value)} style={inp}>
-              <option value="C APROB">C/ Aprobación</option>
-              <option value="S/APROB">S/ Aprobación</option>
+              <option value="C APROB">C/ APROBACIÓN</option>
+              <option value="S/APROB">S/ APROBACIÓN</option>
             </select>
           </div>
-          <div>
-            <label style={lbl}>Preparación</label>
+          <div><label style={lbl}>PREPARACIÓN</label>
             <select value={preparacion} onChange={e => setPreparacion(e.target.value)} style={inp}>
-              {PREPARACIONES.map(p => <option key={p} value={p}>{p}</option>)}
+              {PREPARACIONES.map(p => <option key={p} value={p}>{p.toUpperCase()}</option>)}
             </select>
           </div>
-          <div>
-            <label style={lbl}>Terminación</label>
+          <div><label style={lbl}>TERMINACIÓN</label>
             <select value={terminacion} onChange={e => setTerminacion(e.target.value)} style={inp}>
-              {TERMINACIONES.map(t => <option key={t} value={t}>{t}</option>)}
+              {TERMINACIONES.map(t => <option key={t} value={t}>{t.toUpperCase()}</option>)}
             </select>
           </div>
         </div>
         {!puedeProducir() && (
           <div style={{ marginTop: 12, padding: '10px 14px', background: '#fee', color: '#c00', borderRadius: 8, fontSize: 13 }}>
-            🔒 Esta OT no puede producirse hasta que el anticipo esté confirmado.
+            🔒 ESTA OT NO PUEDE PRODUCIRSE HASTA QUE EL ANTICIPO ESTÉ CONFIRMADO.
           </div>
         )}
       </div>
 
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', marginBottom: 16, overflow: 'hidden' }}>
-        <div style={{ padding: '12px 20px', borderBottom: '1px solid #eee', fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>Diseños</div>
+        <div style={{ padding: '12px 20px', borderBottom: '1px solid #eee', fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>DISEÑOS</div>
         {disenos.map((d, idx) => (
           <div key={idx} style={{ padding: 16, borderBottom: '1px solid #f0f0f0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-              <span style={{ fontSize: 11, color: '#888', textTransform: 'uppercase' }}>Diseño {idx + 1}</span>
-              {disenos.length > 1 && <button onClick={() => setDisenos(prev => prev.filter((_, i) => i !== idx))} style={{ ...btn, background: '#fee', color: '#c00', border: '1px solid #fcc', fontSize: 12, padding: '3px 10px' }}>Eliminar</button>}
+              <span style={{ fontSize: 11, color: '#888', textTransform: 'uppercase' }}>DISEÑO {idx + 1}</span>
+              {disenos.length > 1 && <button onClick={() => setDisenos(prev => prev.filter((_, i) => i !== idx))} style={{ ...btn, background: '#fee', color: '#c00', border: '1px solid #fcc', fontSize: 12, padding: '3px 10px' }}>ELIMINAR</button>}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 12 }}>
-              <div><label style={lbl}>Nombre del diseño</label><input value={d.diseno} onChange={e => updateDiseno(idx, 'diseno', e.target.value)} placeholder="Ej: BARCOS" style={inp} /></div>
+              <div><label style={lbl}>NOMBRE DEL DISEÑO</label><input value={d.diseno} onChange={e => updateDiseno(idx, 'diseno', e.target.value)} placeholder="EJ: BARCOS" style={inp} /></div>
               <div style={{ position: 'relative' }}>
-                <label style={lbl}>Tela</label>
-                <input value={d.busqTela} onChange={e => { updateDiseno(idx, 'busqTela', e.target.value); setDisenos(prev => prev.map((dd, i) => i === idx ? { ...dd, showTela: true } : dd)); }} placeholder="Buscar tela..." style={inp} />
+                <label style={lbl}>TELA</label>
+                <input value={d.busqTela} onChange={e => { updateDiseno(idx, 'busqTela', e.target.value); setDisenos(prev => prev.map((dd, i) => i === idx ? { ...dd, showTela: true } : dd)); }} placeholder="BUSCAR TELA..." style={inp} />
                 {d.showTela && d.busqTela && (
                   <div style={dropdown}>
                     {telas.filter((t: any) => t.nombre.toLowerCase().includes(d.busqTela.toLowerCase())).slice(0, 8).map((t: any) => (
@@ -558,8 +673,8 @@ function NuevaOT({ clientes, telas, colores, ingresos, proceso, onGuardar }: any
                 )}
               </div>
               <div style={{ position: 'relative' }}>
-                <label style={lbl}>Color</label>
-                <input value={d.busqColor} onChange={e => { updateDiseno(idx, 'busqColor', e.target.value); setDisenos(prev => prev.map((dd, i) => i === idx ? { ...dd, showColor: true } : dd)); }} placeholder="Buscar color..." style={inp} />
+                <label style={lbl}>COLOR</label>
+                <input value={d.busqColor} onChange={e => { updateDiseno(idx, 'busqColor', e.target.value); setDisenos(prev => prev.map((dd, i) => i === idx ? { ...dd, showColor: true } : dd)); }} placeholder="BUSCAR COLOR..." style={inp} />
                 {d.showColor && d.busqColor && (
                   <div style={dropdown}>
                     {colores.filter((c: any) => c.nombre.toLowerCase().includes(d.busqColor.toLowerCase()) || c.sigla.toLowerCase().includes(d.busqColor.toLowerCase())).slice(0, 8).map((c: any) => (
@@ -568,11 +683,11 @@ function NuevaOT({ clientes, telas, colores, ingresos, proceso, onGuardar }: any
                   </div>
                 )}
               </div>
-              <div><label style={lbl}>Mts pedidos</label><input type="number" value={d.mts} onChange={e => updateDiseno(idx, 'mts', e.target.value)} placeholder="0" style={inp} /></div>
-              <div><label style={lbl}>Observaciones</label><input value={d.obs} onChange={e => updateDiseno(idx, 'obs', e.target.value)} placeholder="Detalle..." style={inp} /></div>
+              <div><label style={lbl}>MTS PEDIDOS</label><input type="number" value={d.mts} onChange={e => updateDiseno(idx, 'mts', e.target.value)} placeholder="0" style={inp} /></div>
+              <div><label style={lbl}>OBSERVACIONES</label><input value={d.obs} onChange={e => updateDiseno(idx, 'obs', e.target.value)} placeholder="DETALLE..." style={inp} /></div>
               {d.idHype && (
                 <div style={{ gridColumn: '1/-1' }}>
-                  <label style={lbl}>ID Stock vinculado</label>
+                  <label style={lbl}>ID STOCK VINCULADO</label>
                   <div style={{ background: '#1a1a2e', color: '#e85d2f', fontFamily: 'monospace', fontSize: 14, fontWeight: 700, padding: '8px 14px', borderRadius: 8, display: 'inline-block' }}>{d.idHype}</div>
                 </div>
               )}
@@ -580,13 +695,13 @@ function NuevaOT({ clientes, telas, colores, ingresos, proceso, onGuardar }: any
           </div>
         ))}
         <div onClick={() => setDisenos(prev => [...prev, { diseno: '', tela: '', busqTela: '', showTela: false, color: '', busqColor: '', showColor: false, siglaColor: '', idHype: '', mts: '', obs: '' }])} style={{ padding: '12px 20px', cursor: 'pointer', color: '#e85d2f', fontSize: 13, background: '#fafafa', borderTop: '1px solid #eee' }}>
-          + Agregar diseño
+          + AGREGAR DISEÑO
         </div>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-        <button onClick={onGuardar} style={btn}>Cancelar</button>
-        <button onClick={guardar} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>{guardando ? 'Guardando...' : 'Guardar OT'}</button>
+        <button onClick={onGuardar} style={btn}>CANCELAR</button>
+        <button onClick={guardar} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>{guardando ? 'GUARDANDO...' : 'GUARDAR OT'}</button>
       </div>
     </div>
   );
