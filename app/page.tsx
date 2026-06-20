@@ -71,6 +71,7 @@ export default function Home() {
   function formatFecha(fecha: string) {
     if (!fecha) return '—';
     const [y, m, d] = fecha.split('-');
+    if (!y || !m || !d) return fecha;
     return `${d}/${m}/${y}`;
   }
 
@@ -83,8 +84,6 @@ export default function Home() {
     { id: 'stockTC', label: 'Stock TC', icon: '◫', roles: ['admin', 'diseno', 'encargado', 'operario_terminacion'], sep: false },
     { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰', roles: ['admin', 'encargado', 'operario_terminacion'], sep: false },
     { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰', roles: ['admin', 'encargado', 'operario_terminacion'], sep: false },
-    { id: '__prod__', label: 'PRODUCCIÓN', icon: '', roles: ['admin', 'diseno', 'comercial', 'administrativo', 'encargado', 'operario_impresion', 'operario_terminacion'], sep: true },
-    { id: 'produccion', label: 'Producción', icon: '⚙', roles: ['admin', 'diseno', 'comercial', 'administrativo', 'encargado', 'operario_impresion', 'operario_terminacion'], sep: false },
     { id: '__bd__', label: 'BASE DE DATOS', icon: '', roles: ['admin'], sep: true },
     { id: 'clientes', label: 'Clientes', icon: '♟', roles: ['admin'], sep: false },
     { id: 'telas', label: 'Telas', icon: '≡', roles: ['admin'], sep: false },
@@ -95,7 +94,11 @@ export default function Home() {
   function calcStock() {
     const stockMap: any = {};
     ingresos.forEach((i: any) => {
-      if (!stockMap[i.id_hype]) stockMap[i.id_hype] = { ing: 0, egr: 0, tela: i.tela, cliente: i.cliente, proceso: i.proceso, color: i.color, observaciones: i.observaciones, bultos: 0, ubicacion: i.ubicacion, ramado: i.ramado, recibido: i.recibido };
+      if (!stockMap[i.id_hype]) stockMap[i.id_hype] = {
+        ing: 0, egr: 0, tela: i.tela, cliente: i.cliente, proceso: i.proceso,
+        color: i.color, observaciones: i.observaciones, bultos: 0,
+        ubicacion: i.ubicacion, ramado: i.ramado, recibido: i.recibido, remito: i.remito
+      };
       stockMap[i.id_hype].ing += Number(i.mts);
       stockMap[i.id_hype].bultos += Number(i.bultos || 0);
     });
@@ -142,617 +145,16 @@ export default function Home() {
             {pagina === 'dashboard' && <Dashboard ingresos={ingresos} egresos={egresos} clientes={clientes} calcStock={calcStock} formatFecha={formatFecha} />}
             {pagina === 'ingresos' && puedeVerStock && <Ingresos clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
             {pagina === 'egresos' && puedeVerStock && <Egresos ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
-            {pagina === 'stockTH' && puedeVerStock && <StockTH calcStock={calcStock} ingresos={ingresos} />}
-            {pagina === 'stockTC' && puedeVerStock && <StockTC calcStock={calcStock} ingresos={ingresos} />}
+            {pagina === 'stockTH' && puedeVerStock && <StockTH calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} />}
+            {pagina === 'stockTC' && puedeVerStock && <StockTC calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} />}
             {pagina === 'clientes' && esAdmin && <Clientes clientes={clientes} onGuardar={cargarTodo} />}
             {pagina === 'telas' && esAdmin && <Telas telas={telas} onGuardar={cargarTodo} />}
             {pagina === 'colores' && esAdmin && <Colores colores={colores} onGuardar={cargarTodo} />}
             {pagina === 'empleados' && esAdmin && <Empleados empleados={empleados} onGuardar={cargarTodo} />}
-            {pagina === 'historialIngresos' && puedeVerStock && <HistorialIngresos ingresos={ingresos} onGuardar={cargarTodo} clientes={clientes} telas={telas} empleados={empleados} />}
-            {pagina === 'historialEgresos' && puedeVerStock && <HistorialEgresos egresos={egresos} onGuardar={cargarTodo} />}
-            {pagina === 'produccion' && <Produccion clientes={clientes} telas={telas} colores={colores} ingresos={ingresos} rol={rol} nombreUsuario={nombreUsuario} formatFecha={formatFecha} />}
+            {pagina === 'historialIngresos' && puedeVerStock && <HistorialIngresos ingresos={ingresos} onGuardar={cargarTodo} clientes={clientes} telas={telas} empleados={empleados} formatFecha={formatFecha} />}
+            {pagina === 'historialEgresos' && puedeVerStock && <HistorialEgresos egresos={egresos} onGuardar={cargarTodo} formatFecha={formatFecha} />}
           </>
         )}
-      </div>
-    </div>
-  );
-}
-
-const MAQUINAS_DIRECTA = ['Mona Lisa 2', 'Reina Mona'];
-const PERFILES: any = {
-  'Mona Lisa 2': ['3 Pasadas', '2 Pasadas'],
-  'Reina Mona': ['Tussor 3P', 'Tussor 2P', 'Standar 3P', 'Standar 2P', 'Tussor HQ'],
-};
-const PREPARACIONES = ['Sin preparación', 'Apertura y reencanutado', 'Planchado', 'Pret y planchado', 'Reencanutado'];
-const TERMINACIONES = ['Solo fijado', 'Post y fijado'];
-const MOTIVOS_IMP = ['Falla de máquina', 'Tela fallada', 'Falta de tinta', 'Archivo con error', 'Faltante de tela'];
-
-function Produccion({ clientes, telas, colores, ingresos, rol, nombreUsuario, formatFecha }: any) {
-  const [subpagina, setSubpagina] = useState('tablero');
-  const [proceso, setProceso] = useState('DIRECTA');
-  const [ordenes, setOrdenes] = useState<any[]>([]);
-  const [loadingOrdenes, setLoadingOrdenes] = useState(true);
-
-  useEffect(() => { cargarOrdenes(); }, []);
-
-  async function cargarOrdenes() {
-    setLoadingOrdenes(true);
-    const { data } = await supabase.from('ordenes_produccion').select('*').order('n', { ascending: true });
-    if (data) setOrdenes(data);
-    setLoadingOrdenes(false);
-  }
-
-  const ordenesProceso = ordenes.filter((o: any) => o.proceso === proceso);
-
-  return (
-    <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 500 }}>Producción</div>
-          <div style={{ fontSize: 13, color: '#888' }}>Gestión de órdenes — {nombreUsuario}</div>
-        </div>
-        <button onClick={() => setSubpagina(subpagina === 'nueva-ot' ? 'tablero' : 'nueva-ot')} style={{
-          padding: '7px 16px', borderRadius: 8, border: '1px solid #e85d2f', fontSize: 13, cursor: 'pointer',
-          background: subpagina === 'nueva-ot' ? '#fff' : '#e85d2f',
-          color: subpagina === 'nueva-ot' ? '#e85d2f' : '#fff'
-        }}>
-          {subpagina === 'nueva-ot' ? '← Volver al tablero' : '+ Nueva OT'}
-        </button>
-      </div>
-
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
-        {['DIRECTA', 'MUESTRAS'].map(p => (
-          <button key={p} onClick={() => { setProceso(p); setSubpagina('tablero'); }} style={{
-            padding: '8px 24px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, cursor: 'pointer',
-            background: proceso === p ? '#1a1a2e' : '#fff',
-            color: proceso === p ? '#fff' : '#555',
-            fontWeight: proceso === p ? 500 : 400
-          }}>{p}</button>
-        ))}
-      </div>
-
-      {subpagina === 'tablero' && <TablProduccion ordenes={ordenesProceso} loading={loadingOrdenes} onCargar={cargarOrdenes} proceso={proceso} rol={rol} nombreUsuario={nombreUsuario} formatFecha={formatFecha} />}
-      {subpagina === 'nueva-ot' && <NuevaOT clientes={clientes} telas={telas} colores={colores} ingresos={ingresos} proceso={proceso} onGuardar={() => { cargarOrdenes(); setSubpagina('tablero'); }} />}
-    </div>
-  );
-}
-
-function TablProduccion({ ordenes, loading, onCargar, proceso, rol, nombreUsuario, formatFecha }: any) {
-  const [filtro, setFiltro] = useState('todas');
-  const [search, setSearch] = useState('');
-  const [editando, setEditando] = useState<any>(null);
-  const [guardando, setGuardando] = useState(false);
-  const [modalImp, setModalImp] = useState<any>(null);
-  const [impEstado, setImpEstado] = useState('');
-  const [impMotivo, setImpMotivo] = useState('');
-  const [modalMts, setModalMts] = useState<any>(null);
-  const [mtsNuevo, setMtsNuevo] = useState('');
-  const [modalTrabajo, setModalTrabajo] = useState<any>(null);
-  const [trabajoEstado, setTrabajoEstado] = useState('');
-
-  // PERMISOS ABIERTOS PARA TESTING
-  const esAdminODiseno = true;
-  const esOperario = true;
-  const esAdministrativo = true;
-  const esAdmin = true;
-
-  const filtered = ordenes.filter((o: any) => {
-    const matchFiltro = filtro === 'todas' ? true :
-      filtro === 'produccion' ? o.estado === 'EN PRODUCCION' :
-      filtro === 'bloqueadas' ? !o.puede_producir :
-      filtro === 'terminadas' ? o.trabajo_completo === 'OK' :
-      filtro === 'pendientes' ? o.estado === 'PENDIENTE' : true;
-    const matchSearch = !search ||
-      (o.cliente || '').toLowerCase().includes(search.toLowerCase()) ||
-      (o.diseno || '').toLowerCase().includes(search.toLowerCase()) ||
-      (o.nro_ot || '').includes(search);
-    return matchFiltro && matchSearch;
-  });
-
-  async function guardarCampo(id: number, campos: any) {
-    await supabase.from('ordenes_produccion').update(campos).eq('id', id);
-    onCargar();
-  }
-
-  async function guardarImp() {
-    if (!impEstado) { alert('Seleccioná OK o NO.'); return; }
-    if (impEstado === 'NO' && !impMotivo) { alert('El motivo es obligatorio cuando IMP = NO.'); return; }
-    setGuardando(true);
-    await guardarCampo(modalImp.id, {
-      imp_estado: impEstado,
-      imp_motivo: impEstado === 'NO' ? impMotivo : null,
-      imp_operario: nombreUsuario,
-    });
-    setModalImp(null); setImpEstado(''); setImpMotivo('');
-    setGuardando(false);
-  }
-
-  async function guardarMts() {
-    if (mtsNuevo === '') { alert('Ingresá los metros.'); return; }
-    setGuardando(true);
-    const nuevoEstado = parseFloat(mtsNuevo) >= Number(modalMts.mts_pedidos) ? 'TERMINADO' : 'EN PRODUCCION';
-    await guardarCampo(modalMts.id, {
-      mts_impresos: parseFloat(mtsNuevo),
-      mts_operario: nombreUsuario,
-      estado: nuevoEstado,
-    });
-    setModalMts(null); setMtsNuevo('');
-    setGuardando(false);
-  }
-
-  async function guardarTrabajo() {
-    if (!trabajoEstado) { alert('Seleccioná OK o NO.'); return; }
-    setGuardando(true);
-    await guardarCampo(modalTrabajo.id, {
-      trabajo_completo: trabajoEstado,
-      trabajo_operario: nombreUsuario,
-      fecha_fin: trabajoEstado === 'OK' ? new Date().toISOString().split('T')[0] : null,
-    });
-    setModalTrabajo(null); setTrabajoEstado('');
-    setGuardando(false);
-  }
-
-  async function eliminar(o: any) {
-    if (!confirm(`¿Eliminar la OT N${o.n} — ${o.cliente} — ${o.diseno}?`)) return;
-    await supabase.from('ordenes_produccion').delete().eq('id', o.id);
-    onCargar();
-  }
-
-  function getRowBg(o: any) {
-    if (o.trabajo_completo === 'OK') return '#c8e6c9';
-    if (o.imp_estado === 'OK') return '#e8f5e9';
-    if (o.imp_estado === 'NO') return '#ffebee';
-    return 'transparent';
-  }
-
-  const stats = {
-    activas: ordenes.filter((o: any) => o.estado === 'EN PRODUCCION').length,
-    bloqueadas: ordenes.filter((o: any) => !o.puede_producir).length,
-    completas: ordenes.filter((o: any) => o.trabajo_completo === 'OK').length,
-    total: ordenes.length,
-  };
-
-  return (
-    <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
-        {[
-          { label: 'TOTAL OTS', value: stats.total, color: '#1a1a2e' },
-          { label: 'EN PRODUCCIÓN', value: stats.activas, color: '#185FA5' },
-          { label: 'BLOQUEADAS', value: stats.bloqueadas, color: '#c00' },
-          { label: 'COMPLETADAS', value: stats.completas, color: '#3B6D11' },
-        ].map((m, i) => (
-          <div key={i} style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
-            <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>{m.label}</div>
-            <div style={{ fontSize: 24, fontWeight: 500, marginTop: 4, color: m.color }}>{m.value}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
-        <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          {[
-            { key: 'todas', label: 'TODAS' },
-            { key: 'pendientes', label: 'PENDIENTES' },
-            { key: 'produccion', label: 'EN PRODUCCIÓN' },
-            { key: 'bloqueadas', label: 'BLOQUEADAS' },
-            { key: 'terminadas', label: 'COMPLETADAS' },
-          ].map(f => (
-            <button key={f.key} onClick={() => setFiltro(f.key)} style={{
-              padding: '5px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 12, cursor: 'pointer',
-              background: filtro === f.key ? '#1a1a2e' : '#fff', color: filtro === f.key ? '#fff' : '#555'
-            }}>{f.label}</button>
-          ))}
-          <input placeholder="BUSCAR..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, maxWidth: 220, marginLeft: 'auto' }} />
-        </div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead>
-              <tr style={{ background: '#1a1a2e' }}>
-                {['N','PROD','FECHA','OT','MÁQUINA','CLIENTE','DISEÑO','MTS PED.','MTS IMP.','PERFIL','TELA','C/S APROB','ID','IMP','TERMINACIÓN','TRABAJO COMP.','FECHA FIN','ANTICIPO','ACCIONES'].map(h =>
-                  <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 10, color: 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap', fontWeight: 500, letterSpacing: 0.5 }}>{h}</th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {loading && <tr><td colSpan={19} style={{ padding: 20, textAlign: 'center', color: '#888' }}>CARGANDO...</td></tr>}
-              {!loading && filtered.length === 0 && <tr><td colSpan={19} style={{ padding: 20, textAlign: 'center', color: '#888' }}>SIN ÓRDENES REGISTRADAS</td></tr>}
-              {filtered.map((o: any) => (
-                <tr key={o.id} style={{ background: getRowBg(o), borderBottom: '1px solid #ddd' }}>
-                  <td style={{ ...td, fontWeight: 700, fontSize: 13 }}>{o.n}</td>
-                  <td style={{ ...td, fontWeight: 700, color: o.puede_producir ? '#3B6D11' : '#c00', textAlign: 'center' }}>
-                    {o.puede_producir ? 'SI' : 'NO'}
-                  </td>
-                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{formatFecha(o.fecha_pedido)}</td>
-                  <td style={{ ...td, fontFamily: 'monospace', fontSize: 11, whiteSpace: 'nowrap' }}>{o.nro_ot}</td>
-                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.equipo || '—'}</td>
-                  <td style={{ ...td, whiteSpace: 'nowrap', fontWeight: 500 }}>{o.cliente}</td>
-                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.diseno}</td>
-                  <td style={{ ...td, textAlign: 'center' }}>{o.mts_pedidos}</td>
-                  <td style={{ ...td, textAlign: 'center' }}>
-                    <button onClick={() => { setModalMts(o); setMtsNuevo(String(o.mts_impresos || 0)); }}
-                      style={{ ...btn, fontSize: 11, padding: '3px 8px', background: '#e8f0fb', color: '#185FA5', border: '1px solid #b3c8f0' }}>
-                      {o.mts_impresos || 0} ✎
-                    </button>
-                    {o.mts_operario && <div style={{ fontSize: 10, color: '#888' }}>{o.mts_operario}</div>}
-                  </td>
-                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.perfil || '—'}</td>
-                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.tela || '—'}</td>
-                  <td style={{ ...td, textAlign: 'center', whiteSpace: 'nowrap' }}>{o.c_aprob || '—'}</td>
-                  <td style={{ ...td, fontFamily: 'monospace', fontSize: 11, color: '#e85d2f', whiteSpace: 'nowrap' }}>{o.id_hype || '—'}</td>
-                  <td style={{ ...td, textAlign: 'center' }}>
-                    <button onClick={() => { setModalImp(o); setImpEstado(o.imp_estado || ''); setImpMotivo(o.imp_motivo || ''); }}
-                      style={{ ...btn, fontSize: 11, padding: '3px 8px',
-                        background: o.imp_estado === 'OK' ? '#c8e6c9' : o.imp_estado === 'NO' ? '#ffcdd2' : '#f0f0f0',
-                        color: o.imp_estado === 'OK' ? '#2e7d32' : o.imp_estado === 'NO' ? '#c62828' : '#888',
-                        border: '1px solid #ddd' }}>
-                      {o.imp_estado || '—'} ✎
-                    </button>
-                    {o.imp_operario && <div style={{ fontSize: 10, color: '#888' }}>{o.imp_operario}</div>}
-                  </td>
-                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{o.terminacion || '—'}</td>
-                  <td style={{ ...td, textAlign: 'center' }}>
-                    <button onClick={() => { setModalTrabajo(o); setTrabajoEstado(o.trabajo_completo || ''); }}
-                      style={{ ...btn, fontSize: 11, padding: '3px 8px',
-                        background: o.trabajo_completo === 'OK' ? '#a5d6a7' : '#f0f0f0',
-                        color: o.trabajo_completo === 'OK' ? '#1b5e20' : '#888',
-                        border: '1px solid #ddd' }}>
-                      {o.trabajo_completo || '—'} ✎
-                    </button>
-                    {o.trabajo_operario && <div style={{ fontSize: 10, color: '#888' }}>{o.trabajo_operario}</div>}
-                  </td>
-                  <td style={{ ...td, textAlign: 'center', whiteSpace: 'nowrap' }}>{formatFecha(o.fecha_fin)}</td>
-                  <td style={{ ...td, textAlign: 'center' }}>
-                    <select defaultValue={o.anticipo || 'PENDIENTE'} onChange={e => {
-                      const nuevoAnticipo = e.target.value;
-                      const puedeProducir = (nuevoAnticipo === 'SI' || nuevoAnticipo === 'N/A') && o.prep_tela;
-                      guardarCampo(o.id, { anticipo: nuevoAnticipo, puede_producir: puedeProducir });
-                    }} style={{ ...inp, width: 100, padding: '3px 6px', fontSize: 12 }}>
-                      <option value="PENDIENTE">PENDIENTE</option>
-                      <option value="SI">SI</option>
-                      <option value="N/A">N/A</option>
-                    </select>
-                  </td>
-                  <td style={{ ...td, whiteSpace: 'nowrap' }}>
-                    <button onClick={() => setEditando({...o})} style={{ ...btn, fontSize: 11, padding: '3px 8px', marginRight: 4 }}>EDITAR</button>
-                    <button onClick={() => eliminar(o)} style={{ ...btn, fontSize: 11, padding: '3px 8px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>ELIM.</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Modal MTS */}
-      {modalMts && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 400 }}>
-            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>METROS IMPRESOS</div>
-            <div style={{ fontSize: 13, color: '#888', marginBottom: 4 }}>N {modalMts.n} — {modalMts.cliente} — {modalMts.diseno}</div>
-            <div style={{ fontSize: 12, color: '#888', marginBottom: 20 }}>Operario: <strong>{nombreUsuario}</strong></div>
-            <div style={{ marginBottom: 12 }}>
-              <label style={lbl}>MTS IMPRESOS</label>
-              <input type="number" value={mtsNuevo} onChange={e => setMtsNuevo(e.target.value)} placeholder="0" style={inp} autoFocus />
-              <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>MTS PEDIDOS: {modalMts.mts_pedidos}</div>
-            </div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
-              <button onClick={() => { setModalMts(null); setMtsNuevo(''); }} style={btn}>CANCELAR</button>
-              <button onClick={guardarMts} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>{guardando ? 'GUARDANDO...' : 'GUARDAR'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal IMP */}
-      {modalImp && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 420 }}>
-            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>CONFIRMACIÓN DE IMPRESIÓN</div>
-            <div style={{ fontSize: 13, color: '#888', marginBottom: 4 }}>N {modalImp.n} — {modalImp.cliente} — {modalImp.diseno}</div>
-            <div style={{ fontSize: 12, color: '#888', marginBottom: 20 }}>Operario: <strong>{nombreUsuario}</strong></div>
-            <div style={{ marginBottom: 12 }}>
-              <label style={lbl}>ESTADO</label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => setImpEstado('OK')} style={{ ...btn, flex: 1, background: impEstado === 'OK' ? '#2e7d32' : '#f0f0f0', color: impEstado === 'OK' ? '#fff' : '#333', fontWeight: 700 }}>OK</button>
-                <button onClick={() => setImpEstado('NO')} style={{ ...btn, flex: 1, background: impEstado === 'NO' ? '#c62828' : '#f0f0f0', color: impEstado === 'NO' ? '#fff' : '#333', fontWeight: 700 }}>NO</button>
-              </div>
-            </div>
-            {impEstado === 'NO' && (
-              <div style={{ marginBottom: 12 }}>
-                <label style={lbl}>MOTIVO (OBLIGATORIO)</label>
-                <select value={impMotivo} onChange={e => setImpMotivo(e.target.value)} style={inp}>
-                  <option value="">Seleccionar motivo...</option>
-                  {MOTIVOS_IMP.map(m => <option key={m} value={m}>{m.toUpperCase()}</option>)}
-                </select>
-              </div>
-            )}
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
-              <button onClick={() => { setModalImp(null); setImpEstado(''); setImpMotivo(''); }} style={btn}>CANCELAR</button>
-              <button onClick={guardarImp} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>{guardando ? 'GUARDANDO...' : 'GUARDAR'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Trabajo Completo */}
-      {modalTrabajo && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 420 }}>
-            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>TRABAJO COMPLETO</div>
-            <div style={{ fontSize: 13, color: '#888', marginBottom: 4 }}>N {modalTrabajo.n} — {modalTrabajo.cliente} — {modalTrabajo.diseno}</div>
-            <div style={{ fontSize: 12, color: '#888', marginBottom: 20 }}>Operario: <strong>{nombreUsuario}</strong></div>
-            <div style={{ marginBottom: 12 }}>
-              <label style={lbl}>ESTADO</label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => setTrabajoEstado('OK')} style={{ ...btn, flex: 1, background: trabajoEstado === 'OK' ? '#1b5e20' : '#f0f0f0', color: trabajoEstado === 'OK' ? '#fff' : '#333', fontWeight: 700 }}>OK</button>
-                <button onClick={() => setTrabajoEstado('NO')} style={{ ...btn, flex: 1, background: trabajoEstado === 'NO' ? '#c62828' : '#f0f0f0', color: trabajoEstado === 'NO' ? '#fff' : '#333', fontWeight: 700 }}>NO</button>
-              </div>
-            </div>
-            {trabajoEstado === 'OK' && (
-              <div style={{ padding: '10px 14px', background: '#e8f5e9', color: '#2e7d32', borderRadius: 8, fontSize: 13, marginBottom: 12 }}>
-                ✓ SE REGISTRARÁ LA FECHA DE HOY COMO FECHA FIN AUTOMÁTICAMENTE.
-              </div>
-            )}
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
-              <button onClick={() => { setModalTrabajo(null); setTrabajoEstado(''); }} style={btn}>CANCELAR</button>
-              <button onClick={guardarTrabajo} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>{guardando ? 'GUARDANDO...' : 'GUARDAR'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Editar OT */}
-      {editando && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 600, maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 16 }}>EDITAR OT — N {editando.n}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div><label style={lbl}>FECHA PEDIDO</label><input type="date" value={editando.fecha_pedido || ''} onChange={e => setEditando({...editando, fecha_pedido: e.target.value})} style={inp} /></div>
-              <div><label style={lbl}>NRO. OT</label><input value={editando.nro_ot || ''} onChange={e => setEditando({...editando, nro_ot: e.target.value})} style={inp} /></div>
-              <div><label style={lbl}>CLIENTE</label><input value={editando.cliente || ''} onChange={e => setEditando({...editando, cliente: e.target.value})} style={inp} /></div>
-              <div><label style={lbl}>DISEÑO</label><input value={editando.diseno || ''} onChange={e => setEditando({...editando, diseno: e.target.value})} style={inp} /></div>
-              <div><label style={lbl}>MÁQUINA</label>
-                <select value={editando.equipo || ''} onChange={e => setEditando({...editando, equipo: e.target.value, perfil: ''})} style={inp}>
-                  <option value="">Seleccionar</option>
-                  {MAQUINAS_DIRECTA.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-              <div><label style={lbl}>PERFIL</label>
-                <select value={editando.perfil || ''} onChange={e => setEditando({...editando, perfil: e.target.value})} style={inp}>
-                  <option value="">Seleccionar</option>
-                  {(PERFILES[editando.equipo] || []).map((p: string) => <option key={p} value={p}>{p}</option>)}
-                </select>
-              </div>
-              <div><label style={lbl}>TELA</label><input value={editando.tela || ''} onChange={e => setEditando({...editando, tela: e.target.value})} style={inp} /></div>
-              <div><label style={lbl}>MTS PEDIDOS</label><input type="number" value={editando.mts_pedidos || ''} onChange={e => setEditando({...editando, mts_pedidos: e.target.value})} style={inp} /></div>
-              <div><label style={lbl}>C. APROBACIÓN</label>
-                <select value={editando.c_aprob || ''} onChange={e => setEditando({...editando, c_aprob: e.target.value})} style={inp}>
-                  <option value="C APROB">C/ APROBACIÓN</option>
-                  <option value="S/APROB">S/ APROBACIÓN</option>
-                </select>
-              </div>
-              <div><label style={lbl}>PREPARACIÓN</label>
-                <select value={editando.preparacion || ''} onChange={e => setEditando({...editando, preparacion: e.target.value})} style={inp}>
-                  {PREPARACIONES.map(p => <option key={p} value={p}>{p.toUpperCase()}</option>)}
-                </select>
-              </div>
-              <div><label style={lbl}>TERMINACIÓN</label>
-                <select value={editando.terminacion || ''} onChange={e => setEditando({...editando, terminacion: e.target.value})} style={inp}>
-                  {TERMINACIONES.map(t => <option key={t} value={t}>{t.toUpperCase()}</option>)}
-                </select>
-              </div>
-              <div><label style={lbl}>ANTICIPO</label>
-                <select value={editando.anticipo || 'PENDIENTE'} onChange={e => setEditando({...editando, anticipo: e.target.value})} style={inp}>
-                  <option value="PENDIENTE">PENDIENTE</option>
-                  <option value="SI">SI</option>
-                  <option value="N/A">N/A</option>
-                </select>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
-              <button onClick={() => setEditando(null)} style={btn}>CANCELAR</button>
-              <button onClick={async () => {
-                setGuardando(true);
-                const puedeProducir = (editando.anticipo === 'SI' || editando.anticipo === 'N/A') && editando.prep_tela;
-                await supabase.from('ordenes_produccion').update({
-                  fecha_pedido: editando.fecha_pedido,
-                  nro_ot: editando.nro_ot,
-                  cliente: editando.cliente,
-                  diseno: editando.diseno,
-                  equipo: editando.equipo,
-                  perfil: editando.perfil,
-                  tela: editando.tela,
-                  mts_pedidos: editando.mts_pedidos,
-                  c_aprob: editando.c_aprob,
-                  preparacion: editando.preparacion,
-                  terminacion: editando.terminacion,
-                  anticipo: editando.anticipo,
-                  puede_producir: puedeProducir,
-                }).eq('id', editando.id);
-                setEditando(null);
-                onCargar();
-                setGuardando(false);
-              }} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>GUARDAR CAMBIOS</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function NuevaOT({ clientes, telas, colores, ingresos, proceso, onGuardar }: any) {
-  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
-  const [nroOt, setNroOt] = useState('');
-  const [cliente, setCliente] = useState('');
-  const [busqCli, setBusqCli] = useState('');
-  const [showCli, setShowCli] = useState(false);
-  const [equipo, setEquipo] = useState('');
-  const [perfil, setPerfil] = useState('');
-  const [anticipo, setAnticipo] = useState('PENDIENTE');
-  const [cAprob, setCAprob] = useState('C APROB');
-  const [preparacion, setPreparacion] = useState('Sin preparación');
-  const [terminacion, setTerminacion] = useState('Solo fijado');
-  const [disenos, setDisenos] = useState([{ diseno: '', tela: '', busqTela: '', showTela: false, color: '', busqColor: '', showColor: false, siglaColor: '', idHype: '', mts: '', obs: '' }]);
-  const [guardando, setGuardando] = useState(false);
-
-  const perfilesMaquina = equipo ? (PERFILES[equipo] || []) : [];
-
-  function selCliente(c: any) { setCliente(c.nombre); setBusqCli(c.nombre); setShowCli(false); }
-
-  function updateDiseno(idx: number, field: string, value: string) {
-    setDisenos(prev => prev.map((d, i) => i !== idx ? d : { ...d, [field]: value }));
-  }
-
-  function selTela(idx: number, t: any) {
-    setDisenos(prev => prev.map((d, i) => i !== idx ? d : { ...d, tela: t.nombre, busqTela: t.nombre, showTela: false }));
-  }
-
-  function selColor(idx: number, c: any) {
-    setDisenos(prev => prev.map((d, i) => {
-      if (i !== idx) return d;
-      const nd = { ...d, color: c.nombre, siglaColor: c.sigla, busqColor: c.nombre, showColor: false };
-      const ing = ingresos.find((ing: any) => ing.cliente === cliente && ing.tela === d.tela && ing.color === c.nombre);
-      return { ...nd, idHype: ing ? ing.id_hype : '' };
-    }));
-  }
-
-  function puedeProducir() { return anticipo === 'SI' || anticipo === 'N/A'; }
-
-  async function guardar() {
-    if (!fecha || !nroOt || !cliente) { alert('COMPLETÁ FECHA, OT Y CLIENTE.'); return; }
-    const rows = disenos.filter(d => d.diseno && d.tela && parseFloat(d.mts) > 0);
-    if (!rows.length) { alert('COMPLETÁ AL MENOS UN DISEÑO CON TELA Y METROS.'); return; }
-    setGuardando(true);
-    const { data: maxN } = await supabase.from('ordenes_produccion').select('n').order('n', { ascending: false }).limit(1);
-    let nextN = maxN && maxN.length > 0 ? maxN[0].n + 1 : 1;
-    const inserts = rows.map((d, i) => ({
-      n: nextN + i, fecha_pedido: fecha, nro_ot: nroOt, cliente,
-      diseno: d.diseno, equipo, perfil, tela: d.tela, color: d.color,
-      sigla_color: d.siglaColor, id_hype: d.idHype,
-      mts_pedidos: parseFloat(d.mts), mts_impresos: 0,
-      observaciones: d.obs, c_aprob: cAprob, terminacion, preparacion,
-      anticipo, prep_tela: false, puede_producir: puedeProducir(),
-      estado: 'PENDIENTE', proceso,
-    }));
-    const { error } = await supabase.from('ordenes_produccion').insert(inserts);
-    if (error) alert('ERROR: ' + error.message);
-    else { alert('OT GUARDADA CORRECTAMENTE.'); onGuardar(); }
-    setGuardando(false);
-  }
-
-  return (
-    <div>
-      <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #eee', marginBottom: 16 }}>
-        <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>DATOS GENERALES — {proceso}</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}>
-          <div><label style={lbl}>FECHA PEDIDO</label><input type="date" value={fecha} onChange={e => setFecha(e.target.value)} style={inp} /></div>
-          <div><label style={lbl}>NRO. OT</label><input value={nroOt} onChange={e => setNroOt(e.target.value)} placeholder="000000005748" style={inp} /></div>
-          <div style={{ position: 'relative' }}>
-            <label style={lbl}>CLIENTE</label>
-            <input value={busqCli} onChange={e => { setBusqCli(e.target.value); setShowCli(true); }} placeholder="BUSCAR CLIENTE..." style={inp} />
-            {showCli && busqCli && (
-              <div style={dropdown}>
-                {clientes.filter((c: any) => c.nombre.toLowerCase().includes(busqCli.toLowerCase())).slice(0, 8).map((c: any) => (
-                  <div key={c.cod} onClick={() => selCliente(c)} style={ddItem}>{c.nombre}</div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div><label style={lbl}>MÁQUINA</label>
-            <select value={equipo} onChange={e => { setEquipo(e.target.value); setPerfil(''); }} style={inp}>
-              <option value="">SELECCIONAR</option>
-              {MAQUINAS_DIRECTA.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </div>
-          {equipo && <div><label style={lbl}>PERFIL</label>
-            <select value={perfil} onChange={e => setPerfil(e.target.value)} style={inp}>
-              <option value="">SELECCIONAR</option>
-              {perfilesMaquina.map((p: string) => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>}
-          <div><label style={lbl}>ANTICIPO</label>
-            <select value={anticipo} onChange={e => setAnticipo(e.target.value)} style={inp}>
-              <option value="PENDIENTE">PENDIENTE</option>
-              <option value="SI">SI</option>
-              <option value="N/A">N/A</option>
-            </select>
-          </div>
-          <div><label style={lbl}>C. APROBACIÓN</label>
-            <select value={cAprob} onChange={e => setCAprob(e.target.value)} style={inp}>
-              <option value="C APROB">C/ APROBACIÓN</option>
-              <option value="S/APROB">S/ APROBACIÓN</option>
-            </select>
-          </div>
-          <div><label style={lbl}>PREPARACIÓN</label>
-            <select value={preparacion} onChange={e => setPreparacion(e.target.value)} style={inp}>
-              {PREPARACIONES.map(p => <option key={p} value={p}>{p.toUpperCase()}</option>)}
-            </select>
-          </div>
-          <div><label style={lbl}>TERMINACIÓN</label>
-            <select value={terminacion} onChange={e => setTerminacion(e.target.value)} style={inp}>
-              {TERMINACIONES.map(t => <option key={t} value={t}>{t.toUpperCase()}</option>)}
-            </select>
-          </div>
-        </div>
-        {!puedeProducir() && (
-          <div style={{ marginTop: 12, padding: '10px 14px', background: '#fee', color: '#c00', borderRadius: 8, fontSize: 13 }}>
-            🔒 ESTA OT NO PUEDE PRODUCIRSE HASTA QUE EL ANTICIPO ESTÉ CONFIRMADO.
-          </div>
-        )}
-      </div>
-
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', marginBottom: 16, overflow: 'hidden' }}>
-        <div style={{ padding: '12px 20px', borderBottom: '1px solid #eee', fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>DISEÑOS</div>
-        {disenos.map((d, idx) => (
-          <div key={idx} style={{ padding: 16, borderBottom: '1px solid #f0f0f0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-              <span style={{ fontSize: 11, color: '#888', textTransform: 'uppercase' }}>DISEÑO {idx + 1}</span>
-              {disenos.length > 1 && <button onClick={() => setDisenos(prev => prev.filter((_, i) => i !== idx))} style={{ ...btn, background: '#fee', color: '#c00', border: '1px solid #fcc', fontSize: 12, padding: '3px 10px' }}>ELIMINAR</button>}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 12 }}>
-              <div><label style={lbl}>NOMBRE DEL DISEÑO</label><input value={d.diseno} onChange={e => updateDiseno(idx, 'diseno', e.target.value)} placeholder="EJ: BARCOS" style={inp} /></div>
-              <div style={{ position: 'relative' }}>
-                <label style={lbl}>TELA</label>
-                <input value={d.busqTela} onChange={e => { updateDiseno(idx, 'busqTela', e.target.value); setDisenos(prev => prev.map((dd, i) => i === idx ? { ...dd, showTela: true } : dd)); }} placeholder="BUSCAR TELA..." style={inp} />
-                {d.showTela && d.busqTela && (
-                  <div style={dropdown}>
-                    {telas.filter((t: any) => t.nombre.toLowerCase().includes(d.busqTela.toLowerCase())).slice(0, 8).map((t: any) => (
-                      <div key={t.cod} onClick={() => selTela(idx, t)} style={ddItem}>{t.nombre}</div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div style={{ position: 'relative' }}>
-                <label style={lbl}>COLOR</label>
-                <input value={d.busqColor} onChange={e => { updateDiseno(idx, 'busqColor', e.target.value); setDisenos(prev => prev.map((dd, i) => i === idx ? { ...dd, showColor: true } : dd)); }} placeholder="BUSCAR COLOR..." style={inp} />
-                {d.showColor && d.busqColor && (
-                  <div style={dropdown}>
-                    {colores.filter((c: any) => c.nombre.toLowerCase().includes(d.busqColor.toLowerCase()) || c.sigla.toLowerCase().includes(d.busqColor.toLowerCase())).slice(0, 8).map((c: any) => (
-                      <div key={c.sigla} onClick={() => selColor(idx, c)} style={ddItem}>{c.nombre} <span style={{ color: '#888', fontSize: 11 }}>{c.sigla}</span></div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div><label style={lbl}>MTS PEDIDOS</label><input type="number" value={d.mts} onChange={e => updateDiseno(idx, 'mts', e.target.value)} placeholder="0" style={inp} /></div>
-              <div><label style={lbl}>OBSERVACIONES</label><input value={d.obs} onChange={e => updateDiseno(idx, 'obs', e.target.value)} placeholder="DETALLE..." style={inp} /></div>
-              {d.idHype && (
-                <div style={{ gridColumn: '1/-1' }}>
-                  <label style={lbl}>ID STOCK VINCULADO</label>
-                  <div style={{ background: '#1a1a2e', color: '#e85d2f', fontFamily: 'monospace', fontSize: 14, fontWeight: 700, padding: '8px 14px', borderRadius: 8, display: 'inline-block' }}>{d.idHype}</div>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-        <div onClick={() => setDisenos(prev => [...prev, { diseno: '', tela: '', busqTela: '', showTela: false, color: '', busqColor: '', showColor: false, siglaColor: '', idHype: '', mts: '', obs: '' }])} style={{ padding: '12px 20px', cursor: 'pointer', color: '#e85d2f', fontSize: 13, background: '#fafafa', borderTop: '1px solid #eee' }}>
-          + AGREGAR DISEÑO
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-        <button onClick={onGuardar} style={btn}>CANCELAR</button>
-        <button onClick={guardar} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>{guardando ? 'GUARDANDO...' : 'GUARDAR OT'}</button>
       </div>
     </div>
   );
@@ -803,6 +205,240 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function StockTabla({ entries, titulo, ingresos, formatFecha }: any) {
+  const [search, setSearch] = useState('');
+
+  const filtered = entries.filter(([id, s]: any) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    const tieneRemito = ingresos.some((i: any) => i.id_hype === id && (i.remito || '').includes(q));
+    return id.toLowerCase().includes(q) ||
+      (s.cliente || '').toLowerCase().includes(q) ||
+      (s.tela || '').toLowerCase().includes(q) ||
+      (s.color || '').toLowerCase().includes(q) ||
+      tieneRemito;
+  });
+
+  const totalMts = filtered.reduce((s: number, [, v]: any) => s + v.ing - v.egr, 0);
+
+  return (
+    <div>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 18, fontWeight: 500 }}>{titulo}</div>
+        <div style={{ fontSize: 13, color: '#888' }}>{filtered.length} IDs · {totalMts.toLocaleString()} mts disponibles</div>
+      </div>
+      <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 16 }}>
+        <input
+          placeholder="Buscar por cliente, tela, color, ID o remito..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{ ...inp, maxWidth: 400 }}
+        />
+      </div>
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr>{['ID','Cliente','Tela','Color','Observaciones','Bultos','Mts disp.','Ubicación','Ramado','Proceso'].map(h =>
+                <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>
+              )}</tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 && <tr><td colSpan={10} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin stock registrado</td></tr>}
+              {filtered.map(([id, s]: any) => {
+                const disp = s.ing - s.egr;
+                return (
+                  <tr key={id}>
+                    <td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{id}</td>
+                    <td style={{ ...td, whiteSpace: 'nowrap' }}>{s.cliente}</td>
+                    <td style={{ ...td, whiteSpace: 'nowrap' }}>{s.tela}</td>
+                    <td style={td}>{s.color || '—'}</td>
+                    <td style={{ ...td, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.observaciones || '—'}</td>
+                    <td style={{ ...td, textAlign: 'center' }}>{s.bultos}</td>
+                    <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: disp > 0 ? '#3B6D11' : '#c00' }}>{disp.toLocaleString()}</td>
+                    <td style={td}>{s.ubicacion || '—'}</td>
+                    <td style={td}>{s.ramado || '—'}</td>
+                    <td style={td}>{s.proceso === 'S' ? 'Sublimación' : 'Digital'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StockTH({ calcStock, ingresos, formatFecha }: any) {
+  const stock = calcStock();
+  const entries = Object.entries(stock).filter(([id]: any) => id.startsWith('TH'));
+  return <StockTabla entries={entries} titulo="Stock TH — Tela propia HYPE" ingresos={ingresos} formatFecha={formatFecha} />;
+}
+
+function StockTC({ calcStock, ingresos, formatFecha }: any) {
+  const stock = calcStock();
+  const entries = Object.entries(stock).filter(([id]: any) => id.startsWith('TC'));
+  return <StockTabla entries={entries} titulo="Stock TC — Tela de clientes" ingresos={ingresos} formatFecha={formatFecha} />;
+}
+
+function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGuardar }: any) {
+  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
+  const [busqueda, setBusqueda] = useState('');
+  const [resultados, setResultados] = useState<any[]>([]);
+  const [showResultados, setShowResultados] = useState(false);
+  const [idHype, setIdHype] = useState('');
+  const [cliente, setCliente] = useState('');
+  const [tela, setTela] = useState('');
+  const [color, setColor] = useState('');
+  const [obs, setObs] = useState('');
+  const [disponibles, setDisponibles] = useState(0);
+  const [mts, setMts] = useState('');
+  const [bultos, setBultos] = useState('');
+  const [remitoEntrega, setRemitoEntrega] = useState('');
+  const [estado, setEstado] = useState('En almacén');
+  const [entrego, setEntrego] = useState('');
+  const [retiro, setRetiro] = useState('');
+  const [alerta, setAlerta] = useState('');
+  const [guardando, setGuardando] = useState(false);
+
+  function buscar(q: string) {
+    setBusqueda(q);
+    if (!q || q.length < 2) { setResultados([]); setShowResultados(false); return; }
+    const ql = q.toLowerCase();
+    const grupos: any = {};
+    ingresos.forEach((i: any) => {
+      if (!grupos[i.id_hype]) grupos[i.id_hype] = { ...i, ingTotal: 0 };
+      grupos[i.id_hype].ingTotal += Number(i.mts);
+    });
+    egresos.forEach((e: any) => {
+      if (grupos[e.id_hype]) grupos[e.id_hype].ingTotal -= Number(e.mts);
+    });
+    const res = Object.values(grupos).filter((g: any) => {
+      return (g.cliente || '').toLowerCase().includes(ql) ||
+        (g.tela || '').toLowerCase().includes(ql) ||
+        (g.color || '').toLowerCase().includes(ql) ||
+        (g.id_hype || '').toLowerCase().includes(ql) ||
+        (g.remito || '').includes(q);
+    }).filter((g: any) => g.ingTotal > 0);
+    setResultados(res);
+    setShowResultados(true);
+  }
+
+  function selIngreso(ing: any) {
+    setCliente(ing.cliente);
+    setTela(ing.tela);
+    setColor(ing.color || '');
+    setObs(ing.observaciones || '');
+    setIdHype(ing.id_hype);
+    setDisponibles(ing.ingTotal);
+    setBusqueda(`${ing.cliente} · ${ing.tela} · ${ing.color || ''}`);
+    setShowResultados(false);
+  }
+
+  function validarMts(val: string) {
+    setMts(val);
+    if (parseFloat(val) > disponibles) setAlerta(`La cantidad (${val} mts) supera los disponibles (${disponibles} mts).`);
+    else setAlerta('');
+  }
+
+  async function guardar() {
+    if (alerta) { alert('Corregí los metros antes de guardar.'); return; }
+    if (!parseFloat(mts)) { alert('Completá los metros a egresar.'); return; }
+    if (!idHype) { alert('Seleccioná un ingreso primero.'); return; }
+    setGuardando(true);
+    const { error } = await supabase.from('egresos').insert([{
+      fecha, remito_entrega: remitoEntrega,
+      cliente, tela, color, observaciones: obs, id_hype: idHype,
+      mts: parseFloat(mts), bultos: parseInt(bultos) || 0,
+      estado, entrego, retiro
+    }]);
+    if (error) alert('Error: ' + error.message);
+    else {
+      alert('Egreso guardado.');
+      setBusqueda(''); setIdHype(''); setCliente(''); setTela(''); setColor('');
+      setObs(''); setDisponibles(0); setMts(''); setBultos('');
+      setRemitoEntrega(''); setEstado('En almacén'); setEntrego(''); setRetiro('');
+      onGuardar();
+    }
+    setGuardando(false);
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom: 20 }}><div style={{ fontSize: 18, fontWeight: 500 }}>Nuevo egreso</div></div>
+      <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #eee', marginBottom: 16 }}>
+        <div style={{ marginBottom: 20 }}>
+          <label style={lbl}>Buscar por cliente, tela, color, ID o remito</label>
+          <div style={{ position: 'relative' }}>
+            <input
+              value={busqueda}
+              onChange={e => buscar(e.target.value)}
+              placeholder="Ej: ZARA, Jersey, Blanco, TCS001..."
+              style={{ ...inp, fontSize: 14 }}
+              onFocus={() => busqueda.length >= 2 && setShowResultados(true)}
+            />
+            {showResultados && resultados.length > 0 && (
+              <div style={{ ...dropdown, maxHeight: 300 }}>
+                {resultados.slice(0, 10).map((r: any) => (
+                  <div key={r.id_hype} onClick={() => selIngreso(r)} style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 500, fontSize: 13 }}>{r.cliente}</div>
+                      <div style={{ fontSize: 12, color: '#666' }}>{r.tela} · {r.color || '—'}</div>
+                      <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#e85d2f' }}>{r.id_hype}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: 700, color: '#3B6D11', fontSize: 14 }}>{r.ingTotal} mts</div>
+                      <div style={{ fontSize: 11, color: '#888' }}>disponibles</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {showResultados && resultados.length === 0 && busqueda.length >= 2 && (
+              <div style={{ ...dropdown, padding: 12, fontSize: 13, color: '#888' }}>Sin resultados</div>
+            )}
+          </div>
+        </div>
+
+        {idHype && (
+          <div style={{ background: '#f5f5f7', borderRadius: 10, padding: 14, marginBottom: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10 }}>
+            <div><div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>Cliente</div><div style={{ fontWeight: 600 }}>{cliente}</div></div>
+            <div><div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>Tela</div><div style={{ fontWeight: 600 }}>{tela}</div></div>
+            <div><div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>Color</div><div style={{ fontWeight: 600 }}>{color || '—'}</div></div>
+            <div><div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>ID</div><div style={{ fontFamily: 'monospace', color: '#e85d2f', fontWeight: 700 }}>{idHype}</div></div>
+            <div><div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>Disponibles</div><div style={{ fontWeight: 700, color: '#3B6D11', fontSize: 18 }}>{disponibles} mts</div></div>
+          </div>
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}>
+          <div><label style={lbl}>Fecha</label><input type="date" value={fecha} onChange={e => setFecha(e.target.value)} style={inp} /></div>
+          <div><label style={lbl}>Mts a egresar</label><input type="number" value={mts} onChange={e => validarMts(e.target.value)} placeholder="0" style={inp} /></div>
+          <div><label style={lbl}>Nro. bultos</label><input type="number" value={bultos} onChange={e => setBultos(e.target.value)} placeholder="0" style={inp} /></div>
+          <div><label style={lbl}>Nro. remito entrega</label><input type="number" value={remitoEntrega} onChange={e => setRemitoEntrega(e.target.value)} placeholder="00089" style={inp} /></div>
+          <div><label style={lbl}>Estado</label>
+            <select value={estado} onChange={e => setEstado(e.target.value)} style={inp}>
+              <option>En almacén</option>
+              <option>Entregado a cliente</option>
+              <option>A producción</option>
+              <option>Salida a tinto externa</option>
+              <option>En tinto HYPE</option>
+            </select>
+          </div>
+          <AutocompleteEmpleado label="Quién entregó" value={entrego} onChange={setEntrego} empleados={empleados} />
+          <div><label style={lbl}>Quién retiró / Envío</label><input value={retiro} onChange={e => setRetiro(e.target.value)} placeholder="Nombre o empresa" style={inp} /></div>
+          <div style={{ gridColumn: '1/-1' }}><label style={lbl}>Observaciones</label><input value={obs} onChange={e => setObs(e.target.value)} placeholder="Detalle..." style={inp} /></div>
+        </div>
+        {alerta && <div style={{ marginTop: 12, padding: '10px 14px', background: '#FAEEDA', color: '#854F0B', borderRadius: 8, fontSize: 13 }}>⚠ {alerta}</div>}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <button style={btn}>Cancelar</button>
+        <button onClick={guardar} disabled={guardando || !idHype} style={{ ...btn, background: idHype ? '#e85d2f' : '#ccc', color: '#fff', border: 'none', cursor: idHype ? 'pointer' : 'not-allowed' }}>{guardando ? 'Guardando...' : 'Guardar egreso'}</button>
       </div>
     </div>
   );
@@ -918,7 +554,8 @@ function Ingresos({ clientes, telas, colores, empleados, onGuardar }: any) {
       if (field === 'kg' || field === 'rinde') {
         const kg = field === 'kg' ? parseFloat(value) : parseFloat(nr.kg);
         const rinde = field === 'rinde' ? parseFloat(value) : parseFloat(nr.rinde);
-        if (kg && rinde && rinde > 0) nr.mts = Math.round(kg / rinde).toString();
+        // FIX: multiplicar kg * rinde (1 kg rinde X mts)
+        if (kg && rinde && rinde > 0) nr.mts = (kg * rinde).toFixed(1).toString();
       }
       nr.id_hype = buildId(field === 'prop' ? value : nr.prop, field === 'proceso' ? value : nr.proceso, codCliente, field === 'codTela' ? value : nr.codTela, field === 'siglaColor' ? value : nr.siglaColor);
       return nr;
@@ -1038,7 +675,7 @@ function Ingresos({ clientes, telas, colores, empleados, onGuardar }: any) {
                 </div>
               </div>
               {r.modo === 'KG' && <div><label style={lbl}>Cantidad (kg)</label><input type="number" value={r.kg} onChange={e => updateRenglon(idx, 'kg', e.target.value)} placeholder="0" style={inp} /></div>}
-              {r.modo === 'KG' && <div><label style={lbl}>Rinde por mt</label><input type="number" value={r.rinde} onChange={e => updateRenglon(idx, 'rinde', e.target.value)} placeholder="0.35" step="0.01" style={inp} /></div>}
+              {r.modo === 'KG' && <div><label style={lbl}>Rinde (mts por kg)</label><input type="number" value={r.rinde} onChange={e => updateRenglon(idx, 'rinde', e.target.value)} placeholder="3.5" step="0.01" style={inp} /></div>}
               <div><label style={lbl}>Mts totales</label><input type="number" value={r.mts} onChange={e => updateRenglon(idx, 'mts', e.target.value)} readOnly={r.modo === 'KG'} style={{ ...inp, background: r.modo === 'KG' ? '#f5f5f7' : '#fff' }} /></div>
               <div><label style={lbl}>Ramado/Tintorería</label>
                 <select value={r.ramado} onChange={e => updateRenglon(idx, 'ramado', e.target.value)} style={inp}>
@@ -1068,247 +705,7 @@ function Ingresos({ clientes, telas, colores, empleados, onGuardar }: any) {
   );
 }
 
-function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGuardar }: any) {
-  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
-  const [remitoOrigen, setRemitoOrigen] = useState('');
-  const [idHype, setIdHype] = useState('');
-  const [busqId, setBusqId] = useState('');
-  const [showId, setShowId] = useState(false);
-  const [cliente, setCliente] = useState('');
-  const [busqCli, setBusqCli] = useState('');
-  const [showCli, setShowCli] = useState(false);
-  const [tela, setTela] = useState('');
-  const [busqTela, setBusqTela] = useState('');
-  const [showTela, setShowTela] = useState(false);
-  const [color, setColor] = useState('');
-  const [busqColor, setBusqColor] = useState('');
-  const [showColor, setShowColor] = useState(false);
-  const [obs, setObs] = useState('');
-  const [disponibles, setDisponibles] = useState(0);
-  const [mts, setMts] = useState('');
-  const [bultos, setBultos] = useState('');
-  const [remitoEntrega, setRemitoEntrega] = useState('');
-  const [estado, setEstado] = useState('En almacén');
-  const [entrego, setEntrego] = useState('');
-  const [retiro, setRetiro] = useState('');
-  const [alerta, setAlerta] = useState('');
-  const [guardando, setGuardando] = useState(false);
-
-  function calcDisponibles(id: string) {
-    const ingTotal = ingresos.filter((i: any) => i.id_hype === id).reduce((s: number, i: any) => s + Number(i.mts), 0);
-    const egrTotal = egresos.filter((e: any) => e.id_hype === id).reduce((s: number, e: any) => s + Number(e.mts), 0);
-    setDisponibles(ingTotal - egrTotal);
-  }
-
-  function cargarDesdeIngreso(ing: any) {
-    setCliente(ing.cliente); setBusqCli(ing.cliente);
-    setTela(ing.tela); setBusqTela(ing.tela);
-    setColor(ing.color || ''); setBusqColor(ing.color || '');
-    setObs(ing.observaciones || '');
-    setIdHype(ing.id_hype); setBusqId(ing.id_hype);
-    calcDisponibles(ing.id_hype);
-  }
-
-  function buscarPorRemito(val: string) {
-    setRemitoOrigen(val);
-    if (!val) return;
-    const ing = ingresos.find((i: any) => i.remito === val);
-    if (ing) cargarDesdeIngreso(ing);
-  }
-
-  function selId(id: string) {
-    setIdHype(id); setBusqId(id); setShowId(false);
-    const ing = ingresos.find((i: any) => i.id_hype === id);
-    if (ing) cargarDesdeIngreso(ing);
-  }
-
-  function buscarPorCampos(cli: string, tel: string, col: string) {
-    if (!cli || !tel || !col) { setIdHype(''); setBusqId(''); setDisponibles(0); return; }
-    const match = ingresos.find((i: any) =>
-      i.cliente.toLowerCase() === cli.toLowerCase() &&
-      i.tela.toLowerCase() === tel.toLowerCase() &&
-      (i.color || '').toLowerCase() === col.toLowerCase()
-    );
-    if (match) { setIdHype(match.id_hype); setBusqId(match.id_hype); calcDisponibles(match.id_hype); }
-    else { setIdHype(''); setBusqId(''); setDisponibles(0); }
-  }
-
-  function selCliente(c: any) { setCliente(c.nombre); setBusqCli(c.nombre); setShowCli(false); buscarPorCampos(c.nombre, tela, color); }
-  function selTela(t: any) { setTela(t.nombre); setBusqTela(t.nombre); setShowTela(false); buscarPorCampos(cliente, t.nombre, color); }
-  function selColor(c: any) { setColor(c.nombre); setBusqColor(c.nombre); setShowColor(false); buscarPorCampos(cliente, tela, c.nombre); }
-
-  function validarMts(val: string) {
-    setMts(val);
-    if (parseFloat(val) > disponibles) setAlerta(`La cantidad (${val} mts) supera los disponibles (${disponibles} mts).`);
-    else setAlerta('');
-  }
-
-  async function guardar() {
-    if (alerta) { alert('Corregí los metros antes de guardar.'); return; }
-    if (!parseFloat(mts)) { alert('Completá los metros a egresar.'); return; }
-    if (!idHype) { alert('No se encontró un ID válido.'); return; }
-    setGuardando(true);
-    const { error } = await supabase.from('egresos').insert([{
-      fecha, remito_origen: remitoOrigen, remito_entrega: remitoEntrega,
-      cliente, tela, color, observaciones: obs, id_hype: idHype,
-      mts: parseFloat(mts), bultos: parseInt(bultos) || 0,
-      estado, entrego, retiro
-    }]);
-    if (error) alert('Error: ' + error.message);
-    else { alert('Egreso guardado.'); onGuardar(); }
-    setGuardando(false);
-  }
-
-  const idsUnicos = [...new Set(ingresos.map((i: any) => i.id_hype))] as string[];
-
-  return (
-    <div>
-      <div style={{ marginBottom: 20 }}><div style={{ fontSize: 18, fontWeight: 500 }}>Nuevo egreso</div></div>
-      <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #eee', marginBottom: 16 }}>
-        <div style={{ marginBottom: 16, padding: 12, background: '#f5f5f7', borderRadius: 8, fontSize: 12, color: '#666' }}>
-          Podés buscar por <strong>remito de origen</strong>, por <strong>ID</strong>, o por <strong>cliente + tela + color</strong>.
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}>
-          <div><label style={lbl}>Fecha</label><input type="date" value={fecha} onChange={e => setFecha(e.target.value)} style={inp} /></div>
-          <div><label style={lbl}>Nro. remito origen</label><input type="number" value={remitoOrigen} onChange={e => buscarPorRemito(e.target.value)} placeholder="00145" style={inp} /></div>
-          <div style={{ position: 'relative' }}>
-            <label style={lbl}>Buscar por ID</label>
-            <input value={busqId} onChange={e => { setBusqId(e.target.value); setShowId(true); if (!e.target.value) { setIdHype(''); setDisponibles(0); } }} placeholder="Ej: TCS001045BLA" style={inp} />
-            {showId && busqId && (
-              <div style={dropdown}>
-                {idsUnicos.filter(id => id.toLowerCase().includes(busqId.toLowerCase())).slice(0, 10).map(id => (
-                  <div key={id} onClick={() => selId(id)} style={ddItem}><span style={{ fontFamily: 'monospace', color: '#e85d2f' }}>{id}</span></div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div style={{ position: 'relative' }}>
-            <label style={lbl}>Cliente</label>
-            <input value={busqCli} onChange={e => { setBusqCli(e.target.value); setCliente(e.target.value); setShowCli(true); buscarPorCampos(e.target.value, tela, color); }} placeholder="Escribí para buscar..." style={inp} />
-            {showCli && busqCli && (
-              <div style={dropdown}>
-                {clientes.filter((c: any) => c.nombre.toLowerCase().includes(busqCli.toLowerCase())).slice(0, 8).map((c: any) => (
-                  <div key={c.cod} onClick={() => selCliente(c)} style={ddItem}>{c.nombre}</div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div style={{ position: 'relative' }}>
-            <label style={lbl}>Tela</label>
-            <input value={busqTela} onChange={e => { setBusqTela(e.target.value); setTela(e.target.value); setShowTela(true); buscarPorCampos(cliente, e.target.value, color); }} placeholder="Escribí para buscar..." style={inp} />
-            {showTela && busqTela && (
-              <div style={dropdown}>
-                {telas.filter((t: any) => t.nombre.toLowerCase().includes(busqTela.toLowerCase())).slice(0, 8).map((t: any) => (
-                  <div key={t.cod} onClick={() => selTela(t)} style={ddItem}>{t.nombre}</div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div style={{ position: 'relative' }}>
-            <label style={lbl}>Color</label>
-            <input value={busqColor} onChange={e => { setBusqColor(e.target.value); setColor(e.target.value); setShowColor(true); buscarPorCampos(cliente, tela, e.target.value); }} placeholder="Escribí para buscar..." style={inp} />
-            {showColor && busqColor && (
-              <div style={dropdown}>
-                {colores.filter((c: any) => c.nombre.toLowerCase().includes(busqColor.toLowerCase()) || c.sigla.toLowerCase().includes(busqColor.toLowerCase())).slice(0, 8).map((c: any) => (
-                  <div key={c.sigla} onClick={() => selColor(c)} style={ddItem}>{c.nombre} <span style={{ color: '#888', fontSize: 11 }}>{c.sigla}</span></div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div><label style={lbl}>Observaciones</label><input value={obs} onChange={e => setObs(e.target.value)} placeholder="Diseño, detalle..." style={inp} /></div>
-          <div>
-            <label style={lbl}>ID automático</label>
-            <div style={{ background: '#1a1a2e', color: idHype ? '#e85d2f' : '#666', fontFamily: 'monospace', fontSize: 13, fontWeight: 700, padding: '8px 12px', borderRadius: 8 }}>{idHype || '---'}</div>
-          </div>
-          <div><label style={lbl}>Mts disponibles</label><input value={disponibles ? disponibles + ' mts' : '---'} readOnly style={{ ...inp, background: '#f5f5f7', color: disponibles > 0 ? '#3B6D11' : '#888', fontWeight: 500 }} /></div>
-          <div><label style={lbl}>Mts a egresar</label><input type="number" value={mts} onChange={e => validarMts(e.target.value)} placeholder="0" style={inp} /></div>
-          <div><label style={lbl}>Nro. bultos</label><input type="number" value={bultos} onChange={e => setBultos(e.target.value)} placeholder="0" style={inp} /></div>
-          <div><label style={lbl}>Nro. remito entrega</label><input type="number" value={remitoEntrega} onChange={e => setRemitoEntrega(e.target.value)} placeholder="00089" style={inp} /></div>
-          <div><label style={lbl}>Estado</label>
-            <select value={estado} onChange={e => setEstado(e.target.value)} style={inp}>
-              <option>En almacén</option><option>Entregado a cliente</option><option>A producción</option><option>Salida a tinto externa</option><option>En tinto HYPE</option>
-            </select>
-          </div>
-          <AutocompleteEmpleado label="Quién entregó" value={entrego} onChange={setEntrego} empleados={empleados} />
-          <div><label style={lbl}>Quién retiró / Envío</label><input value={retiro} onChange={e => setRetiro(e.target.value)} placeholder="Nombre o empresa" style={inp} /></div>
-        </div>
-        {alerta && <div style={{ marginTop: 12, padding: '10px 14px', background: '#FAEEDA', color: '#854F0B', borderRadius: 8, fontSize: 13 }}>⚠ {alerta}</div>}
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-        <button style={btn}>Cancelar</button>
-        <button onClick={guardar} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>{guardando ? 'Guardando...' : 'Guardar egreso'}</button>
-      </div>
-    </div>
-  );
-}
-
-function StockTabla({ entries, titulo }: any) {
-  const [search, setSearch] = useState('');
-  const filtered = entries.filter(([id, s]: any) => {
-    if (!search) return true;
-    return id.toLowerCase().includes(search.toLowerCase()) ||
-      s.cliente.toLowerCase().includes(search.toLowerCase()) ||
-      s.tela.toLowerCase().includes(search.toLowerCase()) ||
-      (s.color || '').toLowerCase().includes(search.toLowerCase());
-  });
-  const totalMts = filtered.reduce((s: number, [, v]: any) => s + v.ing - v.egr, 0);
-  return (
-    <div>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 500 }}>{titulo}</div>
-        <div style={{ fontSize: 13, color: '#888' }}>{filtered.length} IDs · {totalMts.toLocaleString()} mts disponibles</div>
-      </div>
-      <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 16 }}>
-        <input placeholder="Buscar por ID, cliente, tela o color..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, maxWidth: 300 }} />
-      </div>
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr>{['ID','Cliente','Tela','Color','Observaciones','Bultos','Mts disp.','Ubicación','Ramado','Proceso'].map(h =>
-                <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>
-              )}</tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 && <tr><td colSpan={10} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin stock registrado</td></tr>}
-              {filtered.map(([id, s]: any) => {
-                const disp = s.ing - s.egr;
-                return (
-                  <tr key={id}>
-                    <td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{id}</td>
-                    <td style={{ ...td, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.cliente}</td>
-                    <td style={{ ...td, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.tela}</td>
-                    <td style={td}>{s.color || '—'}</td>
-                    <td style={{ ...td, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.observaciones || '—'}</td>
-                    <td style={{ ...td, textAlign: 'center' }}>{s.bultos}</td>
-                    <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: disp > 0 ? '#3B6D11' : '#c00' }}>{disp.toLocaleString()}</td>
-                    <td style={td}>{s.ubicacion || '—'}</td>
-                    <td style={td}>{s.ramado || '—'}</td>
-                    <td style={td}>{s.proceso === 'S' ? 'Sublimación' : 'Digital'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StockTH({ calcStock, ingresos }: any) {
-  const stock = calcStock();
-  const entries = Object.entries(stock).filter(([id]: any) => id.startsWith('TH'));
-  return <StockTabla entries={entries} titulo="Stock TH — Tela propia HYPE" />;
-}
-
-function StockTC({ calcStock, ingresos }: any) {
-  const stock = calcStock();
-  const entries = Object.entries(stock).filter(([id]: any) => id.startsWith('TC'));
-  return <StockTabla entries={entries} titulo="Stock TC — Tela de clientes" />;
-}
-
-function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados }: any) {
+function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados, formatFecha }: any) {
   const [search, setSearch] = useState('');
   const [pag, setPag] = useState(1);
   const [editItem, setEditItem] = useState<any>(null);
@@ -1369,10 +766,10 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados }: 
             <tbody>
               {page.map((i: any) => (
                 <tr key={i.id}>
-                  <td style={td}>{i.fecha}</td>
+                  <td style={td}>{formatFecha(i.fecha)}</td>
                   <td style={td}>{i.remito}</td>
-                  <td style={{ ...td, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.cliente}</td>
-                  <td style={{ ...td, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.tela}</td>
+                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{i.cliente}</td>
+                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{i.tela}</td>
                   <td style={td}>{i.color}</td>
                   <td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{i.id_hype}</td>
                   <td style={{ ...td, maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.observaciones}</td>
@@ -1438,7 +835,7 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados }: 
   );
 }
 
-function HistorialEgresos({ egresos, onGuardar }: any) {
+function HistorialEgresos({ egresos, onGuardar, formatFecha }: any) {
   const [search, setSearch] = useState('');
   const [pag, setPag] = useState(1);
   const [editItem, setEditItem] = useState<any>(null);
@@ -1488,19 +885,18 @@ function HistorialEgresos({ egresos, onGuardar }: any) {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead><tr>
-              {['Fecha','Rto. Origen','Rto. Entrega','Cliente','Tela','Color','ID','Mts','Estado','Entregó','Retiró','Acciones'].map(h =>
+              {['Fecha','Rto. Entrega','Cliente','Tela','Color','ID','Mts','Estado','Entregó','Retiró','Acciones'].map(h =>
                 <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>
               )}
             </tr></thead>
             <tbody>
-              {page.length === 0 && <tr><td colSpan={12} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin egresos registrados</td></tr>}
+              {page.length === 0 && <tr><td colSpan={11} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin egresos registrados</td></tr>}
               {page.map((e: any) => (
                 <tr key={e.id}>
-                  <td style={td}>{e.fecha}</td>
-                  <td style={td}>{e.remito_origen}</td>
+                  <td style={td}>{formatFecha(e.fecha)}</td>
                   <td style={td}>{e.remito_entrega}</td>
-                  <td style={{ ...td, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.cliente}</td>
-                  <td style={{ ...td, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.tela}</td>
+                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{e.cliente}</td>
+                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{e.tela}</td>
                   <td style={td}>{e.color}</td>
                   <td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{e.id_hype}</td>
                   <td style={{ ...td, textAlign: 'center', fontWeight: 500 }}>{e.mts}</td>
@@ -1528,7 +924,6 @@ function HistorialEgresos({ egresos, onGuardar }: any) {
             <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 16 }}>Editar egreso</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div><label style={lbl}>Fecha</label><input type="date" value={editItem.fecha} onChange={e => setEditItem({...editItem, fecha: e.target.value})} style={inp} /></div>
-              <div><label style={lbl}>Remito origen</label><input value={editItem.remito_origen || ''} onChange={e => setEditItem({...editItem, remito_origen: e.target.value})} style={inp} /></div>
               <div><label style={lbl}>Remito entrega</label><input value={editItem.remito_entrega || ''} onChange={e => setEditItem({...editItem, remito_entrega: e.target.value})} style={inp} /></div>
               <div><label style={lbl}>Cliente</label><input value={editItem.cliente || ''} onChange={e => setEditItem({...editItem, cliente: e.target.value})} style={inp} /></div>
               <div><label style={lbl}>Tela</label><input value={editItem.tela || ''} onChange={e => setEditItem({...editItem, tela: e.target.value})} style={inp} /></div>
