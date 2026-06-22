@@ -386,9 +386,9 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
             {showResultados && resultados.length > 0 && (
               <div style={{ ...dropdown, maxHeight: 300 }}>
                 {resultados.slice(0, 10).map((r: any) => (
-                  <div key={r.id_hype} onClick={() => selIngreso(r)} style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div key={r.id_hype} onClick={() => selIngreso(r)} style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#1a1a2e' }}>
                     <div>
-                      <div style={{ fontWeight: 500, fontSize: 13 }}>{r.cliente}</div>
+                      <div style={{ fontWeight: 500, fontSize: 13, color: '#1a1a2e' }}>{r.cliente}</div>
                       <div style={{ fontSize: 12, color: '#666' }}>{r.tela} · {r.color || '—'}</div>
                       <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#e85d2f' }}>{r.id_hype}</div>
                     </div>
@@ -554,7 +554,6 @@ function Ingresos({ clientes, telas, colores, empleados, onGuardar }: any) {
       if (field === 'kg' || field === 'rinde') {
         const kg = field === 'kg' ? parseFloat(value) : parseFloat(nr.kg);
         const rinde = field === 'rinde' ? parseFloat(value) : parseFloat(nr.rinde);
-        // FIX: multiplicar kg * rinde (1 kg rinde X mts)
         if (kg && rinde && rinde > 0) nr.mts = (kg * rinde).toFixed(1).toString();
       }
       nr.id_hype = buildId(field === 'prop' ? value : nr.prop, field === 'proceso' ? value : nr.proceso, codCliente, field === 'codTela' ? value : nr.codTela, field === 'siglaColor' ? value : nr.siglaColor);
@@ -1220,7 +1219,7 @@ function Empleados({ empleados, onGuardar }: any) {
 const inp: React.CSSProperties = { fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', color: '#1a1a2e', width: '100%', boxSizing: 'border-box' };
 const btn: React.CSSProperties = { padding: '7px 16px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', color: '#333', fontSize: 13, cursor: 'pointer' };
 const lbl: React.CSSProperties = { fontSize: 12, color: '#888', display: 'block', marginBottom: 4 };
-const dropdown: React.CSSProperties = { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #ddd', borderRadius: 8, zIndex: 100, maxHeight: 200, overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' };
-const ddItem: React.CSSProperties = { padding: '8px 12px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid #f0f0f0' };
+const dropdown: React.CSSProperties = { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #ddd', borderRadius: 8, zIndex: 100, maxHeight: 200, overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', color: '#1a1a2e' };
+const ddItem: React.CSSProperties = { padding: '8px 12px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid #f0f0f0', color: '#1a1a2e' };
 const th: React.CSSProperties = { textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid #eee', fontSize: 11, color: '#888', fontWeight: 500 };
 const td: React.CSSProperties = { padding: '9px 12px', borderBottom: '1px solid #ddd', color: '#1a1a2e' };
