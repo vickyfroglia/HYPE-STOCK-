@@ -66,6 +66,7 @@ export default function Home() {
   if (!logueado) return <Login onLogin={handleLogin} />;
 
   const esAdmin = rol === 'admin';
+  const esBD = ['admin', 'logistica'].includes(rol);
   const puedeVerStock = ['admin', 'diseno', 'encargado', 'operario_terminacion'].includes(rol);
 
   function formatFecha(fecha: string) {
@@ -76,7 +77,7 @@ export default function Home() {
   }
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '▦', roles: ['admin', 'diseno', 'comercial', 'administrativo', 'encargado', 'operario_impresion', 'operario_terminacion'], sep: false },
+    { id: 'dashboard', label: 'Dashboard', icon: '▦', roles: ['admin', 'diseno', 'comercial', 'administrativo', 'encargado', 'operario_impresion', 'operario_terminacion', 'logistica'], sep: false },
     { id: '__stock__', label: 'STOCK', icon: '', roles: ['admin', 'diseno', 'encargado', 'operario_terminacion'], sep: true },
     { id: 'ingresos', label: 'Ingresos', icon: '↓', roles: ['admin', 'encargado', 'operario_terminacion'], sep: false },
     { id: 'egresos', label: 'Egresos', icon: '↑', roles: ['admin', 'encargado', 'operario_terminacion'], sep: false },
@@ -84,11 +85,11 @@ export default function Home() {
     { id: 'stockTC', label: 'Stock TC', icon: '◫', roles: ['admin', 'diseno', 'encargado', 'operario_terminacion'], sep: false },
     { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰', roles: ['admin', 'encargado', 'operario_terminacion'], sep: false },
     { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰', roles: ['admin', 'encargado', 'operario_terminacion'], sep: false },
-    { id: '__bd__', label: 'BASE DE DATOS', icon: '', roles: ['admin'], sep: true },
-    { id: 'clientes', label: 'Clientes', icon: '♟', roles: ['admin'], sep: false },
-    { id: 'telas', label: 'Telas', icon: '≡', roles: ['admin'], sep: false },
-    { id: 'colores', label: 'Colores', icon: '◉', roles: ['admin'], sep: false },
-    { id: 'empleados', label: 'Empleados', icon: '👤', roles: ['admin'], sep: false },
+    { id: '__bd__', label: 'BASE DE DATOS', icon: '', roles: ['admin', 'logistica'], sep: true },
+    { id: 'clientes', label: 'Clientes', icon: '♟', roles: ['admin', 'logistica'], sep: false },
+    { id: 'telas', label: 'Telas', icon: '≡', roles: ['admin', 'logistica'], sep: false },
+    { id: 'colores', label: 'Colores', icon: '◉', roles: ['admin', 'logistica'], sep: false },
+    { id: 'empleados', label: 'Empleados', icon: '👤', roles: ['admin', 'logistica'], sep: false },
   ].filter(n => n.roles.includes(rol));
 
   function calcStock() {
@@ -147,10 +148,10 @@ export default function Home() {
             {pagina === 'egresos' && puedeVerStock && <Egresos ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
             {pagina === 'stockTH' && puedeVerStock && <StockTH calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} />}
             {pagina === 'stockTC' && puedeVerStock && <StockTC calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} />}
-            {pagina === 'clientes' && esAdmin && <Clientes clientes={clientes} onGuardar={cargarTodo} />}
-            {pagina === 'telas' && esAdmin && <Telas telas={telas} onGuardar={cargarTodo} />}
-            {pagina === 'colores' && esAdmin && <Colores colores={colores} onGuardar={cargarTodo} />}
-            {pagina === 'empleados' && esAdmin && <Empleados empleados={empleados} onGuardar={cargarTodo} />}
+            {pagina === 'clientes' && esBD && <Clientes clientes={clientes} onGuardar={cargarTodo} />}
+            {pagina === 'telas' && esBD && <Telas telas={telas} onGuardar={cargarTodo} />}
+            {pagina === 'colores' && esBD && <Colores colores={colores} onGuardar={cargarTodo} />}
+            {pagina === 'empleados' && esBD && <Empleados empleados={empleados} onGuardar={cargarTodo} />}
             {pagina === 'historialIngresos' && puedeVerStock && <HistorialIngresos ingresos={ingresos} onGuardar={cargarTodo} clientes={clientes} telas={telas} empleados={empleados} formatFecha={formatFecha} />}
             {pagina === 'historialEgresos' && puedeVerStock && <HistorialEgresos egresos={egresos} onGuardar={cargarTodo} formatFecha={formatFecha} />}
           </>
