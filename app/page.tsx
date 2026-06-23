@@ -67,7 +67,7 @@ export default function Home() {
 
   const esAdmin = rol === 'admin';
   const esBD = ['admin', 'logistica'].includes(rol);
-  const puedeVerStock = ['admin', 'diseno', 'encargado', 'operario_terminacion'].includes(rol);
+  const puedeVerStock = ['admin', 'diseno', 'encargado', 'operario_terminacion', 'logistica'].includes(rol);
 
   function formatFecha(fecha: string) {
     if (!fecha) return '—';
@@ -78,13 +78,13 @@ export default function Home() {
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '▦', roles: ['admin', 'diseno', 'comercial', 'administrativo', 'encargado', 'operario_impresion', 'operario_terminacion', 'logistica'], sep: false },
-    { id: '__stock__', label: 'STOCK', icon: '', roles: ['admin', 'diseno', 'encargado', 'operario_terminacion'], sep: true },
-    { id: 'ingresos', label: 'Ingresos', icon: '↓', roles: ['admin', 'encargado', 'operario_terminacion'], sep: false },
-    { id: 'egresos', label: 'Egresos', icon: '↑', roles: ['admin', 'encargado', 'operario_terminacion'], sep: false },
-    { id: 'stockTH', label: 'Stock TH', icon: '◫', roles: ['admin', 'diseno', 'encargado', 'operario_terminacion'], sep: false },
-    { id: 'stockTC', label: 'Stock TC', icon: '◫', roles: ['admin', 'diseno', 'encargado', 'operario_terminacion'], sep: false },
-    { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰', roles: ['admin', 'encargado', 'operario_terminacion'], sep: false },
-    { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰', roles: ['admin', 'encargado', 'operario_terminacion'], sep: false },
+    { id: '__stock__', label: 'STOCK', icon: '', roles: ['admin', 'diseno', 'encargado', 'operario_terminacion', 'logistica'], sep: true },
+    { id: 'ingresos', label: 'Ingresos', icon: '↓', roles: ['admin', 'encargado', 'operario_terminacion', 'logistica'], sep: false },
+    { id: 'egresos', label: 'Egresos', icon: '↑', roles: ['admin', 'encargado', 'operario_terminacion', 'logistica'], sep: false },
+    { id: 'stockTH', label: 'Stock TH', icon: '◫', roles: ['admin', 'diseno', 'encargado', 'operario_terminacion', 'logistica'], sep: false },
+    { id: 'stockTC', label: 'Stock TC', icon: '◫', roles: ['admin', 'diseno', 'encargado', 'operario_terminacion', 'logistica'], sep: false },
+    { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰', roles: ['admin', 'encargado', 'operario_terminacion', 'logistica'], sep: false },
+    { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰', roles: ['admin', 'encargado', 'operario_terminacion', 'logistica'], sep: false },
     { id: '__bd__', label: 'BASE DE DATOS', icon: '', roles: ['admin', 'logistica'], sep: true },
     { id: 'clientes', label: 'Clientes', icon: '♟', roles: ['admin', 'logistica'], sep: false },
     { id: 'telas', label: 'Telas', icon: '≡', roles: ['admin', 'logistica'], sep: false },
@@ -213,7 +213,6 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
 
 function StockTabla({ entries, titulo, ingresos, formatFecha }: any) {
   const [search, setSearch] = useState('');
-
   const filtered = entries.filter(([id, s]: any) => {
     if (!search) return true;
     const q = search.toLowerCase();
@@ -224,9 +223,7 @@ function StockTabla({ entries, titulo, ingresos, formatFecha }: any) {
       (s.color || '').toLowerCase().includes(q) ||
       tieneRemito;
   });
-
   const totalMts = filtered.reduce((s: number, [, v]: any) => s + v.ing - v.egr, 0);
-
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
@@ -234,12 +231,7 @@ function StockTabla({ entries, titulo, ingresos, formatFecha }: any) {
         <div style={{ fontSize: 13, color: '#888' }}>{filtered.length} IDs · {totalMts.toLocaleString()} mts disponibles</div>
       </div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 16 }}>
-        <input
-          placeholder="Buscar por cliente, tela, color, ID o remito..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{ ...inp, maxWidth: 400 }}
-        />
+        <input placeholder="Buscar por cliente, tela, color, ID o remito..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, maxWidth: 400 }} />
       </div>
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
@@ -332,14 +324,9 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
   }
 
   function selIngreso(ing: any) {
-    setCliente(ing.cliente);
-    setTela(ing.tela);
-    setColor(ing.color || '');
-    setObs(ing.observaciones || '');
-    setIdHype(ing.id_hype);
-    setDisponibles(ing.ingTotal);
-    setBusqueda(`${ing.cliente} · ${ing.tela} · ${ing.color || ''}`);
-    setShowResultados(false);
+    setCliente(ing.cliente); setTela(ing.tela); setColor(ing.color || '');
+    setObs(ing.observaciones || ''); setIdHype(ing.id_hype); setDisponibles(ing.ingTotal);
+    setBusqueda(`${ing.cliente} · ${ing.tela} · ${ing.color || ''}`); setShowResultados(false);
   }
 
   function validarMts(val: string) {
@@ -354,10 +341,8 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
     if (!idHype) { alert('Seleccioná un ingreso primero.'); return; }
     setGuardando(true);
     const { error } = await supabase.from('egresos').insert([{
-      fecha, remito_entrega: remitoEntrega,
-      cliente, tela, color, observaciones: obs, id_hype: idHype,
-      mts: parseFloat(mts), bultos: parseInt(bultos) || 0,
-      estado, entrego, retiro
+      fecha, remito_entrega: remitoEntrega, cliente, tela, color, observaciones: obs, id_hype: idHype,
+      mts: parseFloat(mts), bultos: parseInt(bultos) || 0, estado, entrego, retiro
     }]);
     if (error) alert('Error: ' + error.message);
     else {
@@ -377,13 +362,7 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
         <div style={{ marginBottom: 20 }}>
           <label style={lbl}>Buscar por cliente, tela, color, ID o remito</label>
           <div style={{ position: 'relative' }}>
-            <input
-              value={busqueda}
-              onChange={e => buscar(e.target.value)}
-              placeholder="Ej: ZARA, Jersey, Blanco, TCS001..."
-              style={{ ...inp, fontSize: 14 }}
-              onFocus={() => busqueda.length >= 2 && setShowResultados(true)}
-            />
+            <input value={busqueda} onChange={e => buscar(e.target.value)} placeholder="Ej: ZARA, Jersey, Blanco, TCS001..." style={{ ...inp, fontSize: 14 }} onFocus={() => busqueda.length >= 2 && setShowResultados(true)} />
             {showResultados && resultados.length > 0 && (
               <div style={{ ...dropdown, maxHeight: 300 }}>
                 {resultados.slice(0, 10).map((r: any) => (
@@ -406,7 +385,6 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
             )}
           </div>
         </div>
-
         {idHype && (
           <div style={{ background: '#f5f5f7', borderRadius: 10, padding: 14, marginBottom: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10 }}>
             <div><div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>Cliente</div><div style={{ fontWeight: 600 }}>{cliente}</div></div>
@@ -416,7 +394,6 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
             <div><div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>Disponibles</div><div style={{ fontWeight: 700, color: '#3B6D11', fontSize: 18 }}>{disponibles} mts</div></div>
           </div>
         )}
-
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}>
           <div><label style={lbl}>Fecha</label><input type="date" value={fecha} onChange={e => setFecha(e.target.value)} style={inp} /></div>
           <div><label style={lbl}>Mts a egresar</label><input type="number" value={mts} onChange={e => validarMts(e.target.value)} placeholder="0" style={inp} /></div>
@@ -424,11 +401,7 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
           <div><label style={lbl}>Nro. remito entrega</label><input type="number" value={remitoEntrega} onChange={e => setRemitoEntrega(e.target.value)} placeholder="00089" style={inp} /></div>
           <div><label style={lbl}>Estado</label>
             <select value={estado} onChange={e => setEstado(e.target.value)} style={inp}>
-              <option>En almacén</option>
-              <option>Entregado a cliente</option>
-              <option>A producción</option>
-              <option>Salida a tinto externa</option>
-              <option>En tinto HYPE</option>
+              <option>En almacén</option><option>Entregado a cliente</option><option>A producción</option><option>Salida a tinto externa</option><option>En tinto HYPE</option>
             </select>
           </div>
           <AutocompleteEmpleado label="Quién entregó" value={entrego} onChange={setEntrego} empleados={empleados} />
@@ -474,7 +447,6 @@ function PanelEtiquetas({ rows, onCerrar }: any) {
       }
     });
   }, [rows]);
-
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 999, overflowY: 'auto', padding: '20px 0' }}>
       <div style={{ background: '#f5f5f7', borderRadius: 16, padding: 24, width: '90%', maxWidth: 700 }}>
@@ -712,7 +684,6 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados, fo
   const [guardando, setGuardando] = useState(false);
   const [etiquetasData, setEtiquetasData] = useState<any>(null);
   const POR_PAG = 20;
-
   const filtered = ingresos.filter((i: any) =>
     (i.cliente || '').toLowerCase().includes(search.toLowerCase()) ||
     (i.tela || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -722,13 +693,10 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados, fo
   );
   const total = Math.ceil(filtered.length / POR_PAG);
   const page = filtered.slice((pag - 1) * POR_PAG, pag * POR_PAG);
-
   async function eliminar(i: any) {
     if (!confirm(`¿Eliminar el ingreso ${i.id_hype} del ${i.fecha}?`)) return;
-    await supabase.from('ingresos').delete().eq('id', i.id);
-    onGuardar();
+    await supabase.from('ingresos').delete().eq('id', i.id); onGuardar();
   }
-
   async function guardarEdicion() {
     if (!editItem) return;
     setGuardando(true);
@@ -742,9 +710,7 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados, fo
     else { setEditItem(null); onGuardar(); }
     setGuardando(false);
   }
-
   const ubicaciones = ['1-A','1-B','1-C','1-D','2-A','2-B','2-C','3-A','3-B','3-C','3-D','4-A','4-B','4-C','ISLA','PARED','TINTO HYPE','TINTO EXT'];
-
   return (
     <div>
       {etiquetasData && <PanelEtiquetas rows={etiquetasData} onCerrar={() => setEtiquetasData(null)} />}
@@ -758,26 +724,16 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados, fo
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead><tr>
-              {['Fecha','Remito','Cliente','Tela','Color','ID','Obs.','Bultos','Mts','Ubic.','Ramado','Recibido','Acciones'].map(h =>
-                <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>
-              )}
-            </tr></thead>
+            <thead><tr>{['Fecha','Remito','Cliente','Tela','Color','ID','Obs.','Bultos','Mts','Ubic.','Ramado','Recibido','Acciones'].map(h => <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>)}</tr></thead>
             <tbody>
               {page.map((i: any) => (
                 <tr key={i.id}>
-                  <td style={td}>{formatFecha(i.fecha)}</td>
-                  <td style={td}>{i.remito}</td>
-                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{i.cliente}</td>
-                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{i.tela}</td>
-                  <td style={td}>{i.color}</td>
-                  <td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{i.id_hype}</td>
+                  <td style={td}>{formatFecha(i.fecha)}</td><td style={td}>{i.remito}</td>
+                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{i.cliente}</td><td style={{ ...td, whiteSpace: 'nowrap' }}>{i.tela}</td>
+                  <td style={td}>{i.color}</td><td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{i.id_hype}</td>
                   <td style={{ ...td, maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.observaciones}</td>
-                  <td style={{ ...td, textAlign: 'center' }}>{i.bultos}</td>
-                  <td style={{ ...td, textAlign: 'center', fontWeight: 500 }}>{i.mts}</td>
-                  <td style={td}>{i.ubicacion}</td>
-                  <td style={td}>{i.ramado}</td>
-                  <td style={td}>{i.recibido}</td>
+                  <td style={{ ...td, textAlign: 'center' }}>{i.bultos}</td><td style={{ ...td, textAlign: 'center', fontWeight: 500 }}>{i.mts}</td>
+                  <td style={td}>{i.ubicacion}</td><td style={td}>{i.ramado}</td><td style={td}>{i.recibido}</td>
                   <td style={td}>
                     <button onClick={() => setEtiquetasData([{ ...i, obs: i.observaciones }])} style={{ ...btn, fontSize: 12, padding: '4px 8px', marginRight: 4, background: '#e8f4ea', color: '#3B6D11', border: '1px solid #97C459' }}>🏷</button>
                     <button onClick={() => setEditItem({...i})} style={{ ...btn, fontSize: 12, padding: '4px 8px', marginRight: 4 }}>Editar</button>
@@ -841,7 +797,6 @@ function HistorialEgresos({ egresos, onGuardar, formatFecha }: any) {
   const [editItem, setEditItem] = useState<any>(null);
   const [guardando, setGuardando] = useState(false);
   const POR_PAG = 20;
-
   const filtered = egresos.filter((e: any) =>
     (e.cliente || '').toLowerCase().includes(search.toLowerCase()) ||
     (e.tela || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -851,13 +806,10 @@ function HistorialEgresos({ egresos, onGuardar, formatFecha }: any) {
   );
   const total = Math.ceil(filtered.length / POR_PAG);
   const page = filtered.slice((pag - 1) * POR_PAG, pag * POR_PAG);
-
   async function eliminar(e: any) {
     if (!confirm(`¿Eliminar el egreso ${e.id_hype} del ${e.fecha}?`)) return;
-    await supabase.from('egresos').delete().eq('id', e.id);
-    onGuardar();
+    await supabase.from('egresos').delete().eq('id', e.id); onGuardar();
   }
-
   async function guardarEdicion() {
     if (!editItem) return;
     setGuardando(true);
@@ -871,7 +823,6 @@ function HistorialEgresos({ egresos, onGuardar, formatFecha }: any) {
     else { setEditItem(null); onGuardar(); }
     setGuardando(false);
   }
-
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
@@ -884,25 +835,16 @@ function HistorialEgresos({ egresos, onGuardar, formatFecha }: any) {
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead><tr>
-              {['Fecha','Rto. Entrega','Cliente','Tela','Color','ID','Mts','Estado','Entregó','Retiró','Acciones'].map(h =>
-                <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>
-              )}
-            </tr></thead>
+            <thead><tr>{['Fecha','Rto. Entrega','Cliente','Tela','Color','ID','Mts','Estado','Entregó','Retiró','Acciones'].map(h => <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>)}</tr></thead>
             <tbody>
               {page.length === 0 && <tr><td colSpan={11} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin egresos registrados</td></tr>}
               {page.map((e: any) => (
                 <tr key={e.id}>
-                  <td style={td}>{formatFecha(e.fecha)}</td>
-                  <td style={td}>{e.remito_entrega}</td>
-                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{e.cliente}</td>
-                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{e.tela}</td>
-                  <td style={td}>{e.color}</td>
-                  <td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{e.id_hype}</td>
-                  <td style={{ ...td, textAlign: 'center', fontWeight: 500 }}>{e.mts}</td>
-                  <td style={td}>{e.estado}</td>
-                  <td style={td}>{e.entrego}</td>
-                  <td style={td}>{e.retiro}</td>
+                  <td style={td}>{formatFecha(e.fecha)}</td><td style={td}>{e.remito_entrega}</td>
+                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{e.cliente}</td><td style={{ ...td, whiteSpace: 'nowrap' }}>{e.tela}</td>
+                  <td style={td}>{e.color}</td><td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{e.id_hype}</td>
+                  <td style={{ ...td, textAlign: 'center', fontWeight: 500 }}>{e.mts}</td><td style={td}>{e.estado}</td>
+                  <td style={td}>{e.entrego}</td><td style={td}>{e.retiro}</td>
                   <td style={td}>
                     <button onClick={() => setEditItem({...e})} style={{ ...btn, fontSize: 12, padding: '4px 8px', marginRight: 4 }}>Editar</button>
                     <button onClick={() => eliminar(e)} style={{ ...btn, fontSize: 12, padding: '4px 8px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>Eliminar</button>
@@ -972,8 +914,7 @@ function Colores({ colores, onGuardar }: any) {
   }
   async function eliminar(c: any) {
     if (!confirm('¿Eliminar este color?')) return;
-    await supabase.from('colores').delete().eq('id', c.id);
-    onGuardar();
+    await supabase.from('colores').delete().eq('id', c.id); onGuardar();
   }
   return (
     <div>
@@ -1009,10 +950,7 @@ function Colores({ colores, onGuardar }: any) {
       {modal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
         <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 400 }}>
           <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 16 }}>{editIdx !== null ? 'Editar' : 'Nuevo'} color</div>
-          <div style={{ marginBottom: 12 }}>
-            <label style={lbl}>Sigla (3 letras)</label>
-            <input value={sigla} onChange={e => setSigla(e.target.value.toUpperCase().slice(0, 3))} placeholder="Ej: ROJ" style={inp} />
-          </div>
+          <div style={{ marginBottom: 12 }}><label style={lbl}>Sigla (3 letras)</label><input value={sigla} onChange={e => setSigla(e.target.value.toUpperCase().slice(0, 3))} placeholder="Ej: ROJ" style={inp} /></div>
           <div><label style={lbl}>Nombre</label><input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Rojo" style={inp} /></div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
             <button onClick={() => setModal(false)} style={btn}>Cancelar</button>
@@ -1045,8 +983,7 @@ function Clientes({ clientes, onGuardar }: any) {
   }
   async function eliminar(c: any) {
     if (!confirm('¿Eliminar este cliente?')) return;
-    await supabase.from('clientes').delete().eq('id', c.id);
-    onGuardar();
+    await supabase.from('clientes').delete().eq('id', c.id); onGuardar();
   }
   return (
     <div>
@@ -1115,8 +1052,7 @@ function Telas({ telas, onGuardar }: any) {
   }
   async function eliminar(t: any) {
     if (!confirm('¿Eliminar esta tela?')) return;
-    await supabase.from('telas').delete().eq('id', t.id);
-    onGuardar();
+    await supabase.from('telas').delete().eq('id', t.id); onGuardar();
   }
   return (
     <div>
@@ -1178,8 +1114,7 @@ function Empleados({ empleados, onGuardar }: any) {
   }
   async function eliminar(e: any) {
     if (!confirm('¿Eliminar este empleado?')) return;
-    await supabase.from('empleados').delete().eq('id', e.id);
-    onGuardar();
+    await supabase.from('empleados').delete().eq('id', e.id); onGuardar();
   }
   return (
     <div>
