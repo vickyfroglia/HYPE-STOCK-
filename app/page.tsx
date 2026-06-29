@@ -29,7 +29,7 @@ export default function Home() {
         if (userData) {
           setRol(userData.rol);
           setNombreUsuario(userData.nombre);
-          if (['op_impresion', 'op_terminacion'].includes(userData.rol)) {
+          if (['operario'].includes(userData.rol)) {
             setPagina('stockTC');
           }
         }
@@ -68,7 +68,7 @@ export default function Home() {
     setRol(rolUsuario);
     setNombreUsuario(nombre);
     setLogueado(true);
-    if (['op_impresion', 'op_terminacion'].includes(rolUsuario)) {
+    if (['operario'].includes(rolUsuario)) {
       setPagina('stockTC');
     }
     cargarTodo();
@@ -79,7 +79,7 @@ export default function Home() {
 
   const esAdmin = rol === 'admin';
   const esBD = ['admin', 'logistica'].includes(rol);
-  const puedeVerStock = ['admin', 'diseno', 'encargado', 'op_terminacion', 'op_impresion', 'logistica'].includes(rol.trim());
+  const puedeVerStock = ['admin', 'diseno', 'encargado', 'operario', 'logistica'].includes(rol.trim());
 
   function formatFecha(fecha: string) {
     if (!fecha) return '—';
@@ -89,12 +89,12 @@ export default function Home() {
   }
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '▦', roles: ['admin', 'diseno', 'comercial', 'administrativo', 'encargado', 'logistica', 'op_impresion', 'op_terminacion'], sep: false },
-    { id: '__stock__', label: 'STOCK', icon: '', roles: ['admin', 'diseno', 'encargado', 'op_terminacion', 'op_impresion', 'logistica'], sep: true },
+    { id: 'dashboard', label: 'Dashboard', icon: '▦', roles: ['admin', 'diseno', 'comercial', 'administrativo', 'encargado', 'logistica', 'operario'], sep: false },
+    { id: '__stock__', label: 'STOCK', icon: '', roles: ['admin', 'diseno', 'encargado', 'operario', 'logistica'], sep: true },
     { id: 'ingresos', label: 'Ingresos', icon: '↓', roles: ['admin', 'encargado', 'logistica'], sep: false },
     { id: 'egresos', label: 'Egresos', icon: '↑', roles: ['admin', 'encargado', 'logistica'], sep: false },
-    { id: 'stockTH', label: 'Stock TH', icon: '◫', roles: ['admin', 'diseno', 'encargado', 'op_terminacion', 'op_impresion', 'logistica'], sep: false },
-    { id: 'stockTC', label: 'Stock TC', icon: '◫', roles: ['admin', 'diseno', 'encargado', 'op_terminacion', 'op_impresion', 'logistica'], sep: false },
+    { id: 'stockTH', label: 'Stock TH', icon: '◫', roles: ['admin', 'diseno', 'encargado', 'operario', 'logistica'], sep: false },
+    { id: 'stockTC', label: 'Stock TC', icon: '◫', roles: ['admin', 'diseno', 'encargado', 'operario', 'logistica'], sep: false },
     { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰', roles: ['admin', 'encargado', 'logistica'], sep: false },
     { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰', roles: ['admin', 'encargado', 'logistica'], sep: false },
     { id: '__bd__', label: 'BASE DE DATOS', icon: '', roles: ['admin', 'logistica'], sep: true },
