@@ -28,7 +28,7 @@ export default function Login({ onLogin }: { onLogin: (rol: string, nombre: stri
       // Buscar rol en tabla usuarios
       const { data: userData } = await supabase.from('usuarios').select('*').eq('email', usuario).single();
       if (userData) {
-        onLogin(userData.rol, userData.nombre);
+        onLogin(userData.rol.trim(), userData.nombre);
       } else {
         onLogin('admin', 'Usuario');
       }
@@ -36,7 +36,7 @@ export default function Login({ onLogin }: { onLogin: (rol: string, nombre: stri
       // Login con usuario/contraseña para operarios
       const { data: operario } = await supabase.from('operarios').select('*').eq('usuario', usuario.toLowerCase()).eq('password', password).single();
       if (operario) {
-        onLogin(operario.rol, operario.nombre);
+        onLogin(operario.rol.trim(), operario.nombre);
       } else {
         setError('Usuario o contraseña incorrectos.');
       }

@@ -26,7 +26,13 @@ export default function Home() {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
         const { data: userData } = await supabase.from('usuarios').select('*').eq('email', session.user.email).single();
-        if (userData) { setRol(userData.rol); setNombreUsuario(userData.nombre); }
+        if (userData) {
+          setRol(userData.rol);
+          setNombreUsuario(userData.nombre);
+          if (['op_impresion', 'op_terminacion'].includes(userData.rol)) {
+            setPagina('stockTC');
+          }
+        }
         setLogueado(true);
         cargarTodo();
       }
@@ -59,7 +65,13 @@ export default function Home() {
   }
 
   function handleLogin(rolUsuario: string, nombre: string) {
-    setRol(rolUsuario); setNombreUsuario(nombre); setLogueado(true); cargarTodo();
+    setRol(rolUsuario);
+    setNombreUsuario(nombre);
+    setLogueado(true);
+    if (['op_impresion', 'op_terminacion'].includes(rolUsuario)) {
+      setPagina('stockTC');
+    }
+    cargarTodo();
   }
 
   if (checkingAuth) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a1a2e', color: '#fff' }}>Cargando...</div>;
@@ -67,7 +79,7 @@ export default function Home() {
 
   const esAdmin = rol === 'admin';
   const esBD = ['admin', 'logistica'].includes(rol);
-  const puedeVerStock = ['admin', 'diseno', 'encargado', 'operario_terminacion', 'logistica'].includes(rol);
+  const puedeVerStock = ['admin', 'diseno', 'encargado', 'op_terminacion', 'op_impresion', 'logistica'].includes(rol.trim());
 
   function formatFecha(fecha: string) {
     if (!fecha) return '—';
@@ -77,20 +89,20 @@ export default function Home() {
   }
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '▦', roles: ['admin', 'diseno', 'comercial', 'administrativo', 'encargado', 'operario_impresion', 'operario_terminacion', 'logistica'], sep: false },
-    { id: '__stock__', label: 'STOCK', icon: '', roles: ['admin', 'diseno', 'encargado', 'operario_terminacion', 'logistica'], sep: true },
-    { id: 'ingresos', label: 'Ingresos', icon: '↓', roles: ['admin', 'encargado', 'operario_terminacion', 'logistica'], sep: false },
-    { id: 'egresos', label: 'Egresos', icon: '↑', roles: ['admin', 'encargado', 'operario_terminacion', 'logistica'], sep: false },
-    { id: 'stockTH', label: 'Stock TH', icon: '◫', roles: ['admin', 'diseno', 'encargado', 'operario_terminacion', 'logistica'], sep: false },
-    { id: 'stockTC', label: 'Stock TC', icon: '◫', roles: ['admin', 'diseno', 'encargado', 'operario_terminacion', 'logistica'], sep: false },
-    { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰', roles: ['admin', 'encargado', 'operario_terminacion', 'logistica'], sep: false },
-    { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰', roles: ['admin', 'encargado', 'operario_terminacion', 'logistica'], sep: false },
+    { id: 'dashboard', label: 'Dashboard', icon: '▦', roles: ['admin', 'diseno', 'comercial', 'administrativo', 'encargado', 'logistica', 'op_impresion', 'op_terminacion'], sep: false },
+    { id: '__stock__', label: 'STOCK', icon: '', roles: ['admin', 'diseno', 'encargado', 'op_terminacion', 'op_impresion', 'logistica'], sep: true },
+    { id: 'ingresos', label: 'Ingresos', icon: '↓', roles: ['admin', 'encargado', 'logistica'], sep: false },
+    { id: 'egresos', label: 'Egresos', icon: '↑', roles: ['admin', 'encargado', 'logistica'], sep: false },
+    { id: 'stockTH', label: 'Stock TH', icon: '◫', roles: ['admin', 'diseno', 'encargado', 'op_terminacion', 'op_impresion', 'logistica'], sep: false },
+    { id: 'stockTC', label: 'Stock TC', icon: '◫', roles: ['admin', 'diseno', 'encargado', 'op_terminacion', 'op_impresion', 'logistica'], sep: false },
+    { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰', roles: ['admin', 'encargado', 'logistica'], sep: false },
+    { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰', roles: ['admin', 'encargado', 'logistica'], sep: false },
     { id: '__bd__', label: 'BASE DE DATOS', icon: '', roles: ['admin', 'logistica'], sep: true },
     { id: 'clientes', label: 'Clientes', icon: '♟', roles: ['admin', 'logistica'], sep: false },
     { id: 'telas', label: 'Telas', icon: '≡', roles: ['admin', 'logistica'], sep: false },
     { id: 'colores', label: 'Colores', icon: '◉', roles: ['admin', 'logistica'], sep: false },
     { id: 'empleados', label: 'Empleados', icon: '👤', roles: ['admin', 'logistica'], sep: false },
-  ].filter(n => n.roles.includes(rol));
+  ].filter(n => n.roles.includes(rol.trim()));
 
   function calcStock() {
     const stockMap: any = {};
