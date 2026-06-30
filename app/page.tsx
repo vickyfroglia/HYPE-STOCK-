@@ -263,7 +263,7 @@ function StockTabla({ entries, titulo, ingresos, formatFecha }: any) {
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>{s.cliente}</td>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>{s.tela}</td>
                     <td style={td}>{s.color || '—'}</td>
-                    <td style={{ ...td, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.observaciones || '—'}</td>
+                    <td style={{ ...td, whiteSpace: 'normal', minWidth: 150 }}>{s.observaciones || '—'}</td>
                     <td style={{ ...td, textAlign: 'center' }}>{s.bultos}</td>
                     <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: disp > 0 ? '#3B6D11' : '#c00' }}>{disp.toLocaleString()}</td>
                     <td style={td}>{s.ubicacion || '—'}</td>
@@ -743,7 +743,7 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados, fo
                   <td style={td}>{formatFecha(i.fecha)}</td><td style={td}>{i.remito}</td>
                   <td style={{ ...td, whiteSpace: 'nowrap' }}>{i.cliente}</td><td style={{ ...td, whiteSpace: 'nowrap' }}>{i.tela}</td>
                   <td style={td}>{i.color}</td><td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{i.id_hype}</td>
-                  <td style={{ ...td, maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.observaciones}</td>
+                  <td style={{ ...td, whiteSpace: 'normal', minWidth: 150 }}>{i.observaciones}</td>
                   <td style={{ ...td, textAlign: 'center' }}>{i.bultos}</td><td style={{ ...td, textAlign: 'center', fontWeight: 500 }}>{i.mts}</td>
                   <td style={td}>{i.ubicacion}</td><td style={td}>{i.ramado}</td><td style={td}>{i.recibido}</td>
                   <td style={td}>
