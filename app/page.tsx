@@ -43,9 +43,9 @@ export default function Home() {
   async function cargarTodo() {
     setLoading(true);
     const [{ data: cls }, { data: tls }, { data: cols }, { data: ings }, { data: egs }, { data: emps }] = await Promise.all([
-      supabase.from('clientes').select('*').order('cod'),
-      supabase.from('telas').select('*').order('cod'),
-      supabase.from('colores').select('*').order('nombre'),
+      supabase.from('clientes').select('*').order('id', { ascending: false }),
+      supabase.from('telas').select('*').order('id', { ascending: false }),
+      supabase.from('colores').select('*').order('id', { ascending: false }),
       supabase.from('ingresos').select('*').order('created_at', { ascending: false }),
       supabase.from('egresos').select('*').order('created_at', { ascending: false }),
       supabase.from('empleados').select('*').order('nombre'),
