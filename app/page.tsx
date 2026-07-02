@@ -8,6 +8,31 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+// Trae TODAS las filas de una tabla, sin el límite por defecto de 1000 filas
+// que impone Supabase. Pide de a 1000 en 1000 usando .range() hasta que no
+// queden más resultados.
+async function fetchAll(table: string, orderBy: string, ascending = false) {
+  let all: any[] = [];
+  let from = 0;
+  const PAGE = 1000;
+  while (true) {
+    const { data, error } = await supabase
+      .from(table)
+      .select('*')
+      .order(orderBy, { ascending })
+      .range(from, from + PAGE - 1);
+    if (error) {
+      console.error('Error cargando', table, error);
+      break;
+    }
+    if (!data || data.length === 0) break;
+    all = all.concat(data);
+    if (data.length < PAGE) break; // ya no hay más páginas
+    from += PAGE;
+  }
+  return all;
+}
+
 export default function Home() {
   const [pagina, setPagina] = useState('dashboard');
   const [clientes, setClientes] = useState<any[]>([]);
@@ -42,20 +67,20 @@ export default function Home() {
 
   async function cargarTodo() {
     setLoading(true);
-    const [{ data: cls }, { data: tls }, { data: cols }, { data: ings }, { data: egs }, { data: emps }] = await Promise.all([
-      supabase.from('clientes').select('*').order('id', { ascending: false }),
-      supabase.from('telas').select('*').order('id', { ascending: false }),
-      supabase.from('colores').select('*').order('id', { ascending: false }),
-      supabase.from('ingresos').select('*').order('created_at', { ascending: false }),
-      supabase.from('egresos').select('*').order('created_at', { ascending: false }),
-      supabase.from('empleados').select('*').order('nombre'),
+    const [cls, tls, cols, ings, egs, emps] = await Promise.all([
+      fetchAll('clientes', 'id'),
+      fetchAll('telas', 'id'),
+      fetchAll('colores', 'id'),
+      fetchAll('ingresos', 'created_at'),
+      fetchAll('egresos', 'created_at'),
+      fetchAll('empleados', 'nombre', true),
     ]);
-    if (cls) setClientes(cls);
-    if (tls) setTelas(tls);
-    if (cols) setColores(cols);
-    if (ings) setIngresos(ings);
-    if (egs) setEgresos(egs);
-    if (emps) setEmpleados(emps);
+    setClientes(cls);
+    setTelas(tls);
+    setColores(cols);
+    setIngresos(ings);
+    setEgresos(egs);
+    setEmpleados(emps);
     setLoading(false);
   }
 
