@@ -249,7 +249,7 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
   );
 }
 
-function StockTabla({ entries, titulo, ingresos, formatFecha }: any) {
+function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo }: any) {
   const [search, setSearch] = useState('');
   const filtered = entries.filter(([id, s]: any) => {
     if (!search) return true;
@@ -283,15 +283,24 @@ function StockTabla({ entries, titulo, ingresos, formatFecha }: any) {
               {filtered.length === 0 && <tr><td colSpan={10} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin stock registrado</td></tr>}
               {filtered.map(([id, s]: any) => {
                 const disp = s.ing - s.egr;
+                const esNegativo = resaltarNegativo && disp < 0;
                 return (
-                  <tr key={id}>
+                  <tr key={id} style={esNegativo ? { background: '#fdecea' } : undefined}>
                     <td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{id}</td>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>{s.cliente}</td>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>{s.tela}</td>
                     <td style={td}>{s.color || '—'}</td>
                     <td style={{ ...td, whiteSpace: 'normal', minWidth: 150 }}>{s.observaciones || '—'}</td>
                     <td style={{ ...td, textAlign: 'center' }}>{s.bultos}</td>
-                    <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: disp > 0 ? '#3B6D11' : '#c00' }}>{disp.toLocaleString()}</td>
+                    <td style={{ ...td, textAlign: 'center' }}>
+                      {esNegativo ? (
+                        <span style={{ fontWeight: 700, color: '#c00', textTransform: 'uppercase' }}>
+                          {disp.toLocaleString()} — SALDO NEGATIVO
+                        </span>
+                      ) : (
+                        <span style={{ fontWeight: 700, color: disp > 0 ? '#3B6D11' : '#c00' }}>{disp.toLocaleString()}</span>
+                      )}
+                    </td>
                     <td style={td}>{s.ubicacion || '—'}</td>
                     <td style={td}>{s.ramado || '—'}</td>
                     <td style={td}>{s.proceso === 'S' ? 'Sublimación' : 'Digital'}</td>
@@ -309,7 +318,7 @@ function StockTabla({ entries, titulo, ingresos, formatFecha }: any) {
 function StockTH({ calcStock, ingresos, formatFecha }: any) {
   const stock = calcStock();
   const entries = Object.entries(stock).filter(([id]: any) => id.startsWith('TH'));
-  return <StockTabla entries={entries} titulo="Stock TH — Tela propia HYPE" ingresos={ingresos} formatFecha={formatFecha} />;
+  return <StockTabla entries={entries} titulo="Stock TH — Tela propia HYPE" ingresos={ingresos} formatFecha={formatFecha} resaltarNegativo />;
 }
 
 function StockTC({ calcStock, ingresos, formatFecha }: any) {
