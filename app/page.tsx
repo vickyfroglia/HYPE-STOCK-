@@ -1043,30 +1043,43 @@ function Colores({ colores, onGuardar }: any) {
   );
 }
 
-// Estado del cliente (activo/inactivo) según su última actividad en
-// Producción: se toma la fecha más reciente entre todos sus pedidos
-// (ordenes_directa) y todas sus muestras (muestras). Si pasaron 60 días o
-// menos desde esa fecha, está ACTIVO; si pasaron más, o si el cliente
-// nunca tuvo ni un pedido ni una muestra, está INACTIVO. Se calcula solo,
-// en vivo, cada vez que se abre la pantalla — no se guarda en la base.
+// Estado del cliente según su actividad en Producción:
+// - ACTIVO: tiene un pedido dentro de los últimos 30 días (o hizo una
+//   muestra hace menos de 15 días, todavía sin pedido — es muy pronto
+//   para preocuparse).
+// - PEND APROB: lo último que hizo fue una muestra (sin pedido posterior)
+//   y ya pasaron 15 días o más sin que la convierta en pedido.
+// - INACTIVO: nunca tuvo ni pedido ni muestra, o su último pedido tiene
+//   más de 30 días.
+// Se calcula solo, en vivo, cada vez que se abre la pantalla — no se
+// guarda en la base.
 const DIAS_INACTIVIDAD = 30;
+const DIAS_PEND_APROB = 15;
 
-function ultimaActividadCliente(nombreCliente: string, pedidosProduccion: any[], muestrasProduccion: any[]): Date | null {
-  const nombreNorm = (nombreCliente || '').trim().toLowerCase();
-  if (!nombreNorm) return null;
-  const fechas = [
-    ...pedidosProduccion.filter((p: any) => (p.cliente || '').trim().toLowerCase() === nombreNorm).map((p: any) => p.fecha),
-    ...muestrasProduccion.filter((m: any) => (m.cliente || '').trim().toLowerCase() === nombreNorm).map((m: any) => m.fecha),
-  ].filter(Boolean);
+function ultimaFecha(fechas: string[]): Date | null {
   if (fechas.length === 0) return null;
-  return new Date(Math.max(...fechas.map((f: string) => new Date(f).getTime())));
+  return new Date(Math.max(...fechas.map((f) => new Date(f).getTime())));
 }
 
-function estadoCliente(nombreCliente: string, pedidosProduccion: any[], muestrasProduccion: any[]): 'ACTIVO' | 'INACTIVO' {
-  const ultima = ultimaActividadCliente(nombreCliente, pedidosProduccion, muestrasProduccion);
-  if (!ultima) return 'INACTIVO';
-  const dias = (Date.now() - ultima.getTime()) / 86400000;
-  return dias <= DIAS_INACTIVIDAD ? 'ACTIVO' : 'INACTIVO';
+function estadoCliente(nombreCliente: string, pedidosProduccion: any[], muestrasProduccion: any[]): 'ACTIVO' | 'PEND APROB' | 'INACTIVO' {
+  const nombreNorm = (nombreCliente || '').trim().toLowerCase();
+  if (!nombreNorm) return 'INACTIVO';
+
+  const ultimoPedido = ultimaFecha(pedidosProduccion.filter((p: any) => (p.cliente || '').trim().toLowerCase() === nombreNorm).map((p: any) => p.fecha));
+  const ultimaMuestra = ultimaFecha(muestrasProduccion.filter((m: any) => (m.cliente || '').trim().toLowerCase() === nombreNorm).map((m: any) => m.fecha));
+
+  if (!ultimoPedido && !ultimaMuestra) return 'INACTIVO';
+
+  // Si la muestra es lo más reciente (o no hay ningún pedido todavía), el
+  // estado depende de si ya se demoró en convertirse en pedido.
+  if (ultimaMuestra && (!ultimoPedido || ultimaMuestra > ultimoPedido)) {
+    const diasDesdeMuestra = (Date.now() - ultimaMuestra.getTime()) / 86400000;
+    return diasDesdeMuestra >= DIAS_PEND_APROB ? 'PEND APROB' : 'ACTIVO';
+  }
+
+  // Si no, lo último que hizo fue un pedido: activo/inactivo según los 30 días.
+  const diasDesdePedido = (Date.now() - ultimoPedido!.getTime()) / 86400000;
+  return diasDesdePedido <= DIAS_INACTIVIDAD ? 'ACTIVO' : 'INACTIVO';
 }
 
 function Clientes({ clientes, pedidosProduccion, muestrasProduccion, onGuardar }: any) {
@@ -1133,8 +1146,8 @@ function Clientes({ clientes, pedidosProduccion, muestrasProduccion, onGuardar }
                     fontWeight: 700,
                     padding: '3px 8px',
                     borderRadius: 6,
-                    background: estado === 'ACTIVO' ? '#e6f4e1' : '#fde8e8',
-                    color: estado === 'ACTIVO' ? '#2e7d32' : '#c00',
+                    background: estado === 'ACTIVO' ? '#e6f4e1' : estado === 'PEND APROB' ? '#fff6d6' : '#fde8e8',
+                    color: estado === 'ACTIVO' ? '#2e7d32' : estado === 'PEND APROB' ? '#a68b00' : '#c00',
                   }}>
                     {estado}
                   </span>
