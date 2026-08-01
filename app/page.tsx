@@ -1035,6 +1035,10 @@ function Clientes({ clientes, onGuardar }: any) {
     if (!confirm('¿Eliminar este cliente?')) return;
     await supabase.from('clientes').delete().eq('id', c.id); onGuardar();
   }
+  async function actualizarCampo(c: any, campo: string, valor: string) {
+    await supabase.from('clientes').update({ [campo]: valor || null }).eq('id', c.id);
+    onGuardar();
+  }
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
@@ -1052,9 +1056,15 @@ function Clientes({ clientes, onGuardar }: any) {
               <tr key={c.id}>
                 <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{c.cod}</td>
                 <td style={td}>{c.nombre}</td>
-                <td style={td}>{c.contacto || '—'}</td>
-                <td style={td}>{c.tel || '—'}</td>
-                <td style={td}>{c.mail || '—'}</td>
+                <td style={td}>
+                  <input defaultValue={c.contacto || ''} onBlur={e => actualizarCampo(c, 'contacto', e.target.value)} placeholder="Nombre del contacto" style={{ ...inp, fontSize: 12, padding: '4px 6px' }} />
+                </td>
+                <td style={td}>
+                  <input defaultValue={c.tel || ''} onBlur={e => actualizarCampo(c, 'tel', e.target.value)} style={{ ...inp, fontSize: 12, padding: '4px 6px' }} />
+                </td>
+                <td style={td}>
+                  <input defaultValue={c.mail || ''} onBlur={e => actualizarCampo(c, 'mail', e.target.value)} style={{ ...inp, fontSize: 12, padding: '4px 6px' }} />
+                </td>
                 <td style={td}>
                   <button onClick={() => { setEditIdx(clientes.indexOf(c)); setCod(c.cod); setNombre(c.nombre); setContacto(c.contacto || ''); setTel(c.tel || ''); setMail(c.mail || ''); setModal(true); }} style={{ ...btn, fontSize: 12, padding: '4px 10px', marginRight: 6 }}>Editar</button>
                   <button onClick={() => eliminar(c)} style={{ ...btn, fontSize: 12, padding: '4px 10px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>Eliminar</button>
