@@ -1094,7 +1094,12 @@ function Clientes({ clientes, pedidosProduccion, muestrasProduccion, onGuardar }
   const [guardando, setGuardando] = useState(false);
   const [pag, setPag] = useState(1);
   const POR_PAG = 20;
-  const filtered = clientes.filter((c: any) => c.nombre.toLowerCase().includes(search.toLowerCase()) || c.cod.includes(search));
+  const filtered = clientes.filter((c: any) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    const estado = estadoCliente(c.nombre, pedidosProduccion, muestrasProduccion);
+    return c.nombre.toLowerCase().includes(q) || c.cod.includes(search) || estado.toLowerCase().includes(q);
+  });
   const total = Math.ceil(filtered.length / POR_PAG);
   const page = filtered.slice((pag - 1) * POR_PAG, pag * POR_PAG);
   async function guardar() {
@@ -1119,7 +1124,7 @@ function Clientes({ clientes, pedidosProduccion, muestrasProduccion, onGuardar }
         <button onClick={() => { setEditIdx(null); setCod(''); setNombre(''); setContacto(''); setTel(''); setMail(''); setModal(true); }} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>+ Nuevo cliente</button>
       </div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 12 }}>
-        <input placeholder="Buscar..." value={search} onChange={e => { setSearch(e.target.value); setPag(1); }} style={{ ...inp, maxWidth: 300 }} />
+        <input placeholder="Buscar por código, nombre o estado (activo, inactivo, pend aprob)..." value={search} onChange={e => { setSearch(e.target.value); setPag(1); }} style={{ ...inp, maxWidth: 420 }} />
       </div>
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
