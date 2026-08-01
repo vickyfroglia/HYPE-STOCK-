@@ -1123,7 +1123,7 @@ function Clientes({ clientes, pedidosProduccion, muestrasProduccion, onGuardar }
       </div>
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead><tr><th style={{ ...th, width: 80 }}>Código</th><th style={th}>Nombre</th><th style={th}>Contacto</th><th style={th}>Tel</th><th style={th}>Mail</th><th style={{ ...th, width: 90 }}>Estado</th><th style={{ ...th, width: 120 }}>Acciones</th></tr></thead>
+          <thead><tr><th style={{ ...th, width: 80 }}>Código</th><th style={th}>Nombre</th><th style={th}>Contacto</th><th style={th}>Tel</th><th style={th}>Mail</th><th style={{ ...th, width: 110, whiteSpace: 'nowrap' }}>Estado</th><th style={{ ...th, width: 120 }}>Acciones</th></tr></thead>
           <tbody>
             {page.map((c: any) => {
               const estado = estadoCliente(c.nombre, pedidosProduccion, muestrasProduccion);
@@ -1146,6 +1146,8 @@ function Clientes({ clientes, pedidosProduccion, muestrasProduccion, onGuardar }
                     fontWeight: 700,
                     padding: '3px 8px',
                     borderRadius: 6,
+                    whiteSpace: 'nowrap',
+                    display: 'inline-block',
                     background: estado === 'ACTIVO' ? '#e6f4e1' : estado === 'PEND APROB' ? '#fff6d6' : '#fde8e8',
                     color: estado === 'ACTIVO' ? '#2e7d32' : estado === 'PEND APROB' ? '#a68b00' : '#c00',
                   }}>
