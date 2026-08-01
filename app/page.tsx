@@ -1061,6 +1061,16 @@ function ultimaFecha(fechas: string[]): Date | null {
   return new Date(Math.max(...fechas.map((f) => new Date(f).getTime())));
 }
 
+// Va formateando el CUIT a medida que lo escriben: se queda solo con los
+// números (hasta 11) y les pone los guiones en su lugar, para que termine
+// como XX-XXXXXXXX-X sin tener que tipear los guiones a mano.
+function formatearCuit(valor: string): string {
+  const digitos = valor.replace(/\D/g, '').slice(0, 11);
+  if (digitos.length <= 2) return digitos;
+  if (digitos.length <= 10) return `${digitos.slice(0, 2)}-${digitos.slice(2)}`;
+  return `${digitos.slice(0, 2)}-${digitos.slice(2, 10)}-${digitos.slice(10)}`;
+}
+
 function estadoCliente(nombreCliente: string, pedidosProduccion: any[], muestrasProduccion: any[]): 'ACTIVO' | 'PEND APROB' | 'INACTIVO' {
   const nombreNorm = (nombreCliente || '').trim().toLowerCase();
   if (!nombreNorm) return 'INACTIVO';
@@ -1088,6 +1098,7 @@ function Clientes({ clientes, pedidosProduccion, muestrasProduccion, onGuardar }
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [cod, setCod] = useState('');
   const [nombre, setNombre] = useState('');
+  const [cuit, setCuit] = useState('');
   const [contacto, setContacto] = useState('');
   const [tel, setTel] = useState('');
   const [mail, setMail] = useState('');
@@ -1111,8 +1122,8 @@ function Clientes({ clientes, pedidosProduccion, muestrasProduccion, onGuardar }
   async function guardar() {
     if (!cod || !nombre) { alert('Completá código y nombre.'); return; }
     setGuardando(true);
-    if (editIdx !== null) await supabase.from('clientes').update({ cod, nombre, contacto, tel, mail }).eq('id', clientes[editIdx].id);
-    else await supabase.from('clientes').insert([{ cod, nombre, contacto, tel, mail }]);
+    if (editIdx !== null) await supabase.from('clientes').update({ cod, nombre, cuit, contacto, tel, mail }).eq('id', clientes[editIdx].id);
+    else await supabase.from('clientes').insert([{ cod, nombre, cuit, contacto, tel, mail }]);
     setModal(false); onGuardar(); setGuardando(false);
   }
   async function eliminar(c: any) {
@@ -1127,14 +1138,14 @@ function Clientes({ clientes, pedidosProduccion, muestrasProduccion, onGuardar }
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
         <div><div style={{ fontSize: 18, fontWeight: 500 }}>Clientes</div><div style={{ fontSize: 13, color: '#888' }}>{filtered.length} registrados</div></div>
-        <button onClick={() => { setEditIdx(null); setCod(''); setNombre(''); setContacto(''); setTel(''); setMail(''); setModal(true); }} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>+ Nuevo cliente</button>
+        <button onClick={() => { setEditIdx(null); setCod(''); setNombre(''); setCuit(''); setContacto(''); setTel(''); setMail(''); setModal(true); }} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>+ Nuevo cliente</button>
       </div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 12 }}>
         <input placeholder="Buscar por código, nombre o estado (activo, inactivo, pend aprob)..." value={search} onChange={e => { setSearch(e.target.value); setPag(1); }} style={{ ...inp, maxWidth: 420 }} />
       </div>
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead><tr><th style={{ ...th, width: 80 }}>Código</th><th style={th}>Nombre</th><th style={th}>Contacto</th><th style={th}>Tel</th><th style={th}>Mail</th><th style={{ ...th, width: 110, whiteSpace: 'nowrap' }}>Estado</th><th style={{ ...th, width: 120 }}>Acciones</th></tr></thead>
+          <thead><tr><th style={{ ...th, width: 80 }}>Código</th><th style={th}>Nombre</th><th style={{ ...th, width: 110 }}>CUIT</th><th style={th}>Contacto</th><th style={th}>Tel</th><th style={th}>Mail</th><th style={{ ...th, width: 110, whiteSpace: 'nowrap' }}>Estado</th><th style={{ ...th, width: 120 }}>Acciones</th></tr></thead>
           <tbody>
             {page.map((c: any) => {
               const estado = estadoCliente(c.nombre, pedidosProduccion, muestrasProduccion);
@@ -1142,6 +1153,9 @@ function Clientes({ clientes, pedidosProduccion, muestrasProduccion, onGuardar }
               <tr key={c.id}>
                 <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{c.cod}</td>
                 <td style={td}>{c.nombre}</td>
+                <td style={td}>
+                  <input defaultValue={c.cuit || ''} onBlur={e => actualizarCampo(c, 'cuit', formatearCuit(e.target.value))} placeholder="XX-XXXXXXXX-X" style={{ ...inp, fontSize: 12, padding: '4px 6px' }} />
+                </td>
                 <td style={td}>
                   <input defaultValue={c.contacto || ''} onBlur={e => actualizarCampo(c, 'contacto', e.target.value)} placeholder="Nombre del contacto" style={{ ...inp, fontSize: 12, padding: '4px 6px' }} />
                 </td>
@@ -1166,7 +1180,7 @@ function Clientes({ clientes, pedidosProduccion, muestrasProduccion, onGuardar }
                   </span>
                 </td>
                 <td style={td}>
-                  <button onClick={() => { setEditIdx(clientes.indexOf(c)); setCod(c.cod); setNombre(c.nombre); setContacto(c.contacto || ''); setTel(c.tel || ''); setMail(c.mail || ''); setModal(true); }} style={{ ...btn, fontSize: 12, padding: '4px 10px', marginRight: 6 }}>Editar</button>
+                  <button onClick={() => { setEditIdx(clientes.indexOf(c)); setCod(c.cod); setNombre(c.nombre); setCuit(c.cuit || ''); setContacto(c.contacto || ''); setTel(c.tel || ''); setMail(c.mail || ''); setModal(true); }} style={{ ...btn, fontSize: 12, padding: '4px 10px', marginRight: 6 }}>Editar</button>
                   <button onClick={() => eliminar(c)} style={{ ...btn, fontSize: 12, padding: '4px 10px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>Eliminar</button>
                 </td>
               </tr>
@@ -1185,6 +1199,7 @@ function Clientes({ clientes, pedidosProduccion, muestrasProduccion, onGuardar }
           <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 16 }}>{editIdx !== null ? 'Editar' : 'Nuevo'} cliente</div>
           <div style={{ marginBottom: 12 }}><label style={lbl}>Código</label><input value={cod} onChange={e => setCod(e.target.value)} style={inp} /></div>
           <div style={{ marginBottom: 12 }}><label style={lbl}>Nombre</label><input value={nombre} onChange={e => setNombre(e.target.value)} style={inp} /></div>
+          <div style={{ marginBottom: 12 }}><label style={lbl}>CUIT</label><input value={cuit} onChange={e => setCuit(formatearCuit(e.target.value))} style={inp} placeholder="XX-XXXXXXXX-X" inputMode="numeric" /></div>
           <div style={{ marginBottom: 12 }}><label style={lbl}>Contacto</label><input value={contacto} onChange={e => setContacto(e.target.value)} style={inp} placeholder="Nombre del contacto" /></div>
           <div style={{ marginBottom: 12 }}><label style={lbl}>Tel</label><input value={tel} onChange={e => setTel(e.target.value)} style={inp} /></div>
           <div><label style={lbl}>Mail</label><input value={mail} onChange={e => setMail(e.target.value)} style={inp} /></div>
