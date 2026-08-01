@@ -33,6 +33,31 @@ async function fetchAll(table: string, orderBy: string, ascending = false) {
   return all;
 }
 
+// Igual que fetchAll, pero pidiendo solo algunas columnas (para el estado
+// de clientes solo necesitamos cliente + fecha de las tablas de Producción,
+// no hace falta traer todo el pedido).
+async function fetchColumnas(table: string, columnas: string, orderBy: string) {
+  let all: any[] = [];
+  let from = 0;
+  const PAGE = 1000;
+  while (true) {
+    const { data, error } = await supabase
+      .from(table)
+      .select(columnas)
+      .order(orderBy, { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (error) {
+      console.error('Error cargando', table, error);
+      break;
+    }
+    if (!data || data.length === 0) break;
+    all = all.concat(data);
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+  return all;
+}
+
 export default function Home() {
   const [pagina, setPagina] = useState('dashboard');
   const [clientes, setClientes] = useState<any[]>([]);
@@ -41,6 +66,11 @@ export default function Home() {
   const [ingresos, setIngresos] = useState<any[]>([]);
   const [egresos, setEgresos] = useState<any[]>([]);
   const [empleados, setEmpleados] = useState<any[]>([]);
+  // Pedidos de Producción y muestras (de hype-produccion, misma base de
+  // datos) — se usan solo para calcular el Estado (activo/inactivo) de
+  // cada cliente en la pantalla de Clientes.
+  const [pedidosProduccion, setPedidosProduccion] = useState<any[]>([]);
+  const [muestrasProduccion, setMuestrasProduccion] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [logueado, setLogueado] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -67,13 +97,15 @@ export default function Home() {
 
   async function cargarTodo() {
     setLoading(true);
-    const [cls, tls, cols, ings, egs, emps] = await Promise.all([
+    const [cls, tls, cols, ings, egs, emps, pedidos, muestras] = await Promise.all([
       fetchAll('clientes', 'id'),
       fetchAll('telas', 'id'),
       fetchAll('colores', 'id'),
       fetchAll('ingresos', 'created_at'),
       fetchAll('egresos', 'created_at'),
       fetchAll('empleados', 'nombre', true),
+      fetchColumnas('ordenes_directa', 'cliente, fecha', 'fecha'),
+      fetchColumnas('muestras', 'cliente, fecha', 'fecha'),
     ]);
     setClientes(cls);
     setTelas(tls);
@@ -81,6 +113,8 @@ export default function Home() {
     setIngresos(ings);
     setEgresos(egs);
     setEmpleados(emps);
+    setPedidosProduccion(pedidos);
+    setMuestrasProduccion(muestras);
     setLoading(false);
   }
 
@@ -186,7 +220,7 @@ export default function Home() {
             {pagina === 'egresos' && puedeVerStock && <Egresos ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
             {pagina === 'stockTH' && puedeVerStock && <StockTH calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} />}
             {pagina === 'stockTC' && puedeVerStock && <StockTC calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} />}
-            {pagina === 'clientes' && puedeVerClientes && <Clientes clientes={clientes} onGuardar={cargarTodo} />}
+            {pagina === 'clientes' && puedeVerClientes && <Clientes clientes={clientes} pedidosProduccion={pedidosProduccion} muestrasProduccion={muestrasProduccion} onGuardar={cargarTodo} />}
             {pagina === 'telas' && esBD && <Telas telas={telas} onGuardar={cargarTodo} />}
             {pagina === 'colores' && esBD && <Colores colores={colores} onGuardar={cargarTodo} />}
             {pagina === 'empleados' && esBD && <Empleados empleados={empleados} onGuardar={cargarTodo} />}
@@ -1009,7 +1043,33 @@ function Colores({ colores, onGuardar }: any) {
   );
 }
 
-function Clientes({ clientes, onGuardar }: any) {
+// Estado del cliente (activo/inactivo) según su última actividad en
+// Producción: se toma la fecha más reciente entre todos sus pedidos
+// (ordenes_directa) y todas sus muestras (muestras). Si pasaron 60 días o
+// menos desde esa fecha, está ACTIVO; si pasaron más, o si el cliente
+// nunca tuvo ni un pedido ni una muestra, está INACTIVO. Se calcula solo,
+// en vivo, cada vez que se abre la pantalla — no se guarda en la base.
+const DIAS_INACTIVIDAD = 30;
+
+function ultimaActividadCliente(nombreCliente: string, pedidosProduccion: any[], muestrasProduccion: any[]): Date | null {
+  const nombreNorm = (nombreCliente || '').trim().toLowerCase();
+  if (!nombreNorm) return null;
+  const fechas = [
+    ...pedidosProduccion.filter((p: any) => (p.cliente || '').trim().toLowerCase() === nombreNorm).map((p: any) => p.fecha),
+    ...muestrasProduccion.filter((m: any) => (m.cliente || '').trim().toLowerCase() === nombreNorm).map((m: any) => m.fecha),
+  ].filter(Boolean);
+  if (fechas.length === 0) return null;
+  return new Date(Math.max(...fechas.map((f: string) => new Date(f).getTime())));
+}
+
+function estadoCliente(nombreCliente: string, pedidosProduccion: any[], muestrasProduccion: any[]): 'ACTIVO' | 'INACTIVO' {
+  const ultima = ultimaActividadCliente(nombreCliente, pedidosProduccion, muestrasProduccion);
+  if (!ultima) return 'INACTIVO';
+  const dias = (Date.now() - ultima.getTime()) / 86400000;
+  return dias <= DIAS_INACTIVIDAD ? 'ACTIVO' : 'INACTIVO';
+}
+
+function Clientes({ clientes, pedidosProduccion, muestrasProduccion, onGuardar }: any) {
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState(false);
   const [editIdx, setEditIdx] = useState<number | null>(null);
@@ -1050,9 +1110,11 @@ function Clientes({ clientes, onGuardar }: any) {
       </div>
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead><tr><th style={{ ...th, width: 80 }}>Código</th><th style={th}>Nombre</th><th style={th}>Contacto</th><th style={th}>Tel</th><th style={th}>Mail</th><th style={{ ...th, width: 120 }}>Acciones</th></tr></thead>
+          <thead><tr><th style={{ ...th, width: 80 }}>Código</th><th style={th}>Nombre</th><th style={th}>Contacto</th><th style={th}>Tel</th><th style={th}>Mail</th><th style={{ ...th, width: 90 }}>Estado</th><th style={{ ...th, width: 120 }}>Acciones</th></tr></thead>
           <tbody>
-            {page.map((c: any) => (
+            {page.map((c: any) => {
+              const estado = estadoCliente(c.nombre, pedidosProduccion, muestrasProduccion);
+              return (
               <tr key={c.id}>
                 <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{c.cod}</td>
                 <td style={td}>{c.nombre}</td>
@@ -1066,11 +1128,24 @@ function Clientes({ clientes, onGuardar }: any) {
                   <input defaultValue={c.mail || ''} onBlur={e => actualizarCampo(c, 'mail', e.target.value)} style={{ ...inp, fontSize: 12, padding: '4px 6px' }} />
                 </td>
                 <td style={td}>
+                  <span style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: 6,
+                    background: estado === 'ACTIVO' ? '#e6f4e1' : '#fde8e8',
+                    color: estado === 'ACTIVO' ? '#2e7d32' : '#c00',
+                  }}>
+                    {estado}
+                  </span>
+                </td>
+                <td style={td}>
                   <button onClick={() => { setEditIdx(clientes.indexOf(c)); setCod(c.cod); setNombre(c.nombre); setContacto(c.contacto || ''); setTel(c.tel || ''); setMail(c.mail || ''); setModal(true); }} style={{ ...btn, fontSize: 12, padding: '4px 10px', marginRight: 6 }}>Editar</button>
                   <button onClick={() => eliminar(c)} style={{ ...btn, fontSize: 12, padding: '4px 10px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>Eliminar</button>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
         {total > 1 && <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
