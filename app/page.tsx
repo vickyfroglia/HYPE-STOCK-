@@ -1015,6 +1015,9 @@ function Clientes({ clientes, onGuardar }: any) {
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [cod, setCod] = useState('');
   const [nombre, setNombre] = useState('');
+  const [contacto, setContacto] = useState('');
+  const [tel, setTel] = useState('');
+  const [mail, setMail] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [pag, setPag] = useState(1);
   const POR_PAG = 20;
@@ -1024,8 +1027,8 @@ function Clientes({ clientes, onGuardar }: any) {
   async function guardar() {
     if (!cod || !nombre) { alert('Completá código y nombre.'); return; }
     setGuardando(true);
-    if (editIdx !== null) await supabase.from('clientes').update({ cod, nombre }).eq('id', clientes[editIdx].id);
-    else await supabase.from('clientes').insert([{ cod, nombre }]);
+    if (editIdx !== null) await supabase.from('clientes').update({ cod, nombre, contacto, tel, mail }).eq('id', clientes[editIdx].id);
+    else await supabase.from('clientes').insert([{ cod, nombre, contacto, tel, mail }]);
     setModal(false); onGuardar(); setGuardando(false);
   }
   async function eliminar(c: any) {
@@ -1036,21 +1039,24 @@ function Clientes({ clientes, onGuardar }: any) {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
         <div><div style={{ fontSize: 18, fontWeight: 500 }}>Clientes</div><div style={{ fontSize: 13, color: '#888' }}>{filtered.length} registrados</div></div>
-        <button onClick={() => { setEditIdx(null); setCod(''); setNombre(''); setModal(true); }} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>+ Nuevo cliente</button>
+        <button onClick={() => { setEditIdx(null); setCod(''); setNombre(''); setContacto(''); setTel(''); setMail(''); setModal(true); }} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>+ Nuevo cliente</button>
       </div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 12 }}>
         <input placeholder="Buscar..." value={search} onChange={e => { setSearch(e.target.value); setPag(1); }} style={{ ...inp, maxWidth: 300 }} />
       </div>
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead><tr><th style={{ ...th, width: 80 }}>Código</th><th style={th}>Nombre</th><th style={{ ...th, width: 120 }}>Acciones</th></tr></thead>
+          <thead><tr><th style={{ ...th, width: 80 }}>Código</th><th style={th}>Nombre</th><th style={th}>Contacto</th><th style={th}>Tel</th><th style={th}>Mail</th><th style={{ ...th, width: 120 }}>Acciones</th></tr></thead>
           <tbody>
             {page.map((c: any) => (
               <tr key={c.id}>
                 <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{c.cod}</td>
                 <td style={td}>{c.nombre}</td>
+                <td style={td}>{c.contacto || '—'}</td>
+                <td style={td}>{c.tel || '—'}</td>
+                <td style={td}>{c.mail || '—'}</td>
                 <td style={td}>
-                  <button onClick={() => { setEditIdx(clientes.indexOf(c)); setCod(c.cod); setNombre(c.nombre); setModal(true); }} style={{ ...btn, fontSize: 12, padding: '4px 10px', marginRight: 6 }}>Editar</button>
+                  <button onClick={() => { setEditIdx(clientes.indexOf(c)); setCod(c.cod); setNombre(c.nombre); setContacto(c.contacto || ''); setTel(c.tel || ''); setMail(c.mail || ''); setModal(true); }} style={{ ...btn, fontSize: 12, padding: '4px 10px', marginRight: 6 }}>Editar</button>
                   <button onClick={() => eliminar(c)} style={{ ...btn, fontSize: 12, padding: '4px 10px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>Eliminar</button>
                 </td>
               </tr>
@@ -1067,7 +1073,10 @@ function Clientes({ clientes, onGuardar }: any) {
         <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 400 }}>
           <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 16 }}>{editIdx !== null ? 'Editar' : 'Nuevo'} cliente</div>
           <div style={{ marginBottom: 12 }}><label style={lbl}>Código</label><input value={cod} onChange={e => setCod(e.target.value)} style={inp} /></div>
-          <div><label style={lbl}>Nombre</label><input value={nombre} onChange={e => setNombre(e.target.value)} style={inp} /></div>
+          <div style={{ marginBottom: 12 }}><label style={lbl}>Nombre</label><input value={nombre} onChange={e => setNombre(e.target.value)} style={inp} /></div>
+          <div style={{ marginBottom: 12 }}><label style={lbl}>Contacto</label><input value={contacto} onChange={e => setContacto(e.target.value)} style={inp} placeholder="Nombre del contacto" /></div>
+          <div style={{ marginBottom: 12 }}><label style={lbl}>Tel</label><input value={tel} onChange={e => setTel(e.target.value)} style={inp} /></div>
+          <div><label style={lbl}>Mail</label><input value={mail} onChange={e => setMail(e.target.value)} style={inp} /></div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
             <button onClick={() => setModal(false)} style={btn}>Cancelar</button>
             <button onClick={guardar} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>Guardar</button>
