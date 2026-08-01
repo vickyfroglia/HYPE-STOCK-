@@ -1097,8 +1097,14 @@ function Clientes({ clientes, pedidosProduccion, muestrasProduccion, onGuardar }
   const filtered = clientes.filter((c: any) => {
     const q = search.trim().toLowerCase();
     if (!q) return true;
-    const estado = estadoCliente(c.nombre, pedidosProduccion, muestrasProduccion);
-    return c.nombre.toLowerCase().includes(q) || c.cod.includes(search) || estado.toLowerCase().includes(q);
+    if (c.nombre.toLowerCase().includes(q) || c.cod.includes(search)) return true;
+    // Para Estado usamos "empieza con" en vez de "contiene": si fuera
+    // "contiene", buscar "activo" también traía los INACTIVO (porque
+    // "inactivo" contiene "activo"). También aceptamos el plural
+    // (activos/inactivos) sacando la "s" del final antes de comparar.
+    const estadoNorm = estadoCliente(c.nombre, pedidosProduccion, muestrasProduccion).toLowerCase();
+    const qSinPlural = q.endsWith('s') ? q.slice(0, -1) : q;
+    return estadoNorm.startsWith(q) || estadoNorm.startsWith(qSinPlural);
   });
   const total = Math.ceil(filtered.length / POR_PAG);
   const page = filtered.slice((pag - 1) * POR_PAG, pag * POR_PAG);
