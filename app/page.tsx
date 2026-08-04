@@ -216,7 +216,7 @@ export default function Home() {
         {!loading && (
           <>
             {pagina === 'dashboard' && <Dashboard ingresos={ingresos} egresos={egresos} clientes={clientes} calcStock={calcStock} formatFecha={formatFecha} />}
-            {pagina === 'ingresos' && puedeVerStock && <Ingresos clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
+            {pagina === 'ingresos' && puedeVerStock && <Ingresos clientes={clientes} telas={telas} colores={colores} empleados={empleados} ingresos={ingresos} onGuardar={cargarTodo} />}
             {pagina === 'egresos' && puedeVerStock && <Egresos ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
             {pagina === 'stockTH' && puedeVerStock && <StockTH calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} />}
             {pagina === 'stockTC' && puedeVerStock && <StockTC calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} />}
@@ -578,7 +578,7 @@ function PanelEtiquetas({ rows, onCerrar }: any) {
   );
 }
 
-function Ingresos({ clientes, telas, colores, empleados, onGuardar }: any) {
+function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: any) {
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
   const [remito, setRemito] = useState('');
   const [cliente, setCliente] = useState('');
@@ -639,10 +639,34 @@ function Ingresos({ clientes, telas, colores, empleados, onGuardar }: any) {
     onGuardar();
   }
 
+  // Busca en el historial real de ingresos si esa tela ya se cargó antes
+  // como tela HYPE (id_hype que arranca con TH), para traer directo el
+  // prop/proceso/color/ID ya usados — así el código sale siempre igual,
+  // en vez de reconstruirlo de nuevo cada vez.
+  function buscarStockTH(nombreTela: string) {
+    const match = (ingresos || []).find((i: any) =>
+      (i.id_hype || '').toUpperCase().startsWith('TH') &&
+      (i.tela || '').trim().toLowerCase() === nombreTela.trim().toLowerCase()
+    );
+    if (!match) return null;
+    return { prop: match.prop, proceso: match.proceso, color: match.color, siglaColor: match.sigla_color, id_hype: match.id_hype };
+  }
+
   function selTela(idx: number, t: any) {
     setRenglones(prev => prev.map((r, i) => {
       if (i !== idx) return r;
       const nr = { ...r, tela: t.nombre, codTela: t.cod, busqTela: t.nombre, showTela: false };
+      const esHype = cliente.trim().toUpperCase() === 'HYPE';
+      const historial = esHype ? buscarStockTH(t.nombre) : null;
+      if (historial) {
+        nr.prop = historial.prop || nr.prop;
+        nr.proceso = historial.proceso || nr.proceso;
+        nr.color = historial.color || '';
+        nr.busqColor = historial.color || '';
+        nr.siglaColor = historial.siglaColor || '';
+        nr.id_hype = historial.id_hype;
+        return nr;
+      }
       nr.id_hype = buildId(nr.prop, nr.proceso, codCliente, t.cod, nr.siglaColor);
       return nr;
     }));
