@@ -615,6 +615,30 @@ function Ingresos({ clientes, telas, colores, empleados, onGuardar }: any) {
     }));
   }
 
+  // Cuando el cliente del ingreso es HYPE, el desplegable de Tela se
+  // restringe al catálogo propio (telas marcadas es_hype), para que no
+  // aparezcan mezcladas las telas de otros clientes. Para cualquier otro
+  // cliente, se busca en todo el catálogo como antes.
+  function telasParaBuscar(busqueda: string) {
+    const esHype = cliente.trim().toUpperCase() === 'HYPE';
+    const base = esHype ? telas.filter((t: any) => t.es_hype) : telas;
+    return base.filter((t: any) => t.nombre.toLowerCase().includes(busqueda.toLowerCase()) || t.cod.includes(busqueda));
+  }
+
+  // Agrega una tela nueva al catálogo HYPE directo desde el desplegable
+  // de Ingresos (sin tener que ir a la pantalla de Telas), y la deja
+  // seleccionada en ese renglón.
+  async function agregarTelaHype(idx: number) {
+    const nombre = window.prompt('Nombre de la nueva tela HYPE:');
+    if (!nombre || !nombre.trim()) return;
+    const cod = window.prompt('Código de tela HYPE (el que le corresponde):');
+    if (!cod || !cod.trim()) return;
+    const { data, error } = await supabase.from('telas').insert([{ cod: cod.trim(), nombre: nombre.trim().toUpperCase(), es_hype: true }]).select().single();
+    if (error) { alert('No se pudo agregar la tela: ' + error.message); return; }
+    selTela(idx, data);
+    onGuardar();
+  }
+
   function selTela(idx: number, t: any) {
     setRenglones(prev => prev.map((r, i) => {
       if (i !== idx) return r;
@@ -697,16 +721,36 @@ function Ingresos({ clientes, telas, colores, empleados, onGuardar }: any) {
                   <option value="">Seleccionar</option><option value="S">S - Sublimación</option><option value="D">D - Digital directo</option>
                 </select>
               </div>
-              <div style={{ position: 'relative' }}><label style={lbl}>Tela</label>
-                <input value={r.busqTela} onChange={e => { updateRenglon(idx, 'busqTela', e.target.value); setRenglones(prev => prev.map((rr, i) => i === idx ? { ...rr, showTela: true } : rr)); }} placeholder="Buscar..." style={inp} />
-                {r.showTela && r.busqTela && (
-                  <div style={dropdown}>
-                    {telas.filter((t: any) => t.nombre.toLowerCase().includes(r.busqTela.toLowerCase()) || t.cod.includes(r.busqTela)).slice(0, 8).map((t: any) => (
-                      <div key={t.cod} onClick={() => selTela(idx, t)} style={ddItem}>{t.nombre} <span style={{ color: '#888', fontSize: 11 }}>{t.cod}</span></div>
+              {cliente.trim().toUpperCase() === 'HYPE' ? (
+                <div><label style={lbl}>Tela</label>
+                  <select
+                    value={r.codTela}
+                    onChange={e => {
+                      if (e.target.value === '__nueva__') { agregarTelaHype(idx); return; }
+                      const t = telas.find((tt: any) => tt.cod === e.target.value);
+                      if (t) selTela(idx, t);
+                    }}
+                    style={inp}
+                  >
+                    <option value="">Seleccionar</option>
+                    {telas.filter((t: any) => t.es_hype).sort((a: any, b: any) => a.nombre.localeCompare(b.nombre)).map((t: any) => (
+                      <option key={t.cod} value={t.cod}>{t.nombre}</option>
                     ))}
-                  </div>
-                )}
-              </div>
+                    <option value="__nueva__">+ Agregar nueva tela</option>
+                  </select>
+                </div>
+              ) : (
+                <div style={{ position: 'relative' }}><label style={lbl}>Tela</label>
+                  <input value={r.busqTela} onChange={e => { updateRenglon(idx, 'busqTela', e.target.value); setRenglones(prev => prev.map((rr, i) => i === idx ? { ...rr, showTela: true } : rr)); }} placeholder="Buscar..." style={inp} />
+                  {r.showTela && r.busqTela && (
+                    <div style={dropdown}>
+                      {telasParaBuscar(r.busqTela).slice(0, 8).map((t: any) => (
+                        <div key={t.cod} onClick={() => selTela(idx, t)} style={ddItem}>{t.nombre} <span style={{ color: '#888', fontSize: 11 }}>{t.cod}</span></div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <div><label style={lbl}>Cód. tela</label><input value={r.codTela} readOnly style={{ ...inp, background: '#f5f5f7' }} /></div>
               <div style={{ position: 'relative' }}><label style={lbl}>Color</label>
                 <input value={r.busqColor} onChange={e => { updateRenglon(idx, 'busqColor', e.target.value); setRenglones(prev => prev.map((rr, i) => i === idx ? { ...rr, showColor: true } : rr)); }} placeholder="Buscar color..." style={inp} />
