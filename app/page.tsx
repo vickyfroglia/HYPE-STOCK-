@@ -314,7 +314,7 @@ function StockTH({ calcStock, ingresos, formatFecha }: any) {
 
 function StockTC({ calcStock, ingresos, formatFecha }: any) {
   const stock = calcStock();
-  const entries = Object.entries(stock).filter(([id]: any) => id.startsWith('TC'));
+  const entries = Object.entries(stock).filter(([id, s]: any) => id.startsWith('TC') && (s.ing - s.egr) !== 0);
   return <StockTabla entries={entries} titulo="Stock TC — Tela de clientes" ingresos={ingresos} formatFecha={formatFecha} />;
 }
 
@@ -505,15 +505,15 @@ function PanelEtiquetas({ rows, onCerrar }: any) {
                   <div style={{ color: '#e85d2f', fontSize: 18, fontWeight: 700 }}>ROLLO {i + 1}/{parseInt(r.bultos) || 1}</div>
                 </div>
                 <div style={{ display: 'flex', flex: 1 }}>
-                  <div style={{ flex: 1, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ fontSize: 26, fontWeight: 700, color: '#1a1a2e', letterSpacing: 3, fontFamily: 'Courier New, monospace', borderBottom: '1.5px solid #e0e0e0', paddingBottom: 6 }}>{r.id_hype}</div>
-                    <div><div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Cliente</div><div style={{ fontSize: 17, fontWeight: 700, textTransform: 'uppercase' }}>{r.cliente}</div></div>
-                    <div><div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Tela</div><div style={{ fontSize: 17, fontWeight: 700, textTransform: 'uppercase' }}>{r.tela}</div></div>
-                    {r.color && <div><div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Color</div><div style={{ fontSize: 17, fontWeight: 700, textTransform: 'uppercase' }}>{r.color}</div></div>}
-                    {r.obs && <div><div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Observaciones</div><div style={{ fontSize: 15, fontWeight: 700, textTransform: 'uppercase' }}>{r.obs}</div></div>}
+                  <div style={{ flex: 1, padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: '#1a1a2e', letterSpacing: 2, fontFamily: 'Courier New, monospace', borderBottom: '1.5px solid #e0e0e0', paddingBottom: 4 }}>{r.id_hype}</div>
+                    <div><div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Cliente</div><div style={{ fontSize: 34, lineHeight: 1.05, fontWeight: 700, textTransform: 'uppercase' }}>{r.cliente}</div></div>
+                    <div><div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Tela</div><div style={{ fontSize: 34, lineHeight: 1.05, fontWeight: 700, textTransform: 'uppercase' }}>{r.tela}</div></div>
+                    {r.color && <div><div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Color</div><div style={{ fontSize: 34, lineHeight: 1.05, fontWeight: 700, textTransform: 'uppercase' }}>{r.color}</div></div>}
+                    {r.obs && <div><div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Observaciones</div><div style={{ fontSize: 30, lineHeight: 1.05, fontWeight: 700, textTransform: 'uppercase' }}>{r.obs}</div></div>}
                     <div style={{ display: 'flex', gap: 20 }}>
-                      <div><div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Fecha</div><div style={{ fontSize: 15, fontWeight: 700 }}>{r.fecha}</div></div>
-                      <div><div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Ubicación</div><div style={{ fontSize: 15, fontWeight: 700 }}>{r.ubicacion}</div></div>
+                      <div><div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Fecha</div><div style={{ fontSize: 15, fontWeight: 700 }}>{r.fecha}</div></div>
+                      <div><div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Ubicación</div><div style={{ fontSize: 15, fontWeight: 700 }}>{r.ubicacion}</div></div>
                     </div>
                   </div>
                   <div style={{ width: 126, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 10, borderLeft: '1px solid #eee', gap: 6 }}>
