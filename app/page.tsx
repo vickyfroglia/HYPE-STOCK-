@@ -33,6 +33,31 @@ async function fetchAll(table: string, orderBy: string, ascending = false) {
   return all;
 }
 
+// Igual que fetchAll, pero pidiendo solo algunas columnas (para el estado
+// de clientes solo necesitamos cliente + fecha de las tablas de Producción,
+// no hace falta traer todo el pedido).
+async function fetchColumnas(table: string, columnas: string, orderBy: string) {
+  let all: any[] = [];
+  let from = 0;
+  const PAGE = 1000;
+  while (true) {
+    const { data, error } = await supabase
+      .from(table)
+      .select(columnas)
+      .order(orderBy, { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (error) {
+      console.error('Error cargando', table, error);
+      break;
+    }
+    if (!data || data.length === 0) break;
+    all = all.concat(data);
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+  return all;
+}
+
 export default function Home() {
   const [pagina, setPagina] = useState('dashboard');
   const [clientes, setClientes] = useState<any[]>([]);
@@ -41,6 +66,11 @@ export default function Home() {
   const [ingresos, setIngresos] = useState<any[]>([]);
   const [egresos, setEgresos] = useState<any[]>([]);
   const [empleados, setEmpleados] = useState<any[]>([]);
+  // Pedidos de Producción y muestras (de hype-produccion, misma base de
+  // datos) — se usan solo para calcular el Estado (activo/inactivo) de
+  // cada cliente en la pantalla de Clientes.
+  const [pedidosProduccion, setPedidosProduccion] = useState<any[]>([]);
+  const [muestrasProduccion, setMuestrasProduccion] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [logueado, setLogueado] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -67,13 +97,15 @@ export default function Home() {
 
   async function cargarTodo() {
     setLoading(true);
-    const [cls, tls, cols, ings, egs, emps] = await Promise.all([
+    const [cls, tls, cols, ings, egs, emps, pedidos, muestras] = await Promise.all([
       fetchAll('clientes', 'id'),
       fetchAll('telas', 'id'),
       fetchAll('colores', 'id'),
       fetchAll('ingresos', 'created_at'),
       fetchAll('egresos', 'created_at'),
       fetchAll('empleados', 'nombre', true),
+      fetchColumnas('ordenes_directa', 'cliente, fecha', 'fecha'),
+      fetchColumnas('muestras', 'cliente, fecha', 'fecha'),
     ]);
     setClientes(cls);
     setTelas(tls);
@@ -81,6 +113,8 @@ export default function Home() {
     setIngresos(ings);
     setEgresos(egs);
     setEmpleados(emps);
+    setPedidosProduccion(pedidos);
+    setMuestrasProduccion(muestras);
     setLoading(false);
   }
 
@@ -182,11 +216,11 @@ export default function Home() {
         {!loading && (
           <>
             {pagina === 'dashboard' && <Dashboard ingresos={ingresos} egresos={egresos} clientes={clientes} calcStock={calcStock} formatFecha={formatFecha} />}
-            {pagina === 'ingresos' && puedeVerStock && <Ingresos clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
+            {pagina === 'ingresos' && puedeVerStock && <Ingresos clientes={clientes} telas={telas} colores={colores} empleados={empleados} ingresos={ingresos} onGuardar={cargarTodo} />}
             {pagina === 'egresos' && puedeVerStock && <Egresos ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
             {pagina === 'stockTH' && puedeVerStock && <StockTH calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} />}
             {pagina === 'stockTC' && puedeVerStock && <StockTC calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} />}
-            {pagina === 'clientes' && puedeVerClientes && <Clientes clientes={clientes} onGuardar={cargarTodo} />}
+            {pagina === 'clientes' && puedeVerClientes && <Clientes clientes={clientes} pedidosProduccion={pedidosProduccion} muestrasProduccion={muestrasProduccion} onGuardar={cargarTodo} />}
             {pagina === 'telas' && esBD && <Telas telas={telas} onGuardar={cargarTodo} />}
             {pagina === 'colores' && esBD && <Colores colores={colores} onGuardar={cargarTodo} />}
             {pagina === 'empleados' && esBD && <Empleados empleados={empleados} onGuardar={cargarTodo} />}
@@ -249,7 +283,7 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
   );
 }
 
-function StockTabla({ entries, titulo, ingresos, formatFecha }: any) {
+function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo }: any) {
   const [search, setSearch] = useState('');
   const filtered = entries.filter(([id, s]: any) => {
     if (!search) return true;
@@ -283,15 +317,24 @@ function StockTabla({ entries, titulo, ingresos, formatFecha }: any) {
               {filtered.length === 0 && <tr><td colSpan={10} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin stock registrado</td></tr>}
               {filtered.map(([id, s]: any) => {
                 const disp = s.ing - s.egr;
+                const esNegativo = resaltarNegativo && disp < 0;
                 return (
-                  <tr key={id}>
+                  <tr key={id} style={esNegativo ? { background: '#fdecea' } : undefined}>
                     <td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{id}</td>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>{s.cliente}</td>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>{s.tela}</td>
                     <td style={td}>{s.color || '—'}</td>
                     <td style={{ ...td, whiteSpace: 'normal', minWidth: 150 }}>{s.observaciones || '—'}</td>
                     <td style={{ ...td, textAlign: 'center' }}>{s.bultos}</td>
-                    <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: disp > 0 ? '#3B6D11' : '#c00' }}>{disp.toLocaleString()}</td>
+                    <td style={{ ...td, textAlign: 'center' }}>
+                      {esNegativo ? (
+                        <span style={{ fontWeight: 700, color: '#c00', textTransform: 'uppercase' }}>
+                          {disp.toLocaleString()} — SALDO NEGATIVO
+                        </span>
+                      ) : (
+                        <span style={{ fontWeight: 700, color: disp > 0 ? '#3B6D11' : '#c00' }}>{disp.toLocaleString()}</span>
+                      )}
+                    </td>
                     <td style={td}>{s.ubicacion || '—'}</td>
                     <td style={td}>{s.ramado || '—'}</td>
                     <td style={td}>{s.proceso === 'S' ? 'Sublimación' : 'Digital'}</td>
@@ -309,7 +352,7 @@ function StockTabla({ entries, titulo, ingresos, formatFecha }: any) {
 function StockTH({ calcStock, ingresos, formatFecha }: any) {
   const stock = calcStock();
   const entries = Object.entries(stock).filter(([id]: any) => id.startsWith('TH'));
-  return <StockTabla entries={entries} titulo="Stock TH — Tela propia HYPE" ingresos={ingresos} formatFecha={formatFecha} />;
+  return <StockTabla entries={entries} titulo="Stock TH — Tela propia HYPE" ingresos={ingresos} formatFecha={formatFecha} resaltarNegativo />;
 }
 
 function StockTC({ calcStock, ingresos, formatFecha }: any) {
@@ -535,7 +578,7 @@ function PanelEtiquetas({ rows, onCerrar }: any) {
   );
 }
 
-function Ingresos({ clientes, telas, colores, empleados, onGuardar }: any) {
+function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: any) {
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
   const [remito, setRemito] = useState('');
   const [cliente, setCliente] = useState('');
@@ -572,10 +615,58 @@ function Ingresos({ clientes, telas, colores, empleados, onGuardar }: any) {
     }));
   }
 
+  // Cuando el cliente del ingreso es HYPE, el desplegable de Tela se
+  // restringe al catálogo propio (telas marcadas es_hype), para que no
+  // aparezcan mezcladas las telas de otros clientes. Para cualquier otro
+  // cliente, se busca en todo el catálogo como antes.
+  function telasParaBuscar(busqueda: string) {
+    const esHype = cliente.trim().toUpperCase() === 'HYPE';
+    const base = esHype ? telas.filter((t: any) => t.es_hype) : telas;
+    return base.filter((t: any) => t.nombre.toLowerCase().includes(busqueda.toLowerCase()) || t.cod.includes(busqueda));
+  }
+
+  // Agrega una tela nueva al catálogo HYPE directo desde el desplegable
+  // de Ingresos (sin tener que ir a la pantalla de Telas), y la deja
+  // seleccionada en ese renglón.
+  async function agregarTelaHype(idx: number) {
+    const nombre = window.prompt('Nombre de la nueva tela HYPE:');
+    if (!nombre || !nombre.trim()) return;
+    const cod = window.prompt('Código de tela HYPE (el que le corresponde):');
+    if (!cod || !cod.trim()) return;
+    const { data, error } = await supabase.from('telas').insert([{ cod: cod.trim(), nombre: nombre.trim().toUpperCase(), es_hype: true }]).select().single();
+    if (error) { alert('No se pudo agregar la tela: ' + error.message); return; }
+    selTela(idx, data);
+    onGuardar();
+  }
+
+  // Busca en el historial real de ingresos si esa tela ya se cargó antes
+  // como tela HYPE (id_hype que arranca con TH), para traer directo el
+  // prop/proceso/color/ID ya usados — así el código sale siempre igual,
+  // en vez de reconstruirlo de nuevo cada vez.
+  function buscarStockTH(nombreTela: string) {
+    const match = (ingresos || []).find((i: any) =>
+      (i.id_hype || '').toUpperCase().startsWith('TH') &&
+      (i.tela || '').trim().toLowerCase() === nombreTela.trim().toLowerCase()
+    );
+    if (!match) return null;
+    return { prop: match.prop, proceso: match.proceso, color: match.color, siglaColor: match.sigla_color, id_hype: match.id_hype };
+  }
+
   function selTela(idx: number, t: any) {
     setRenglones(prev => prev.map((r, i) => {
       if (i !== idx) return r;
       const nr = { ...r, tela: t.nombre, codTela: t.cod, busqTela: t.nombre, showTela: false };
+      const esHype = cliente.trim().toUpperCase() === 'HYPE';
+      const historial = esHype ? buscarStockTH(t.nombre) : null;
+      if (historial) {
+        nr.prop = historial.prop || nr.prop;
+        nr.proceso = historial.proceso || nr.proceso;
+        nr.color = historial.color || '';
+        nr.busqColor = historial.color || '';
+        nr.siglaColor = historial.siglaColor || '';
+        nr.id_hype = historial.id_hype;
+        return nr;
+      }
       nr.id_hype = buildId(nr.prop, nr.proceso, codCliente, t.cod, nr.siglaColor);
       return nr;
     }));
@@ -654,16 +745,36 @@ function Ingresos({ clientes, telas, colores, empleados, onGuardar }: any) {
                   <option value="">Seleccionar</option><option value="S">S - Sublimación</option><option value="D">D - Digital directo</option>
                 </select>
               </div>
-              <div style={{ position: 'relative' }}><label style={lbl}>Tela</label>
-                <input value={r.busqTela} onChange={e => { updateRenglon(idx, 'busqTela', e.target.value); setRenglones(prev => prev.map((rr, i) => i === idx ? { ...rr, showTela: true } : rr)); }} placeholder="Buscar..." style={inp} />
-                {r.showTela && r.busqTela && (
-                  <div style={dropdown}>
-                    {telas.filter((t: any) => t.nombre.toLowerCase().includes(r.busqTela.toLowerCase()) || t.cod.includes(r.busqTela)).slice(0, 8).map((t: any) => (
-                      <div key={t.cod} onClick={() => selTela(idx, t)} style={ddItem}>{t.nombre} <span style={{ color: '#888', fontSize: 11 }}>{t.cod}</span></div>
+              {cliente.trim().toUpperCase() === 'HYPE' ? (
+                <div><label style={lbl}>Tela</label>
+                  <select
+                    value={r.codTela}
+                    onChange={e => {
+                      if (e.target.value === '__nueva__') { agregarTelaHype(idx); return; }
+                      const t = telas.find((tt: any) => tt.cod === e.target.value);
+                      if (t) selTela(idx, t);
+                    }}
+                    style={inp}
+                  >
+                    <option value="">Seleccionar</option>
+                    {telas.filter((t: any) => t.es_hype).sort((a: any, b: any) => a.nombre.localeCompare(b.nombre)).map((t: any) => (
+                      <option key={t.cod} value={t.cod}>{t.nombre}</option>
                     ))}
-                  </div>
-                )}
-              </div>
+                    <option value="__nueva__">+ Agregar nueva tela</option>
+                  </select>
+                </div>
+              ) : (
+                <div style={{ position: 'relative' }}><label style={lbl}>Tela</label>
+                  <input value={r.busqTela} onChange={e => { updateRenglon(idx, 'busqTela', e.target.value); setRenglones(prev => prev.map((rr, i) => i === idx ? { ...rr, showTela: true } : rr)); }} placeholder="Buscar..." style={inp} />
+                  {r.showTela && r.busqTela && (
+                    <div style={dropdown}>
+                      {telasParaBuscar(r.busqTela).slice(0, 8).map((t: any) => (
+                        <div key={t.cod} onClick={() => selTela(idx, t)} style={ddItem}>{t.nombre} <span style={{ color: '#888', fontSize: 11 }}>{t.cod}</span></div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <div><label style={lbl}>Cód. tela</label><input value={r.codTela} readOnly style={{ ...inp, background: '#f5f5f7' }} /></div>
               <div style={{ position: 'relative' }}><label style={lbl}>Color</label>
                 <input value={r.busqColor} onChange={e => { updateRenglon(idx, 'busqColor', e.target.value); setRenglones(prev => prev.map((rr, i) => i === idx ? { ...rr, showColor: true } : rr)); }} placeholder="Buscar color..." style={inp} />
@@ -1000,52 +1111,149 @@ function Colores({ colores, onGuardar }: any) {
   );
 }
 
-function Clientes({ clientes, onGuardar }: any) {
+// Estado del cliente según su actividad en Producción:
+// - ACTIVO: tiene un pedido dentro de los últimos 30 días (o hizo una
+//   muestra hace menos de 15 días, todavía sin pedido — es muy pronto
+//   para preocuparse).
+// - PEND APROB: lo último que hizo fue una muestra (sin pedido posterior)
+//   y ya pasaron 15 días o más sin que la convierta en pedido.
+// - INACTIVO: nunca tuvo ni pedido ni muestra, o su último pedido tiene
+//   más de 30 días.
+// Se calcula solo, en vivo, cada vez que se abre la pantalla — no se
+// guarda en la base.
+const DIAS_INACTIVIDAD = 30;
+const DIAS_PEND_APROB = 15;
+
+function ultimaFecha(fechas: string[]): Date | null {
+  if (fechas.length === 0) return null;
+  return new Date(Math.max(...fechas.map((f) => new Date(f).getTime())));
+}
+
+// Va formateando el CUIT a medida que lo escriben: se queda solo con los
+// números (hasta 11) y les pone los guiones en su lugar, para que termine
+// como XX-XXXXXXXX-X sin tener que tipear los guiones a mano.
+function formatearCuit(valor: string): string {
+  const digitos = valor.replace(/\D/g, '').slice(0, 11);
+  if (digitos.length <= 2) return digitos;
+  if (digitos.length <= 10) return `${digitos.slice(0, 2)}-${digitos.slice(2)}`;
+  return `${digitos.slice(0, 2)}-${digitos.slice(2, 10)}-${digitos.slice(10)}`;
+}
+
+function estadoCliente(nombreCliente: string, pedidosProduccion: any[], muestrasProduccion: any[]): 'ACTIVO' | 'PEND APROB' | 'INACTIVO' {
+  const nombreNorm = (nombreCliente || '').trim().toLowerCase();
+  if (!nombreNorm) return 'INACTIVO';
+
+  const ultimoPedido = ultimaFecha(pedidosProduccion.filter((p: any) => (p.cliente || '').trim().toLowerCase() === nombreNorm).map((p: any) => p.fecha));
+  const ultimaMuestra = ultimaFecha(muestrasProduccion.filter((m: any) => (m.cliente || '').trim().toLowerCase() === nombreNorm).map((m: any) => m.fecha));
+
+  if (!ultimoPedido && !ultimaMuestra) return 'INACTIVO';
+
+  // Si la muestra es lo más reciente (o no hay ningún pedido todavía), el
+  // estado depende de si ya se demoró en convertirse en pedido.
+  if (ultimaMuestra && (!ultimoPedido || ultimaMuestra > ultimoPedido)) {
+    const diasDesdeMuestra = (Date.now() - ultimaMuestra.getTime()) / 86400000;
+    return diasDesdeMuestra >= DIAS_PEND_APROB ? 'PEND APROB' : 'ACTIVO';
+  }
+
+  // Si no, lo último que hizo fue un pedido: activo/inactivo según los 30 días.
+  const diasDesdePedido = (Date.now() - ultimoPedido!.getTime()) / 86400000;
+  return diasDesdePedido <= DIAS_INACTIVIDAD ? 'ACTIVO' : 'INACTIVO';
+}
+
+function Clientes({ clientes, pedidosProduccion, muestrasProduccion, onGuardar }: any) {
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState(false);
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [cod, setCod] = useState('');
   const [nombre, setNombre] = useState('');
+  const [cuit, setCuit] = useState('');
+  const [contacto, setContacto] = useState('');
+  const [tel, setTel] = useState('');
+  const [mail, setMail] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [pag, setPag] = useState(1);
   const POR_PAG = 20;
-  const filtered = clientes.filter((c: any) => c.nombre.toLowerCase().includes(search.toLowerCase()) || c.cod.includes(search));
+  const filtered = clientes.filter((c: any) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    if (c.nombre.toLowerCase().includes(q) || c.cod.includes(search)) return true;
+    // Para Estado usamos "empieza con" en vez de "contiene": si fuera
+    // "contiene", buscar "activo" también traía los INACTIVO (porque
+    // "inactivo" contiene "activo"). También aceptamos el plural
+    // (activos/inactivos) sacando la "s" del final antes de comparar.
+    const estadoNorm = estadoCliente(c.nombre, pedidosProduccion, muestrasProduccion).toLowerCase();
+    const qSinPlural = q.endsWith('s') ? q.slice(0, -1) : q;
+    return estadoNorm.startsWith(q) || estadoNorm.startsWith(qSinPlural);
+  });
   const total = Math.ceil(filtered.length / POR_PAG);
   const page = filtered.slice((pag - 1) * POR_PAG, pag * POR_PAG);
   async function guardar() {
     if (!cod || !nombre) { alert('Completá código y nombre.'); return; }
     setGuardando(true);
-    if (editIdx !== null) await supabase.from('clientes').update({ cod, nombre }).eq('id', clientes[editIdx].id);
-    else await supabase.from('clientes').insert([{ cod, nombre }]);
+    if (editIdx !== null) await supabase.from('clientes').update({ cod, nombre, cuit, contacto, tel, mail }).eq('id', clientes[editIdx].id);
+    else await supabase.from('clientes').insert([{ cod, nombre, cuit, contacto, tel, mail }]);
     setModal(false); onGuardar(); setGuardando(false);
   }
   async function eliminar(c: any) {
     if (!confirm('¿Eliminar este cliente?')) return;
     await supabase.from('clientes').delete().eq('id', c.id); onGuardar();
   }
+  async function actualizarCampo(c: any, campo: string, valor: string) {
+    await supabase.from('clientes').update({ [campo]: valor || null }).eq('id', c.id);
+    onGuardar();
+  }
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
         <div><div style={{ fontSize: 18, fontWeight: 500 }}>Clientes</div><div style={{ fontSize: 13, color: '#888' }}>{filtered.length} registrados</div></div>
-        <button onClick={() => { setEditIdx(null); setCod(''); setNombre(''); setModal(true); }} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>+ Nuevo cliente</button>
+        <button onClick={() => { setEditIdx(null); setCod(''); setNombre(''); setCuit(''); setContacto(''); setTel(''); setMail(''); setModal(true); }} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>+ Nuevo cliente</button>
       </div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 12 }}>
-        <input placeholder="Buscar..." value={search} onChange={e => { setSearch(e.target.value); setPag(1); }} style={{ ...inp, maxWidth: 300 }} />
+        <input placeholder="Buscar por código, nombre o estado (activo, inactivo, pend aprob)..." value={search} onChange={e => { setSearch(e.target.value); setPag(1); }} style={{ ...inp, maxWidth: 420 }} />
       </div>
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead><tr><th style={{ ...th, width: 80 }}>Código</th><th style={th}>Nombre</th><th style={{ ...th, width: 120 }}>Acciones</th></tr></thead>
+          <thead><tr><th style={{ ...th, width: 80 }}>Código</th><th style={th}>Nombre</th><th style={{ ...th, width: 110 }}>CUIT</th><th style={th}>Contacto</th><th style={th}>Tel</th><th style={th}>Mail</th><th style={{ ...th, width: 110, whiteSpace: 'nowrap' }}>Estado</th><th style={{ ...th, width: 120 }}>Acciones</th></tr></thead>
           <tbody>
-            {page.map((c: any) => (
+            {page.map((c: any) => {
+              const estado = estadoCliente(c.nombre, pedidosProduccion, muestrasProduccion);
+              return (
               <tr key={c.id}>
                 <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{c.cod}</td>
                 <td style={td}>{c.nombre}</td>
                 <td style={td}>
-                  <button onClick={() => { setEditIdx(clientes.indexOf(c)); setCod(c.cod); setNombre(c.nombre); setModal(true); }} style={{ ...btn, fontSize: 12, padding: '4px 10px', marginRight: 6 }}>Editar</button>
+                  <input defaultValue={c.cuit || ''} onBlur={e => actualizarCampo(c, 'cuit', formatearCuit(e.target.value))} placeholder="XX-XXXXXXXX-X" style={{ ...inp, fontSize: 12, padding: '4px 6px' }} />
+                </td>
+                <td style={td}>
+                  <input defaultValue={c.contacto || ''} onBlur={e => actualizarCampo(c, 'contacto', e.target.value)} placeholder="Nombre del contacto" style={{ ...inp, fontSize: 12, padding: '4px 6px' }} />
+                </td>
+                <td style={td}>
+                  <input defaultValue={c.tel || ''} onBlur={e => actualizarCampo(c, 'tel', e.target.value)} style={{ ...inp, fontSize: 12, padding: '4px 6px' }} />
+                </td>
+                <td style={td}>
+                  <input defaultValue={c.mail || ''} onBlur={e => actualizarCampo(c, 'mail', e.target.value)} style={{ ...inp, fontSize: 12, padding: '4px 6px' }} />
+                </td>
+                <td style={td}>
+                  <span style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: 6,
+                    whiteSpace: 'nowrap',
+                    display: 'inline-block',
+                    background: estado === 'ACTIVO' ? '#e6f4e1' : estado === 'PEND APROB' ? '#fff6d6' : '#fde8e8',
+                    color: estado === 'ACTIVO' ? '#2e7d32' : estado === 'PEND APROB' ? '#a68b00' : '#c00',
+                  }}>
+                    {estado}
+                  </span>
+                </td>
+                <td style={td}>
+                  <button onClick={() => { setEditIdx(clientes.indexOf(c)); setCod(c.cod); setNombre(c.nombre); setCuit(c.cuit || ''); setContacto(c.contacto || ''); setTel(c.tel || ''); setMail(c.mail || ''); setModal(true); }} style={{ ...btn, fontSize: 12, padding: '4px 10px', marginRight: 6 }}>Editar</button>
                   <button onClick={() => eliminar(c)} style={{ ...btn, fontSize: 12, padding: '4px 10px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>Eliminar</button>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
         {total > 1 && <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
@@ -1058,7 +1266,11 @@ function Clientes({ clientes, onGuardar }: any) {
         <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 400 }}>
           <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 16 }}>{editIdx !== null ? 'Editar' : 'Nuevo'} cliente</div>
           <div style={{ marginBottom: 12 }}><label style={lbl}>Código</label><input value={cod} onChange={e => setCod(e.target.value)} style={inp} /></div>
-          <div><label style={lbl}>Nombre</label><input value={nombre} onChange={e => setNombre(e.target.value)} style={inp} /></div>
+          <div style={{ marginBottom: 12 }}><label style={lbl}>Nombre</label><input value={nombre} onChange={e => setNombre(e.target.value)} style={inp} /></div>
+          <div style={{ marginBottom: 12 }}><label style={lbl}>CUIT</label><input value={cuit} onChange={e => setCuit(formatearCuit(e.target.value))} style={inp} placeholder="XX-XXXXXXXX-X" inputMode="numeric" /></div>
+          <div style={{ marginBottom: 12 }}><label style={lbl}>Contacto</label><input value={contacto} onChange={e => setContacto(e.target.value)} style={inp} placeholder="Nombre del contacto" /></div>
+          <div style={{ marginBottom: 12 }}><label style={lbl}>Tel</label><input value={tel} onChange={e => setTel(e.target.value)} style={inp} /></div>
+          <div><label style={lbl}>Mail</label><input value={mail} onChange={e => setMail(e.target.value)} style={inp} /></div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
             <button onClick={() => setModal(false)} style={btn}>Cancelar</button>
             <button onClick={guardar} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>Guardar</button>
