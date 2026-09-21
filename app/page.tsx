@@ -176,7 +176,10 @@ export default function Home() {
       stockMap[i.id_hype].bultos += Number(i.bultos || 0);
     });
     egresos.forEach((e: any) => {
-      if (stockMap[e.id_hype]) stockMap[e.id_hype].egr += Number(e.mts);
+      if (stockMap[e.id_hype]) {
+        stockMap[e.id_hype].egr += Number(e.mts);
+        stockMap[e.id_hype].bultos -= Number(e.bultos || 0);
+      }
     });
     return stockMap;
   }
