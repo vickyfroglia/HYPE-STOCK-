@@ -375,6 +375,7 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
   const [color, setColor] = useState('');
   const [obs, setObs] = useState('');
   const [disponibles, setDisponibles] = useState(0);
+  const [disponiblesBultos, setDisponiblesBultos] = useState(0);
   const [mts, setMts] = useState('');
   const [bultos, setBultos] = useState('');
   const [remitoEntrega, setRemitoEntrega] = useState('');
@@ -382,6 +383,7 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
   const [entrego, setEntrego] = useState('');
   const [retiro, setRetiro] = useState('');
   const [alerta, setAlerta] = useState('');
+  const [alertaBultos, setAlertaBultos] = useState('');
   const [guardando, setGuardando] = useState(false);
 
   function buscar(q: string) {
@@ -390,11 +392,15 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
     const ql = q.toLowerCase();
     const grupos: any = {};
     ingresos.forEach((i: any) => {
-      if (!grupos[i.id_hype]) grupos[i.id_hype] = { ...i, ingTotal: 0 };
+      if (!grupos[i.id_hype]) grupos[i.id_hype] = { ...i, ingTotal: 0, bultosTotal: 0 };
       grupos[i.id_hype].ingTotal += Number(i.mts);
+      grupos[i.id_hype].bultosTotal += Number(i.bultos || 0);
     });
     egresos.forEach((e: any) => {
-      if (grupos[e.id_hype]) grupos[e.id_hype].ingTotal -= Number(e.mts);
+      if (grupos[e.id_hype]) {
+        grupos[e.id_hype].ingTotal -= Number(e.mts);
+        grupos[e.id_hype].bultosTotal -= Number(e.bultos || 0);
+      }
     });
     const res = Object.values(grupos).filter((g: any) => {
       return (g.cliente || '').toLowerCase().includes(ql) ||
@@ -410,6 +416,7 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
   function selIngreso(ing: any) {
     setCliente(ing.cliente); setTela(ing.tela); setColor(ing.color || '');
     setObs(ing.observaciones || ''); setIdHype(ing.id_hype); setDisponibles(ing.ingTotal);
+    setDisponiblesBultos(ing.bultosTotal || 0);
     setBusqueda(`${ing.cliente} · ${ing.tela} · ${ing.color || ''}`); setShowResultados(false);
   }
 
@@ -419,8 +426,15 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
     else setAlerta('');
   }
 
+  function validarBultos(val: string) {
+    setBultos(val);
+    if (parseInt(val) > disponiblesBultos) setAlertaBultos(`La cantidad (${val} bultos) supera los disponibles (${disponiblesBultos} bultos).`);
+    else setAlertaBultos('');
+  }
+
   async function guardar() {
     if (alerta) { alert('Corregí los metros antes de guardar.'); return; }
+    if (alertaBultos) { alert('Corregí los bultos antes de guardar.'); return; }
     if (!parseFloat(mts)) { alert('Completá los metros a egresar.'); return; }
     if (!idHype) { alert('Seleccioná un ingreso primero.'); return; }
     setGuardando(true);
@@ -432,8 +446,8 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
     else {
       alert('Egreso guardado.');
       setBusqueda(''); setIdHype(''); setCliente(''); setTela(''); setColor('');
-      setObs(''); setDisponibles(0); setMts(''); setBultos('');
-      setRemitoEntrega(''); setEstado('En almacén'); setEntrego(''); setRetiro('');
+      setObs(''); setDisponibles(0); setDisponiblesBultos(0); setMts(''); setBultos('');
+      setRemitoEntrega(''); setEstado('En almacén'); setEntrego(''); setRetiro(''); setAlertaBultos('');
       onGuardar();
     }
     setGuardando(false);
@@ -476,12 +490,13 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
             <div><div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>Color</div><div style={{ fontWeight: 600 }}>{color || '—'}</div></div>
             <div><div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>ID</div><div style={{ fontFamily: 'monospace', color: '#e85d2f', fontWeight: 700 }}>{idHype}</div></div>
             <div><div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>Disponibles</div><div style={{ fontWeight: 700, color: '#3B6D11', fontSize: 18 }}>{disponibles} mts</div></div>
+            <div><div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>Bultos disp.</div><div style={{ fontWeight: 700, color: '#3B6D11', fontSize: 18 }}>{disponiblesBultos}</div></div>
           </div>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}>
           <div><label style={lbl}>Fecha</label><input type="date" value={fecha} onChange={e => setFecha(e.target.value)} style={inp} /></div>
           <div><label style={lbl}>Mts a egresar</label><input type="number" value={mts} onChange={e => validarMts(e.target.value)} placeholder="0" style={inp} /></div>
-          <div><label style={lbl}>Nro. bultos</label><input type="number" value={bultos} onChange={e => setBultos(e.target.value)} placeholder="0" style={inp} /></div>
+          <div><label style={lbl}>Nro. bultos</label><input type="number" value={bultos} onChange={e => validarBultos(e.target.value)} placeholder="0" style={inp} /></div>
           <div><label style={lbl}>Nro. remito entrega</label><input type="number" value={remitoEntrega} onChange={e => setRemitoEntrega(e.target.value)} placeholder="00089" style={inp} /></div>
           <div><label style={lbl}>Estado</label>
             <select value={estado} onChange={e => setEstado(e.target.value)} style={inp}>
@@ -493,6 +508,7 @@ function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGua
           <div style={{ gridColumn: '1/-1' }}><label style={lbl}>Observaciones</label><input value={obs} onChange={e => setObs(e.target.value)} placeholder="Detalle..." style={inp} /></div>
         </div>
         {alerta && <div style={{ marginTop: 12, padding: '10px 14px', background: '#FAEEDA', color: '#854F0B', borderRadius: 8, fontSize: 13 }}>⚠ {alerta}</div>}
+        {alertaBultos && <div style={{ marginTop: 12, padding: '10px 14px', background: '#FAEEDA', color: '#854F0B', borderRadius: 8, fontSize: 13 }}>⚠ {alertaBultos}</div>}
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
         <button style={btn}>Cancelar</button>
@@ -987,14 +1003,15 @@ function HistorialEgresos({ egresos, onGuardar, formatFecha }: any) {
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead><tr>{['Fecha','Rto. Entrega','Cliente','Tela','Color','ID','Mts','Estado','Entregó','Retiró','Acciones'].map(h => <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>)}</tr></thead>
+            <thead><tr>{['Fecha','Rto. Entrega','Cliente','Tela','Color','ID','Obs.','Mts','Estado','Entregó','Retiró','Acciones'].map(h => <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>)}</tr></thead>
             <tbody>
-              {page.length === 0 && <tr><td colSpan={11} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin egresos registrados</td></tr>}
+              {page.length === 0 && <tr><td colSpan={12} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin egresos registrados</td></tr>}
               {page.map((e: any) => (
                 <tr key={e.id}>
                   <td style={td}>{formatFecha(e.fecha)}</td><td style={td}>{e.remito_entrega}</td>
                   <td style={{ ...td, whiteSpace: 'nowrap' }}>{e.cliente}</td><td style={{ ...td, whiteSpace: 'nowrap' }}>{e.tela}</td>
                   <td style={td}>{e.color}</td><td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{e.id_hype}</td>
+                  <td style={{ ...td, whiteSpace: 'normal', minWidth: 150 }}>{e.observaciones}</td>
                   <td style={{ ...td, textAlign: 'center', fontWeight: 500 }}>{e.mts}</td><td style={td}>{e.estado}</td>
                   <td style={td}>{e.entrego}</td><td style={td}>{e.retiro}</td>
                   <td style={td}>
