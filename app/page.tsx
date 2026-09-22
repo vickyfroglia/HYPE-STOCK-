@@ -605,7 +605,7 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
   const [recibido, setRecibido] = useState('');
   const [busqCli, setBusqCli] = useState('');
   const [showCli, setShowCli] = useState(false);
-  const [renglones, setRenglones] = useState([{ prop: '', proceso: '', tela: '', codTela: '', color: '', siglaColor: '', obs: '', bultos: '', modo: 'KG', kg: '', rinde: '', mts: '', ramado: 'No', ubicacion: '1-A', id_hype: '', busqTela: '', showTela: false, busqColor: '', showColor: false }]);
+  const [renglones, setRenglones] = useState([{ prop: '', proceso: '', tela: '', codTela: '', color: '', siglaColor: '', obs: '', bultos: '', mtsPorRollo: '', modo: 'KG', kg: '', rinde: '', mts: '', ramado: 'No', ubicacion: '1-A', id_hype: '', busqTela: '', showTela: false, busqColor: '', showColor: false }]);
   const [guardando, setGuardando] = useState(false);
   const [etiquetasData, setEtiquetasData] = useState<any>(null);
   const ubicaciones = ['1-A','1-B','1-C','1-D','2-A','2-B','2-C','3-A','3-B','3-C','3-D','4-A','4-B','4-C','5-A','5-B','6-A','6-B','ISLA','PARED','TINTO HYPE','TINTO EXT'];
@@ -710,6 +710,7 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
       prop: r.prop, proceso: r.proceso, tela: r.tela, cod_tela: r.codTela,
       color: r.color, sigla_color: r.siglaColor,
       observaciones: r.obs, bultos: parseInt(r.bultos) || 0,
+      mts_por_rollo: parseFloat(r.mtsPorRollo) || null,
       mts: parseFloat(r.mts), ramado: r.ramado, ubicacion: r.ubicacion,
       id_hype: r.id_hype, estado: 'En almacén'
     })));
@@ -808,6 +809,7 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
               <div><label style={lbl}>Sigla color</label><input value={r.siglaColor} readOnly style={{ ...inp, background: '#f5f5f7' }} /></div>
               <div><label style={lbl}>Observaciones</label><input value={r.obs} onChange={e => updateRenglon(idx, 'obs', e.target.value)} placeholder="Diseño, detalle..." style={inp} /></div>
               <div><label style={lbl}>Nro. bultos</label><input type="number" value={r.bultos} onChange={e => updateRenglon(idx, 'bultos', e.target.value)} placeholder="0" style={inp} /></div>
+              <div><label style={lbl}>Mts x rollo (aprox)</label><input type="number" value={r.mtsPorRollo} onChange={e => updateRenglon(idx, 'mtsPorRollo', e.target.value)} placeholder="0" step="0.01" style={inp} /></div>
               <div><label style={lbl}>Ingreso en</label>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={() => updateRenglon(idx, 'modo', 'KG')} style={{ ...btn, background: r.modo === 'KG' ? '#e85d2f' : '#f0f0f0', color: r.modo === 'KG' ? '#fff' : '#333' }}>KG</button>
@@ -833,7 +835,7 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
             </div>
           </div>
         ))}
-        <div onClick={() => setRenglones(prev => [...prev, { prop: '', proceso: '', tela: '', codTela: '', color: '', siglaColor: '', obs: '', bultos: '', modo: 'KG', kg: '', rinde: '', mts: '', ramado: 'No', ubicacion: '1-A', id_hype: '', busqTela: '', showTela: false, busqColor: '', showColor: false }])} style={{ padding: '12px 20px', cursor: 'pointer', color: '#e85d2f', fontSize: 13, background: '#fafafa', borderTop: '1px solid #eee' }}>
+        <div onClick={() => setRenglones(prev => [...prev, { prop: '', proceso: '', tela: '', codTela: '', color: '', siglaColor: '', obs: '', bultos: '', mtsPorRollo: '', modo: 'KG', kg: '', rinde: '', mts: '', ramado: 'No', ubicacion: '1-A', id_hype: '', busqTela: '', showTela: false, busqColor: '', showColor: false }])} style={{ padding: '12px 20px', cursor: 'pointer', color: '#e85d2f', fontSize: 13, background: '#fafafa', borderTop: '1px solid #eee' }}>
           + Agregar renglón
         </div>
       </div>
@@ -872,6 +874,7 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados, fo
       fecha: editItem.fecha, remito: editItem.remito, cliente: editItem.cliente,
       tela: editItem.tela, color: editItem.color, observaciones: editItem.observaciones,
       bultos: editItem.bultos, mts: editItem.mts, ubicacion: editItem.ubicacion,
+      mts_por_rollo: editItem.mts_por_rollo === '' ? null : editItem.mts_por_rollo,
       ramado: editItem.ramado, recibido: editItem.recibido, estado: editItem.estado,
     }).eq('id', editItem.id);
     if (error) alert('Error: ' + error.message);
@@ -892,7 +895,7 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados, fo
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead><tr>{['Fecha','Remito','Cliente','Tela','Color','ID','Obs.','Bultos','Mts','Ubic.','Ramado','Recibido','Acciones'].map(h => <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>)}</tr></thead>
+            <thead><tr>{['Fecha','Remito','Cliente','Tela','Color','ID','Obs.','Bultos','Mts x rollo','Mts','Ubic.','Ramado','Recibido','Acciones'].map(h => <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>)}</tr></thead>
             <tbody>
               {page.map((i: any) => (
                 <tr key={i.id}>
@@ -900,7 +903,7 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados, fo
                   <td style={{ ...td, whiteSpace: 'nowrap' }}>{i.cliente}</td><td style={{ ...td, whiteSpace: 'nowrap' }}>{i.tela}</td>
                   <td style={td}>{i.color}</td><td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{i.id_hype}</td>
                   <td style={{ ...td, whiteSpace: 'normal', minWidth: 150 }}>{i.observaciones}</td>
-                  <td style={{ ...td, textAlign: 'center' }}>{i.bultos}</td><td style={{ ...td, textAlign: 'center', fontWeight: 500 }}>{i.mts}</td>
+                  <td style={{ ...td, textAlign: 'center' }}>{i.bultos}</td><td style={{ ...td, textAlign: 'center' }}>{i.mts_por_rollo ?? '—'}</td><td style={{ ...td, textAlign: 'center', fontWeight: 500 }}>{i.mts}</td>
                   <td style={td}>{i.ubicacion}</td><td style={td}>{i.ramado}</td><td style={td}>{i.recibido}</td>
                   <td style={td}>
                     <button onClick={() => setEtiquetasData([{ ...i, obs: i.observaciones }])} style={{ ...btn, fontSize: 12, padding: '4px 8px', marginRight: 4, background: '#e8f4ea', color: '#3B6D11', border: '1px solid #97C459' }}>🏷</button>
@@ -930,6 +933,7 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados, fo
               <div><label style={lbl}>Color</label><input value={editItem.color || ''} onChange={e => setEditItem({...editItem, color: e.target.value})} style={inp} /></div>
               <div style={{ gridColumn: '1/-1' }}><label style={lbl}>Observaciones</label><input value={editItem.observaciones || ''} onChange={e => setEditItem({...editItem, observaciones: e.target.value})} style={inp} /></div>
               <div><label style={lbl}>Bultos</label><input type="number" value={editItem.bultos} onChange={e => setEditItem({...editItem, bultos: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Mts x rollo (aprox)</label><input type="number" value={editItem.mts_por_rollo ?? ''} onChange={e => setEditItem({...editItem, mts_por_rollo: e.target.value})} style={inp} /></div>
               <div><label style={lbl}>Mts</label><input type="number" value={editItem.mts} onChange={e => setEditItem({...editItem, mts: e.target.value})} style={inp} /></div>
               <div><label style={lbl}>Ubicación</label>
                 <select value={editItem.ubicacion} onChange={e => setEditItem({...editItem, ubicacion: e.target.value})} style={inp}>
