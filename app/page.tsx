@@ -599,6 +599,7 @@ function PanelEtiquetas({ rows, onCerrar }: any) {
                     <div style={{ display: 'flex', gap: 20 }}>
                       <div><div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Fecha</div><div style={{ fontSize: 15, fontWeight: 700 }}>{r.fecha}</div></div>
                       <div><div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Ubicación</div><div style={{ fontSize: 15, fontWeight: 700 }}>{r.ubicacion}</div></div>
+                      {(r.mtsPorRollo || r.mts_por_rollo) && <div><div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Mts x rollo</div><div style={{ fontSize: 15, fontWeight: 700 }}>{r.mtsPorRollo || r.mts_por_rollo}</div></div>}
                     </div>
                   </div>
                   <div style={{ width: 126, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 10, borderLeft: '1px solid #eee', gap: 6 }}>
