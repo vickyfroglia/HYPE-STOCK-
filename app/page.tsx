@@ -538,19 +538,42 @@ function AutocompleteEmpleado({ label, value, onChange, empleados }: any) {
 
 function PanelEtiquetas({ rows, onCerrar }: any) {
   useEffect(() => {
-    rows.forEach((_: any, i: number) => {
-      const el = document.getElementById('qr-panel-' + i);
-      if (el && el.childElementCount === 0) {
-        const qrData = JSON.stringify({ id: rows[i].id_hype, cliente: rows[i].cliente, tela: rows[i].tela, color: rows[i].color, obs: rows[i].obs, fecha: rows[i].fecha, ubicacion: rows[i].ubicacion, mts: rows[i].mts });
-        // @ts-ignore
-        if (window.QRCode) new window.QRCode(el, { text: qrData, width: 100, height: 100, colorDark: '#1a1a2e', colorLight: '#ffffff' });
+    rows.forEach((r: any, rIdx: number) => {
+      const cantidad = parseInt(r.bultos) || 1;
+      for (let i = 0; i < cantidad; i++) {
+        const el = document.getElementById(`qr-panel-${rIdx}-${i}`);
+        if (el && el.childElementCount === 0) {
+          const qrData = JSON.stringify({ id: r.id_hype, cliente: r.cliente, tela: r.tela, color: r.color, obs: r.obs, fecha: r.fecha, ubicacion: r.ubicacion, mts: r.mts });
+          // @ts-ignore
+          if (window.QRCode) new window.QRCode(el, { text: qrData, width: 100, height: 100, colorDark: '#1a1a2e', colorLight: '#ffffff' });
+        }
       }
     });
   }, [rows]);
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 999, overflowY: 'auto', padding: '20px 0' }}>
-      <div style={{ background: '#f5f5f7', borderRadius: 16, padding: 24, width: '90%', maxWidth: 700 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+    <div className="etiquetas-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 999, overflowY: 'auto', padding: '20px 0' }}>
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          .etiquetas-overlay, .etiquetas-overlay * { visibility: visible; }
+          .etiquetas-overlay {
+            position: static !important;
+            background: none !important;
+            padding: 0 !important;
+            display: block !important;
+          }
+          .etiquetas-card {
+            width: auto !important;
+            max-width: none !important;
+            border-radius: 0 !important;
+            padding: 0 !important;
+            background: none !important;
+          }
+          .etiquetas-toolbar { display: none !important; }
+        }
+      `}</style>
+      <div className="etiquetas-card" style={{ background: '#f5f5f7', borderRadius: 16, padding: 24, width: '90%', maxWidth: 700 }}>
+        <div className="etiquetas-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div style={{ fontSize: 16, fontWeight: 500 }}>Etiquetas para imprimir</div>
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={() => window.print()} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>🖨 Imprimir</button>
@@ -579,7 +602,7 @@ function PanelEtiquetas({ rows, onCerrar }: any) {
                     </div>
                   </div>
                   <div style={{ width: 126, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 10, borderLeft: '1px solid #eee', gap: 6 }}>
-                    <div id={`qr-panel-${rIdx}`}></div>
+                    <div id={`qr-panel-${rIdx}-${i}`}></div>
                     <div style={{ fontSize: 10, color: '#aaa', textAlign: 'center' }}>Escanear para ver stock</div>
                   </div>
                 </div>
