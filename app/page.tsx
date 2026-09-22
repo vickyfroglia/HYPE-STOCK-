@@ -545,7 +545,7 @@ function PanelEtiquetas({ rows, onCerrar }: any) {
         if (el && el.childElementCount === 0) {
           const qrData = JSON.stringify({ id: r.id_hype, cliente: r.cliente, tela: r.tela, color: r.color, obs: r.obs, fecha: r.fecha, ubicacion: r.ubicacion, mts: r.mts });
           // @ts-ignore
-          if (window.QRCode) new window.QRCode(el, { text: qrData, width: 100, height: 100, colorDark: '#1a1a2e', colorLight: '#ffffff' });
+          if (window.QRCode) new window.QRCode(el, { text: qrData, width: 62, height: 62, colorDark: '#1a1a2e', colorLight: '#ffffff' });
         }
       }
     });
@@ -583,33 +583,33 @@ function PanelEtiquetas({ rows, onCerrar }: any) {
         <div id="etiquetas-print">
           {rows.map((r: any, rIdx: number) =>
             Array.from({ length: parseInt(r.bultos) || 1 }).map((_, i) => (
-              <div key={`${rIdx}-${i}`} style={{ width: 566, height: 378, background: '#fff', border: '1.5px solid #bbb', borderRadius: 6, display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: 'Arial, sans-serif', marginBottom: 16, pageBreakAfter: 'always' }}>
-                <div style={{ background: '#1a1a2e', padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ color: '#fff', fontSize: 26, fontWeight: 700, letterSpacing: 4 }}>HYPE</div>
-                  <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 13, textTransform: 'uppercase', letterSpacing: 2 }}>{r.proceso === 'S' ? 'Sublimación' : 'Digital directo'}</div>
-                  <div style={{ color: '#e85d2f', fontSize: 18, fontWeight: 700 }}>ROLLO {i + 1}/{parseInt(r.bultos) || 1}</div>
+                <div key={`${rIdx}-${i}`} style={{ width: 491, height: 321, background: '#fff', border: '1.5px solid #bbb', borderRadius: 6, display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: 'Arial, sans-serif', marginBottom: 16, pageBreakAfter: 'always' }}>
+                <div style={{ background: '#1a1a2e', padding: '6px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ color: '#fff', fontSize: 20, fontWeight: 700, letterSpacing: 3 }}>HYPE</div>
+                  <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 9, textTransform: 'uppercase', letterSpacing: 1 }}>{r.proceso === 'S' ? 'Sublimación' : 'Digital directo'}</div>
+                  <div style={{ color: '#e85d2f', fontSize: 13, fontWeight: 700 }}>ROLLO {i + 1}/{parseInt(r.bultos) || 1}</div>
                 </div>
-                <div style={{ display: 'flex', flex: 1 }}>
-                  <div style={{ flex: 1, padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <div style={{ fontSize: 24, fontWeight: 700, color: '#1a1a2e', letterSpacing: 2, fontFamily: 'Courier New, monospace', borderBottom: '1.5px solid #e0e0e0', paddingBottom: 4 }}>{r.id_hype}</div>
-                    <div><div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Cliente</div><div style={{ fontSize: 34, lineHeight: 1.05, fontWeight: 700, textTransform: 'uppercase' }}>{r.cliente}</div></div>
-                    <div><div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Tela</div><div style={{ fontSize: 34, lineHeight: 1.05, fontWeight: 700, textTransform: 'uppercase' }}>{r.tela}</div></div>
-                    {r.color && <div><div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Color</div><div style={{ fontSize: 34, lineHeight: 1.05, fontWeight: 700, textTransform: 'uppercase' }}>{r.color}</div></div>}
-                    {r.obs && <div><div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Observaciones</div><div style={{ fontSize: 30, lineHeight: 1.05, fontWeight: 700, textTransform: 'uppercase' }}>{r.obs}</div></div>}
-                    <div style={{ display: 'flex', gap: 20 }}>
-                      <div><div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Fecha</div><div style={{ fontSize: 15, fontWeight: 700 }}>{r.fecha}</div></div>
-                      <div><div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Ubicación</div><div style={{ fontSize: 15, fontWeight: 700 }}>{r.ubicacion}</div></div>
-                      {(r.mtsPorRollo || r.mts_por_rollo) && <div><div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Mts x rollo</div><div style={{ fontSize: 15, fontWeight: 700 }}>{r.mtsPorRollo || r.mts_por_rollo}</div></div>}
+                <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+                  <div style={{ flex: 1, padding: '5px 10px', display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#1a1a2e', letterSpacing: 1, fontFamily: 'Courier New, monospace', borderBottom: '1.5px solid #e0e0e0', paddingBottom: 2 }}>{r.id_hype}</div>
+                    <div><div style={{ fontSize: 7, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Cliente</div><div style={{ fontSize: 24, lineHeight: 1.0, fontWeight: 700, textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.cliente}</div></div>
+                    <div><div style={{ fontSize: 7, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Tela</div><div style={{ fontSize: 24, lineHeight: 1.0, fontWeight: 700, textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.tela}</div></div>
+                    {r.color && <div><div style={{ fontSize: 7, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Color</div><div style={{ fontSize: 24, lineHeight: 1.0, fontWeight: 700, textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.color}</div></div>}
+                    {r.obs && <div><div style={{ fontSize: 7, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Observaciones</div><div style={{ fontSize: 14, lineHeight: 1.1, fontWeight: 700, textTransform: 'uppercase', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{r.obs}</div></div>}
+                    <div style={{ display: 'flex', gap: 10, marginTop: 'auto' }}>
+                      <div><div style={{ fontSize: 7, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Fecha</div><div style={{ fontSize: 10, fontWeight: 700 }}>{r.fecha}</div></div>
+                      <div><div style={{ fontSize: 7, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Ubicación</div><div style={{ fontSize: 10, fontWeight: 700 }}>{r.ubicacion}</div></div>
+                      {(r.mtsPorRollo || r.mts_por_rollo) && <div><div style={{ fontSize: 7, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Mts x rollo</div><div style={{ fontSize: 10, fontWeight: 700 }}>{r.mtsPorRollo || r.mts_por_rollo}</div></div>}
                     </div>
                   </div>
-                  <div style={{ width: 126, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 10, borderLeft: '1px solid #eee', gap: 6 }}>
+                  <div style={{ width: 78, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 6, borderLeft: '1px solid #eee', gap: 3, flexShrink: 0 }}>
                     <div id={`qr-panel-${rIdx}-${i}`}></div>
-                    <div style={{ fontSize: 10, color: '#aaa', textAlign: 'center' }}>Escanear para ver stock</div>
+                    <div style={{ fontSize: 7, color: '#aaa', textAlign: 'center', lineHeight: 1.1 }}>Escanear para ver stock</div>
                   </div>
                 </div>
-                <div style={{ background: '#f0f0f0', borderTop: '1px solid #ddd', padding: '6px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: 11, color: '#888' }}>HYPE Estampación · {r.fecha}</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: '#e85d2f' }}>{r.mts} MTS TOTALES</div>
+                <div style={{ background: '#f0f0f0', borderTop: '1px solid #ddd', padding: '3px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: 8, color: '#888' }}>HYPE Estampación · {r.fecha}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#e85d2f' }}>{r.mts} MTS TOTALES</div>
                 </div>
               </div>
             ))
