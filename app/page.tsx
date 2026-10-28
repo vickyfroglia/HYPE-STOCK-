@@ -170,8 +170,11 @@ export default function Home() {
       if (!stockMap[i.id_hype]) stockMap[i.id_hype] = {
         ing: 0, egr: 0, tela: i.tela, cliente: i.cliente, proceso: i.proceso,
         color: i.color, observaciones: i.observaciones, bultos: 0,
-        ubicacion: i.ubicacion, ramado: i.ramado, recibido: i.recibido, remito: i.remito
+        ubicacion: i.ubicacion, ramado: i.ramado, recibido: i.recibido, remito: i.remito,
+        fecha: i.fecha, remitos: [] as string[]
       };
+      if (i.fecha && (!stockMap[i.id_hype].fecha || i.fecha < stockMap[i.id_hype].fecha)) stockMap[i.id_hype].fecha = i.fecha;
+      if (i.remito && !stockMap[i.id_hype].remitos.includes(String(i.remito))) stockMap[i.id_hype].remitos.push(String(i.remito));
       stockMap[i.id_hype].ing += Number(i.mts);
       stockMap[i.id_hype].bultos += Number(i.bultos || 0);
     });
@@ -286,7 +289,7 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
   );
 }
 
-function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo }: any) {
+function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, mostrarFechaRemito }: any) {
   const [search, setSearch] = useState('');
   const filtered = entries.filter(([id, s]: any) => {
     if (!search) return true;
@@ -312,17 +315,19 @@ function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo }
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr>{['ID','Cliente','Tela','Color','Observaciones','Bultos','Mts disp.','Ubicación','Ramado','Proceso'].map(h =>
+              <tr>{[...(mostrarFechaRemito ? ['Fecha', 'Remito'] : []),'ID','Cliente','Tela','Color','Observaciones','Bultos','Mts disp.','Ubicación','Ramado','Proceso'].map(h =>
                 <th key={h} style={{ ...th, whiteSpace: 'nowrap' }}>{h}</th>
               )}</tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && <tr><td colSpan={10} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin stock registrado</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={mostrarFechaRemito ? 12 : 10} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin stock registrado</td></tr>}
               {filtered.map(([id, s]: any) => {
                 const disp = s.ing - s.egr;
                 const esNegativo = resaltarNegativo && disp < 0;
                 return (
                   <tr key={id} style={esNegativo ? { background: '#fdecea' } : undefined}>
+                    {mostrarFechaRemito && <td style={{ ...td, whiteSpace: 'nowrap' }}>{formatFecha(s.fecha)}</td>}
+                    {mostrarFechaRemito && <td style={{ ...td, whiteSpace: 'nowrap' }}>{(s.remitos && s.remitos.length ? s.remitos.join(', ') : s.remito) || '—'}</td>}
                     <td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{id}</td>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>{s.cliente}</td>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>{s.tela}</td>
@@ -361,7 +366,7 @@ function StockTH({ calcStock, ingresos, formatFecha }: any) {
 function StockTC({ calcStock, ingresos, formatFecha }: any) {
   const stock = calcStock();
   const entries = Object.entries(stock).filter(([id, s]: any) => id.startsWith('TC') && (s.ing - s.egr) !== 0);
-  return <StockTabla entries={entries} titulo="Stock TC — Tela de clientes" ingresos={ingresos} formatFecha={formatFecha} />;
+  return <StockTabla entries={entries} titulo="Stock TC — Tela de clientes" ingresos={ingresos} formatFecha={formatFecha} mostrarFechaRemito />;
 }
 
 function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGuardar }: any) {
