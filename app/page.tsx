@@ -695,6 +695,22 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
     return { prop: match.prop, proceso: match.proceso, color: match.color, siglaColor: match.sigla_color, id_hype: match.id_hype };
   }
 
+  // Observaciones ya usadas antes para el mismo cliente + tela + color,
+  // para elegirlas del desplegable y no reescribirlas distinto cada vez.
+  function obsHistorial(r: any): string[] {
+    if (!cliente || !r.tela) return [];
+    const norm = (s: any) => (s || '').toString().trim().toLowerCase();
+    const vistas = new Map<string, string>();
+    (ingresos || []).forEach((i: any) => {
+      const o = (i.observaciones || '').toString().trim();
+      if (!o) return;
+      if (norm(i.cliente) !== norm(cliente) || norm(i.tela) !== norm(r.tela)) return;
+      if (r.color && norm(i.color) !== norm(r.color)) return;
+      if (!vistas.has(norm(o))) vistas.set(norm(o), o);
+    });
+    return Array.from(vistas.values());
+  }
+
   function selTela(idx: number, t: any) {
     setRenglones(prev => prev.map((r, i) => {
       if (i !== idx) return r;
@@ -861,7 +877,13 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
                 )}
               </div>
               <div><label style={lbl}>Sigla color</label><input value={r.siglaColor} readOnly style={{ ...inp, background: '#f5f5f7' }} /></div>
-              <div><label style={lbl}>Observaciones</label><input value={r.obs} onChange={e => updateRenglon(idx, 'obs', e.target.value)} placeholder="Diseño, detalle..." style={inp} /></div>
+              <div>
+                <label style={lbl}>Observaciones</label>
+                <input list={`obs-hist-${idx}`} value={r.obs} onChange={e => updateRenglon(idx, 'obs', e.target.value)} placeholder="Escribí o elegí una anterior..." style={inp} />
+                <datalist id={`obs-hist-${idx}`}>
+                  {obsHistorial(r).map(o => <option key={o} value={o} />)}
+                </datalist>
+              </div>
               <div><label style={lbl}>Nro. bultos</label><input type="number" value={r.bultos} onChange={e => updateRenglon(idx, 'bultos', e.target.value)} placeholder="0" style={inp} /></div>
               <div><label style={lbl}>Mts x rollo (aprox)</label><input type="number" value={r.mtsPorRollo} onChange={e => updateRenglon(idx, 'mtsPorRollo', e.target.value)} placeholder="0" step="0.01" style={inp} /></div>
               <div><label style={lbl}>Ingreso en</label>
