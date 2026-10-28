@@ -729,7 +729,37 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
     setGuardando(true);
     const rows = renglones.filter(r => r.prop && r.proceso && r.tela && r.color && parseFloat(r.mts) > 0);
     if (!rows.length) { alert('Completá al menos un renglón con color.'); setGuardando(false); return; }
-    const { error } = await supabase.from('ingresos').insert(rows.map(r => ({
+    // Si ya existe el mismo ID con otras observaciones, se crea un ID propio
+    // (sufijo -2, -3...) para que no se mezclen en el stock. Si las
+    // observaciones coinciden, se reutiliza el ID y se agrupa como antes.
+    const normObs = (s: any) => (s || '').toString().trim().toLowerCase().replace(/\s+/g, ' ');
+    const baseId = (id: string) => (id || '').replace(/-\d+$/, '');
+    const conocidos: { id: string; obs: string }[] = [];
+    (ingresos || []).forEach((i: any) => {
+      if (i.id_hype && !conocidos.some(c => c.id === i.id_hype && c.obs === normObs(i.observaciones))) {
+        conocidos.push({ id: i.id_hype, obs: normObs(i.observaciones) });
+      }
+    });
+    const rowsFinal = rows.map(r => {
+      const base = baseId(r.id_hype);
+      const obs = normObs(r.obs);
+      const mismos = conocidos.filter(c => baseId(c.id) === base);
+      const igual = mismos.find(c => c.obs === obs);
+      let id = r.id_hype;
+      if (igual) id = igual.id;
+      else if (mismos.length > 0) {
+        const usados = new Set(mismos.map(c => c.id));
+        let n = 2;
+        while (usados.has(`${base}-${n}`)) n++;
+        id = `${base}-${n}`;
+        conocidos.push({ id, obs });
+      } else {
+        id = base;
+        conocidos.push({ id, obs });
+      }
+      return { ...r, id_hype: id };
+    });
+    const { error } = await supabase.from('ingresos').insert(rowsFinal.map(r => ({
       fecha, remito, cliente, cod_cliente: codCliente, recibido,
       prop: r.prop, proceso: r.proceso, tela: r.tela, cod_tela: r.codTela,
       color: r.color, sigla_color: r.siglaColor,
@@ -741,7 +771,7 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
     if (error) { alert('Error al guardar: ' + error.message); } else {
       onGuardar();
       const imprimir = confirm('✅ Ingreso guardado correctamente.\n\n¿Querés imprimir las etiquetas ahora?');
-      if (imprimir) setEtiquetasData(rows.map(r => ({ ...r, cliente, fecha })));
+      if (imprimir) setEtiquetasData(rowsFinal.map(r => ({ ...r, cliente, fecha })));
     }
     setGuardando(false);
   }
