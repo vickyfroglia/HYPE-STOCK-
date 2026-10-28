@@ -316,7 +316,7 @@ function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, 
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr>{[...(mostrarFechaRemito ? ['Fecha', 'Remito'] : []),'ID','Cliente','Tela','Color','Observaciones','Bultos','Mts disp.','Ubicación','Ramado','Proceso'].map(h =>
-                <th key={h} style={h === 'Remito' ? { ...th, width: 66, maxWidth: 66, minWidth: 0, padding: '9px 4px', whiteSpace: 'normal', fontSize: 10 } : { ...th, whiteSpace: 'nowrap' }}>{h}</th>
+                <th key={h} style={h === 'Remito' ? { ...th, width: 85, maxWidth: 85, minWidth: 0, padding: '9px 4px', whiteSpace: 'normal', fontSize: 10 } : { ...th, whiteSpace: 'nowrap' }}>{h}</th>
               )}</tr>
             </thead>
             <tbody>
@@ -327,7 +327,7 @@ function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, 
                 return (
                   <tr key={id} style={esNegativo ? { background: '#fdecea' } : undefined}>
                     {mostrarFechaRemito && <td style={{ ...td, whiteSpace: 'nowrap' }}>{formatFecha(s.fecha)}</td>}
-                    {mostrarFechaRemito && <td style={{ ...td, width: 66, maxWidth: 66, minWidth: 0, padding: '9px 4px', whiteSpace: 'normal', wordBreak: 'break-word', fontSize: 12, lineHeight: 1.2 }}>{(s.remitos && s.remitos.length ? s.remitos.join(' ') : s.remito) || '—'}</td>}
+                    {mostrarFechaRemito && <td style={{ ...td, width: 85, maxWidth: 85, minWidth: 0, padding: '9px 4px', whiteSpace: 'normal', wordBreak: 'break-word', fontSize: 12, lineHeight: 1.2 }}>{(s.remitos && s.remitos.length ? s.remitos.join(' ') : s.remito) || '—'}</td>}
                     <td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{id}</td>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>{s.cliente}</td>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>{s.tela}</td>
