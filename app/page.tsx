@@ -325,7 +325,7 @@ function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, 
                 const disp = s.ing - s.egr;
                 const esNegativo = resaltarNegativo && disp < 0;
                 return (
-                  <tr key={id} style={esNegativo ? { background: '#fdecea' } : undefined}>
+                  <tr key={id + '|' + (s.remito ?? '')} style={esNegativo ? { background: '#fdecea' } : undefined}>
                     {mostrarFechaRemito && <td style={{ ...td, whiteSpace: 'nowrap' }}>{formatFecha(s.fecha)}</td>}
                     {mostrarFechaRemito && <td style={{ ...td, width: 64, maxWidth: 64, minWidth: 64, padding: '9px 4px', whiteSpace: 'normal', wordBreak: 'break-word', fontSize: 12, lineHeight: 1.2 }}>{(s.remitos && s.remitos.length ? s.remitos : [s.remito || '—']).map((rm: string) => <div key={rm} style={{ whiteSpace: 'nowrap' }}>{rm}</div>)}</td>}
                     <td style={{ ...td, fontFamily: 'monospace', color: '#e85d2f', fontSize: 11, whiteSpace: 'nowrap' }}>{id}</td>
@@ -365,7 +365,43 @@ function StockTH({ calcStock, ingresos, formatFecha }: any) {
 
 function StockTC({ calcStock, ingresos, formatFecha }: any) {
   const stock = calcStock();
-  const entries = Object.entries(stock).filter(([id, s]: any) => id.startsWith('TC') && (s.ing - s.egr) !== 0);
+  // Desglose por remito: una fila por cada remito de ingreso. Los egresos
+  // no tienen remito de origen, así que se descuentan del remito más
+  // antiguo primero (FIFO).
+  const subsPorId: Record<string, any[]> = {};
+  ingresos.forEach((i: any, idx: number) => {
+    const id = i.id_hype;
+    if (!id || !id.startsWith('TC')) return;
+    const rem = String(i.remito ?? '').trim();
+    const lista = subsPorId[id] || (subsPorId[id] = []);
+    let sub = lista.find((x: any) => x.remito === rem);
+    if (!sub) {
+      sub = { remito: rem, orden: idx, fecha: i.fecha, cliente: i.cliente, tela: i.tela, color: i.color,
+        observaciones: i.observaciones, proceso: i.proceso, ubicacion: i.ubicacion, ramado: i.ramado,
+        ing: 0, bultosIng: 0, egr: 0, egrBultos: 0 };
+      lista.push(sub);
+    }
+    sub.ing += Number(i.mts || 0);
+    sub.bultosIng += Number(i.bultos || 0);
+    if (i.fecha && (!sub.fecha || i.fecha < sub.fecha)) sub.fecha = i.fecha;
+  });
+  const entries: any[] = [];
+  Object.keys(subsPorId).forEach(id => {
+    const subs = subsPorId[id].sort((a: any, b: any) => ((a.fecha || '') < (b.fecha || '') ? -1 : (a.fecha || '') > (b.fecha || '') ? 1 : a.orden - b.orden));
+    const totIngB = subs.reduce((t: number, s: any) => t + s.bultosIng, 0);
+    let restoM = stock[id] ? stock[id].egr : 0;
+    let restoB = stock[id] ? totIngB - stock[id].bultos : 0;
+    subs.forEach((s: any, k: number) => {
+      const ultimo = k === subs.length - 1;
+      const tomaM = ultimo ? restoM : Math.min(restoM, s.ing);
+      const tomaB = ultimo ? restoB : Math.min(restoB, s.bultosIng);
+      restoM -= tomaM; restoB -= tomaB;
+      s.egr = tomaM;
+      s.bultos = s.bultosIng - tomaB;
+      s.remitos = s.remito ? [s.remito] : [];
+      if ((s.ing - s.egr) !== 0) entries.push([id, s]);
+    });
+  });
   return <StockTabla entries={entries} titulo="Stock TC — Tela de clientes" ingresos={ingresos} formatFecha={formatFecha} mostrarFechaRemito />;
 }
 
