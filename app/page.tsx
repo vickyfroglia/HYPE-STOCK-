@@ -750,22 +750,27 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
     setGuardando(true);
     const rows = renglones.filter(r => r.prop && r.proceso && r.tela && r.color && parseFloat(r.mts) > 0);
     if (!rows.length) { alert('Completá al menos un renglón con color.'); setGuardando(false); return; }
-    // Si ya existe el mismo ID con otras observaciones, se crea un ID propio
-    // (sufijo -2, -3...) para que no se mezclen en el stock. Si las
-    // observaciones coinciden, se reutiliza el ID y se agrupa como antes.
+    // Cada remito es un ingreso separado: si ya existe el mismo ID cargado
+    // con otro remito (o con otras observaciones), se crea un ID propio
+    // (sufijo -2, -3...) para que no se mezclen en el stock. Solo se
+    // reutiliza el ID si coinciden el remito y las observaciones.
     const normObs = (s: any) => (s || '').toString().trim().toLowerCase().replace(/\s+/g, ' ');
+    const normRem = (s: any) => (s || '').toString().trim();
     const baseId = (id: string) => (id || '').replace(/-\d+$/, '');
-    const conocidos: { id: string; obs: string }[] = [];
+    const conocidos: { id: string; obs: string; remito: string }[] = [];
     (ingresos || []).forEach((i: any) => {
-      if (i.id_hype && !conocidos.some(c => c.id === i.id_hype && c.obs === normObs(i.observaciones))) {
-        conocidos.push({ id: i.id_hype, obs: normObs(i.observaciones) });
+      if (!i.id_hype) return;
+      const obsI = normObs(i.observaciones), remI = normRem(i.remito);
+      if (!conocidos.some(c => c.id === i.id_hype && c.obs === obsI && c.remito === remI)) {
+        conocidos.push({ id: i.id_hype, obs: obsI, remito: remI });
       }
     });
     const rowsFinal = rows.map(r => {
       const base = baseId(r.id_hype);
       const obs = normObs(r.obs);
+      const rem = normRem(remito);
       const mismos = conocidos.filter(c => baseId(c.id) === base);
-      const igual = mismos.find(c => c.obs === obs);
+      const igual = mismos.find(c => c.obs === obs && c.remito === rem);
       let id = r.id_hype;
       if (igual) id = igual.id;
       else if (mismos.length > 0) {
@@ -773,10 +778,10 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
         let n = 2;
         while (usados.has(`${base}-${n}`)) n++;
         id = `${base}-${n}`;
-        conocidos.push({ id, obs });
+        conocidos.push({ id, obs, remito: rem });
       } else {
         id = base;
-        conocidos.push({ id, obs });
+        conocidos.push({ id, obs, remito: rem });
       }
       return { ...r, id_hype: id };
     });
