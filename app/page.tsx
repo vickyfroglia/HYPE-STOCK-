@@ -226,7 +226,7 @@ export default function Home() {
             {pagina === 'egresos' && puedeVerStock && <Egresos ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
             {pagina === 'stockTH' && puedeVerStock && <StockTH calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} />}
             {pagina === 'stockTC' && puedeVerStock && <StockTC calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} />}
-            {pagina === 'clientes' && puedeVerClientes && <Clientes clientes={clientes} pedidosProduccion={pedidosProduccion} muestrasProduccion={muestrasProduccion} onGuardar={cargarTodo} />}
+            {pagina === 'clientes' && puedeVerClientes && <Clientes clientes={clientes} ingresos={ingresos} egresos={egresos} onGuardar={cargarTodo} />}
             {pagina === 'telas' && esBD && <Telas telas={telas} onGuardar={cargarTodo} />}
             {pagina === 'colores' && esBD && <Colores colores={colores} onGuardar={cargarTodo} />}
             {pagina === 'empleados' && esBD && <Empleados empleados={empleados} onGuardar={cargarTodo} />}
@@ -1299,23 +1299,12 @@ function Colores({ colores, onGuardar }: any) {
   );
 }
 
-// Estado del cliente según su actividad en Producción:
-// - ACTIVO: tiene un pedido dentro de los últimos 30 días (o hizo una
-//   muestra hace menos de 15 días, todavía sin pedido — es muy pronto
-//   para preocuparse).
-// - PEND APROB: lo último que hizo fue una muestra (sin pedido posterior)
-//   y ya pasaron 15 días o más sin que la convierta en pedido.
-// - INACTIVO: nunca tuvo ni pedido ni muestra, o su último pedido tiene
-//   más de 30 días.
+// Estado del cliente según sus movimientos de stock:
+// - ACTIVO: tuvo algún ingreso o egreso en los últimos 3 meses.
+// - INACTIVO: no tuvo ningún movimiento en los últimos 3 meses.
 // Se calcula solo, en vivo, cada vez que se abre la pantalla — no se
 // guarda en la base.
-const DIAS_INACTIVIDAD = 30;
-const DIAS_PEND_APROB = 15;
-
-function ultimaFecha(fechas: string[]): Date | null {
-  if (fechas.length === 0) return null;
-  return new Date(Math.max(...fechas.map((f) => new Date(f).getTime())));
-}
+const MESES_ACTIVIDAD = 3;
 
 // Va formateando el CUIT a medida que lo escriben: se queda solo con los
 // números (hasta 11) y les pone los guiones en su lugar, para que termine
@@ -1327,28 +1316,17 @@ function formatearCuit(valor: string): string {
   return `${digitos.slice(0, 2)}-${digitos.slice(2, 10)}-${digitos.slice(10)}`;
 }
 
-function estadoCliente(nombreCliente: string, pedidosProduccion: any[], muestrasProduccion: any[]): 'ACTIVO' | 'PEND APROB' | 'INACTIVO' {
+function estadoCliente(nombreCliente: string, ingresos: any[], egresos: any[]): 'ACTIVO' | 'INACTIVO' {
   const nombreNorm = (nombreCliente || '').trim().toLowerCase();
   if (!nombreNorm) return 'INACTIVO';
-
-  const ultimoPedido = ultimaFecha(pedidosProduccion.filter((p: any) => (p.cliente || '').trim().toLowerCase() === nombreNorm).map((p: any) => p.fecha));
-  const ultimaMuestra = ultimaFecha(muestrasProduccion.filter((m: any) => (m.cliente || '').trim().toLowerCase() === nombreNorm).map((m: any) => m.fecha));
-
-  if (!ultimoPedido && !ultimaMuestra) return 'INACTIVO';
-
-  // Si la muestra es lo más reciente (o no hay ningún pedido todavía), el
-  // estado depende de si ya se demoró en convertirse en pedido.
-  if (ultimaMuestra && (!ultimoPedido || ultimaMuestra > ultimoPedido)) {
-    const diasDesdeMuestra = (Date.now() - ultimaMuestra.getTime()) / 86400000;
-    return diasDesdeMuestra >= DIAS_PEND_APROB ? 'PEND APROB' : 'ACTIVO';
-  }
-
-  // Si no, lo último que hizo fue un pedido: activo/inactivo según los 30 días.
-  const diasDesdePedido = (Date.now() - ultimoPedido!.getTime()) / 86400000;
-  return diasDesdePedido <= DIAS_INACTIVIDAD ? 'ACTIVO' : 'INACTIVO';
+  const limite = new Date();
+  limite.setMonth(limite.getMonth() - MESES_ACTIVIDAD);
+  const limiteStr = limite.toISOString().split('T')[0];
+  const reciente = (m: any) => (m.cliente || '').trim().toLowerCase() === nombreNorm && (m.fecha || '') >= limiteStr;
+  return ingresos.some(reciente) || egresos.some(reciente) ? 'ACTIVO' : 'INACTIVO';
 }
 
-function Clientes({ clientes, pedidosProduccion, muestrasProduccion, onGuardar }: any) {
+function Clientes({ clientes, ingresos, egresos, onGuardar }: any) {
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState(false);
   const [editIdx, setEditIdx] = useState<number | null>(null);
@@ -1369,7 +1347,7 @@ function Clientes({ clientes, pedidosProduccion, muestrasProduccion, onGuardar }
     // "contiene", buscar "activo" también traía los INACTIVO (porque
     // "inactivo" contiene "activo"). También aceptamos el plural
     // (activos/inactivos) sacando la "s" del final antes de comparar.
-    const estadoNorm = estadoCliente(c.nombre, pedidosProduccion, muestrasProduccion).toLowerCase();
+    const estadoNorm = estadoCliente(c.nombre, ingresos, egresos).toLowerCase();
     const qSinPlural = q.endsWith('s') ? q.slice(0, -1) : q;
     return estadoNorm.startsWith(q) || estadoNorm.startsWith(qSinPlural);
   });
@@ -1397,14 +1375,14 @@ function Clientes({ clientes, pedidosProduccion, muestrasProduccion, onGuardar }
         <button onClick={() => { setEditIdx(null); setCod(''); setNombre(''); setCuit(''); setContacto(''); setTel(''); setMail(''); setModal(true); }} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>+ Nuevo cliente</button>
       </div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 12 }}>
-        <input placeholder="Buscar por código, nombre o estado (activo, inactivo, pend aprob)..." value={search} onChange={e => { setSearch(e.target.value); setPag(1); }} style={{ ...inp, maxWidth: 420 }} />
+        <input placeholder="Buscar por código, nombre o estado (activo, inactivo)..." value={search} onChange={e => { setSearch(e.target.value); setPag(1); }} style={{ ...inp, maxWidth: 420 }} />
       </div>
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead><tr><th style={{ ...th, width: 80 }}>Código</th><th style={th}>Nombre</th><th style={{ ...th, width: 110 }}>CUIT</th><th style={th}>Contacto</th><th style={th}>Tel</th><th style={th}>Mail</th><th style={{ ...th, width: 110, whiteSpace: 'nowrap' }}>Estado</th><th style={{ ...th, width: 120 }}>Acciones</th></tr></thead>
           <tbody>
             {page.map((c: any) => {
-              const estado = estadoCliente(c.nombre, pedidosProduccion, muestrasProduccion);
+              const estado = estadoCliente(c.nombre, ingresos, egresos);
               return (
               <tr key={c.id}>
                 <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{c.cod}</td>
@@ -1429,8 +1407,8 @@ function Clientes({ clientes, pedidosProduccion, muestrasProduccion, onGuardar }
                     borderRadius: 6,
                     whiteSpace: 'nowrap',
                     display: 'inline-block',
-                    background: estado === 'ACTIVO' ? '#e6f4e1' : estado === 'PEND APROB' ? '#fff6d6' : '#fde8e8',
-                    color: estado === 'ACTIVO' ? '#2e7d32' : estado === 'PEND APROB' ? '#a68b00' : '#c00',
+                    background: estado === 'ACTIVO' ? '#e6f4e1' : '#fde8e8',
+                    color: estado === 'ACTIVO' ? '#2e7d32' : '#c00',
                   }}>
                     {estado}
                   </span>
