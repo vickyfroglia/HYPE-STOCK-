@@ -715,7 +715,7 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
   const [renglones, setRenglones] = useState([{ prop: '', proceso: '', tela: '', codTela: '', color: '', siglaColor: '', obs: '', bultos: '', mtsPorRollo: '', modo: 'KG', kg: '', rinde: '', mts: '', ramado: 'No', ubicacion: '1-A', id_hype: '', busqTela: '', showTela: false, busqColor: '', showColor: false }]);
   const [guardando, setGuardando] = useState(false);
   const [etiquetasData, setEtiquetasData] = useState<any>(null);
-  const ubicaciones = ['1-A','1-B','1-C','1-D','2-A','2-B','2-C','3-A','3-B','3-C','3-D','4-A','4-B','4-C','5-A','5-B','6-A','6-B','ISLA','PARED','TINTO HYPE','TINTO EXT'];
+  const ubicaciones = ['1-A','1-B','1-C','1-D','2-A','2-B','2-C','3-A','3-B','3-C','3-D','4-A','4-B','4-C','5-A','5-B','6-A','6-B','ISLA','PARED','TINTO HYPE','TINTO EXT','ENVIADO A SUBLI'];
 
   function selCliente(c: any) {
     setCliente(c.nombre); setCodCliente(c.cod); setBusqCli(c.nombre); setShowCli(false);
@@ -1045,7 +1045,7 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados, fo
     else { setEditItem(null); onGuardar(); }
     setGuardando(false);
   }
-  const ubicaciones = ['1-A','1-B','1-C','1-D','2-A','2-B','2-C','3-A','3-B','3-C','3-D','4-A','4-B','4-C','5-A','5-B','6-A','6-B','ISLA','PARED','TINTO HYPE','TINTO EXT'];
+  const ubicaciones = ['1-A','1-B','1-C','1-D','2-A','2-B','2-C','3-A','3-B','3-C','3-D','4-A','4-B','4-C','5-A','5-B','6-A','6-B','ISLA','PARED','TINTO HYPE','TINTO EXT','ENVIADO A SUBLI'];
   return (
     <div>
       {etiquetasData && <PanelEtiquetas rows={etiquetasData} onCerrar={() => setEtiquetasData(null)} />}
