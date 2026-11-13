@@ -401,8 +401,23 @@ function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, 
 
 function StockTH({ calcStock, ingresos, formatFecha }: any) {
   const stock = calcStock();
-  const entries = Object.entries(stock).filter(([id]: any) => id.startsWith('TH'));
-  return <StockTabla entries={entries} titulo="Stock TH — Tela propia HYPE" ingresos={ingresos} formatFecha={formatFecha} resaltarNegativo />;
+  // Consolidado: una sola fila por tela + color, sumando todos los IDs y
+  // remitos de esa misma tela HYPE (ej: todo el LINO OFF WHITE junto).
+  const norm = (x: any) => (x || '').toString().toUpperCase().replace(/\s+/g, '');
+  const grupos: Record<string, any> = {};
+  Object.entries(stock).filter(([id]: any) => id.startsWith('TH')).forEach(([id, s]: any) => {
+    const k = norm(s.tela) + '|' + norm(s.color);
+    if (!grupos[k]) grupos[k] = { ...s, ing: 0, egr: 0, bultos: 0, ids: [] as string[], remitos: [] as string[] };
+    const g = grupos[k];
+    g.ing += s.ing; g.egr += s.egr; g.bultos += Number(s.bultos || 0);
+    g.ids.push(id);
+    (s.remitos || []).forEach((r: string) => { if (!g.remitos.includes(r)) g.remitos.push(r); });
+    if (s.fecha && (!g.fecha || s.fecha < g.fecha)) g.fecha = s.fecha;
+  });
+  const entries = Object.values(grupos)
+    .map((g: any) => [g.ids.join(' + '), g])
+    .sort((a: any, b: any) => String(a[1].tela).localeCompare(String(b[1].tela)));
+  return <StockTabla entries={entries} titulo="Stock TH — Tela propia HYPE (consolidado por tela)" ingresos={ingresos} formatFecha={formatFecha} resaltarNegativo />;
 }
 
 function StockTC({ calcStock, ingresos, formatFecha }: any) {
