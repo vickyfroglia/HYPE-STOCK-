@@ -845,6 +845,9 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
     });
     const rowsFinal = rows.map(r => {
       const base = baseId(r.id_hype);
+      // Telas HYPE (TH): siempre el mismo ID, sin sufijo -2, -3...,
+      // para que Stock TH quede consolidado por tela + color.
+      if (base.toUpperCase().startsWith('TH')) return { ...r, id_hype: base };
       const obs = normObs(r.obs);
       const rem = normRem(remito);
       const mismos = conocidos.filter(c => baseId(c.id) === base);
