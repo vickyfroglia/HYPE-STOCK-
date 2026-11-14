@@ -1470,11 +1470,11 @@ function Colores({ colores, onGuardar }: any) {
   );
 }
 
-// Estado del cliente según sus movimientos de stock:
-// - ACTIVO: tuvo algún ingreso o egreso en los últimos 3 meses.
-// - INACTIVO: no tuvo ningún movimiento en los últimos 3 meses.
-// Se calcula solo, en vivo, cada vez que se abre la pantalla — no se
-// guarda en la base.
+// Estado del cliente según sus pedidos en la planilla de producción (FECHA PEDIDO):
+// - ACTIVO: hizo algún pedido en los últimos 3 meses.
+// - INACTIVO: no hizo ningún pedido en los últimos 3 meses.
+// La planilla manda cada 5 minutos la fecha del último pedido de cada
+// cliente a la tabla clientes_ultimo_pedido.
 const MESES_ACTIVIDAD = 3;
 
 // Va formateando el CUIT a medida que lo escriben: se queda solo con los
@@ -1487,14 +1487,15 @@ function formatearCuit(valor: string): string {
   return `${digitos.slice(0, 2)}-${digitos.slice(2, 10)}-${digitos.slice(10)}`;
 }
 
-function estadoCliente(nombreCliente: string, ingresos: any[], egresos: any[]): 'ACTIVO' | 'INACTIVO' {
-  const nombreNorm = (nombreCliente || '').trim().toLowerCase();
-  if (!nombreNorm) return 'INACTIVO';
+// Mismo criterio que la planilla para comparar nombres: sin tildes, mayúsculas, solo letras y números
+const normCliente = (x: any) => (x ?? '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+function estadoCliente(nombreCliente: string, ultimos: Record<string, string>): 'ACTIVO' | 'INACTIVO' {
+  const ult = ultimos[normCliente(nombreCliente)];
+  if (!ult) return 'INACTIVO';
   const limite = new Date();
   limite.setMonth(limite.getMonth() - MESES_ACTIVIDAD);
-  const limiteStr = limite.toISOString().split('T')[0];
-  const reciente = (m: any) => (m.cliente || '').trim().toLowerCase() === nombreNorm && (m.fecha || '') >= limiteStr;
-  return ingresos.some(reciente) || egresos.some(reciente) ? 'ACTIVO' : 'INACTIVO';
+  return ult >= limite.toISOString().split('T')[0] ? 'ACTIVO' : 'INACTIVO';
 }
 
 function Clientes({ clientes, ingresos, egresos, onGuardar }: any) {
@@ -1510,6 +1511,15 @@ function Clientes({ clientes, ingresos, egresos, onGuardar }: any) {
   const [guardando, setGuardando] = useState(false);
   const [pag, setPag] = useState(1);
   const POR_PAG = 20;
+  // Fecha del último pedido de cada cliente en la planilla de producción
+  const [ultimos, setUltimos] = useState<Record<string, string>>({});
+  useEffect(() => {
+    supabase.from('clientes_ultimo_pedido').select('cliente_norm, ultimo_pedido').then(({ data }) => {
+      const m: Record<string, string> = {};
+      (data || []).forEach((r: any) => { m[r.cliente_norm] = r.ultimo_pedido; });
+      setUltimos(m);
+    });
+  }, []);
   const filtered = clientes.filter((c: any) => {
     const q = search.trim().toLowerCase();
     if (!q) return true;
@@ -1518,7 +1528,7 @@ function Clientes({ clientes, ingresos, egresos, onGuardar }: any) {
     // "contiene", buscar "activo" también traía los INACTIVO (porque
     // "inactivo" contiene "activo"). También aceptamos el plural
     // (activos/inactivos) sacando la "s" del final antes de comparar.
-    const estadoNorm = estadoCliente(c.nombre, ingresos, egresos).toLowerCase();
+    const estadoNorm = estadoCliente(c.nombre, ultimos).toLowerCase();
     const qSinPlural = q.endsWith('s') ? q.slice(0, -1) : q;
     return estadoNorm.startsWith(q) || estadoNorm.startsWith(qSinPlural);
   });
@@ -1553,7 +1563,7 @@ function Clientes({ clientes, ingresos, egresos, onGuardar }: any) {
           <thead><tr><th style={{ ...th, width: 80 }}>Código</th><th style={th}>Nombre</th><th style={{ ...th, width: 110 }}>CUIT</th><th style={th}>Contacto</th><th style={th}>Tel</th><th style={th}>Mail</th><th style={{ ...th, width: 110, whiteSpace: 'nowrap' }}>Estado</th><th style={{ ...th, width: 120 }}>Acciones</th></tr></thead>
           <tbody>
             {page.map((c: any) => {
-              const estado = estadoCliente(c.nombre, ingresos, egresos);
+              const estado = estadoCliente(c.nombre, ultimos);
               return (
               <tr key={c.id}>
                 <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{c.cod}</td>
@@ -1583,6 +1593,7 @@ function Clientes({ clientes, ingresos, egresos, onGuardar }: any) {
                   }}>
                     {estado}
                   </span>
+                  <div style={{ fontSize: 10, color: '#888', marginTop: 3, whiteSpace: 'nowrap' }}>{ultimos[normCliente(c.nombre)] ? 'Últ. pedido ' + ultimos[normCliente(c.nombre)].split('-').reverse().join('/') : 'Sin pedidos'}</div>
                 </td>
                 <td style={td}>
                   <button onClick={() => { setEditIdx(clientes.indexOf(c)); setCod(c.cod); setNombre(c.nombre); setCuit(c.cuit || ''); setContacto(c.contacto || ''); setTel(c.tel || ''); setMail(c.mail || ''); setModal(true); }} style={{ ...btn, fontSize: 12, padding: '4px 10px', marginRight: 6 }}>Editar</button>
