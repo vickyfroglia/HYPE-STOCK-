@@ -331,7 +331,7 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
   );
 }
 
-function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, mostrarFechaRemito }: any) {
+function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, mostrarFechaRemito, mostrarPedidos }: any) {
   const [search, setSearch] = useState('');
   // Búsqueda sin importar mayúsculas, tildes ni espacios ("off white" = "OFFWHITE")
   const normTxt = (x: any) => (x ?? '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -360,7 +360,7 @@ function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, 
     <div>
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 18, fontWeight: 500 }}>{titulo}</div>
-        <div style={{ fontSize: 13, color: '#888' }}>{filtered.length} IDs · {totalMts.toLocaleString()} mts disponibles</div>
+        <div style={{ fontSize: 13, color: '#888' }}>{filtered.length} IDs · {totalMts.toLocaleString()} mts disponibles{mostrarPedidos && <> · {filtered.reduce((t: number, [, v]: any) => t + Number(v.ped || 0), 0).toLocaleString()} mts pedidos (sin fecha fin)</>}</div>
       </div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 16 }}>
         <input placeholder="Buscar por cliente, tela, color, observaciones, ID o remito..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, maxWidth: 400 }} />
@@ -369,12 +369,12 @@ function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, 
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr>{[...(mostrarFechaRemito ? ['Fecha', 'Remito'] : []),'ID','Cliente','Tela','Color','Observaciones','Bultos','Mts disp.','Ubicación','Ramado','Proceso'].map(h =>
+              <tr>{[...(mostrarFechaRemito ? ['Fecha', 'Remito'] : []),'ID','Cliente','Tela','Color','Observaciones','Bultos',...(mostrarPedidos ? ['Mts ped.'] : []),'Mts disp.','Ubicación','Ramado','Proceso'].map(h =>
                 <th key={h} style={h === 'Remito' ? { ...th, width: 64, maxWidth: 64, minWidth: 64, padding: '9px 4px', whiteSpace: 'normal', fontSize: 10 } : { ...th, whiteSpace: 'nowrap' }}>{h}</th>
               )}</tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && <tr><td colSpan={mostrarFechaRemito ? 12 : 10} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin stock registrado</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={(mostrarFechaRemito ? 12 : 10) + (mostrarPedidos ? 1 : 0)} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin stock registrado</td></tr>}
               {filtered.map(([id, s]: any) => {
                 const disp = s.ing - s.egr;
                 const esNegativo = resaltarNegativo && disp < 0;
@@ -388,6 +388,16 @@ function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, 
                     <td style={td}>{s.color || '—'}</td>
                     <td style={{ ...td, whiteSpace: 'normal', minWidth: 150 }}>{s.observaciones || '—'}</td>
                     <td style={{ ...td, textAlign: 'center' }}>{s.bultos}</td>
+                    {mostrarPedidos && (
+                      <td style={{ ...td, textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        {Number(s.ped || 0) > 0 ? (
+                          <>
+                            <span style={{ fontWeight: 700 }}>{Number(s.ped).toLocaleString()}</span>
+                            {Number(s.ped) - disp > 0 && <div style={{ fontSize: 11, color: '#c00', fontWeight: 700 }}>faltan {(Math.round((Number(s.ped) - disp) * 100) / 100).toLocaleString()}</div>}
+                          </>
+                        ) : '—'}
+                      </td>
+                    )}
                     <td style={{ ...td, textAlign: 'center' }}>
                       {esNegativo ? (
                         <span style={{ fontWeight: 700, color: '#c00', textTransform: 'uppercase' }}>
@@ -413,6 +423,16 @@ function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, 
 
 function StockTH({ calcStock, ingresos, formatFecha }: any) {
   const stock = calcStock();
+  // Metros pedidos pendientes (filas de la planilla de producción sin fecha fin),
+  // que manda la planilla cada 5 minutos a la tabla pedidos_th.
+  const [pedidos, setPedidos] = useState<any[]>([]);
+  useEffect(() => {
+    supabase.from('pedidos_th').select('clave, id_hype, mts_pedidos').then(({ data }) => setPedidos(data || []));
+  }, []);
+  const claveTH = (tela: any, color: any) => {
+    const n = (x: any) => (x ?? '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return 'TH:' + n(tela) + ':' + n(color);
+  };
   // Consolidado: una sola fila por tela + color, sumando todos los IDs y
   // remitos de esa misma tela HYPE (ej: todo el LINO OFF WHITE junto).
   const norm = (x: any) => (x || '').toString().toUpperCase().replace(/\s+/g, '');
@@ -426,10 +446,15 @@ function StockTH({ calcStock, ingresos, formatFecha }: any) {
     (s.remitos || []).forEach((r: string) => { if (!g.remitos.includes(r)) g.remitos.push(r); });
     if (s.fecha && (!g.fecha || s.fecha < g.fecha)) g.fecha = s.fecha;
   });
+  Object.values(grupos).forEach((g: any) => {
+    const clave = claveTH(g.tela, g.color);
+    const p = pedidos.find((x: any) => x.clave === clave || g.ids.includes(x.id_hype));
+    g.ped = p ? Number(p.mts_pedidos) || 0 : 0;
+  });
   const entries = Object.values(grupos)
     .map((g: any) => [g.ids.join(' + '), g])
     .sort((a: any, b: any) => String(a[1].tela).localeCompare(String(b[1].tela)));
-  return <StockTabla entries={entries} titulo="Stock TH — Tela propia HYPE (consolidado por tela)" ingresos={ingresos} formatFecha={formatFecha} resaltarNegativo />;
+  return <StockTabla entries={entries} titulo="Stock TH — Tela propia HYPE (consolidado por tela)" ingresos={ingresos} formatFecha={formatFecha} resaltarNegativo mostrarPedidos />;
 }
 
 function StockTC({ calcStock, ingresos, formatFecha }: any) {
