@@ -1049,18 +1049,75 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados, fo
     if (!confirm(`¿Eliminar el ingreso ${i.id_hype} del ${i.fecha}?`)) return;
     await supabase.from('ingresos').delete().eq('id', i.id); onGuardar();
   }
+  // Partes del ID: PROP(2) + PROCESO(1) + COD CLIENTE(5) + COD TELA(3) + SIGLA COLOR (+ -N)
+  function partesId(i: any) {
+    const id = String(i.id_hype || '').replace(/-\d+$/, '');
+    return {
+      prop: (i.prop || id.slice(0, 2) || '').toUpperCase(),
+      proceso: i.proceso || id.slice(2, 3),
+      codCli: i.cod_cliente || id.slice(3, 8),
+      codTela: i.cod_tela || id.slice(8, 11),
+      sigla: i.sigla_color || id.slice(11),
+    };
+  }
+
+  function abrirEdicion(i: any) {
+    const p = partesId(i);
+    setEditItem({ ...i, _prop: p.prop, _codCli: p.codCli, _cliente: i.cliente });
+  }
+
+  // Calcula el ID nuevo si cambió la propiedad o el cliente
+  function calcularNuevoId(item: any) {
+    const p = partesId(item);
+    const cambio = item._prop !== p.prop || item._codCli !== p.codCli;
+    if (!cambio) return { cambio: false, nuevoId: item.id_hype };
+    const base = item._prop + p.proceso + item._codCli + p.codTela + p.sigla;
+    if (item._prop === 'TH') return { cambio: true, nuevoId: base }; // telas HYPE: siempre el mismo ID
+    // Tela de cliente: si ya existe ese ID con otro remito/obs, usa sufijo -2, -3...
+    const normObs = (x: any) => (x || '').toString().trim().toLowerCase().replace(/\s+/g, ' ');
+    const otros = ingresos.filter((x: any) => x.id !== item.id && String(x.id_hype || '').replace(/-\d+$/, '') === base);
+    const igual = otros.find((x: any) => normObs(x.observaciones) === normObs(item.observaciones) && String(x.remito || '').trim() === String(item.remito || '').trim());
+    if (igual) return { cambio: true, nuevoId: igual.id_hype };
+    if (!otros.length) return { cambio: true, nuevoId: base };
+    const usados = new Set(otros.map((x: any) => x.id_hype));
+    let n = 2;
+    while (usados.has(`${base}-${n}`)) n++;
+    return { cambio: true, nuevoId: `${base}-${n}` };
+  }
+
   async function guardarEdicion() {
     if (!editItem) return;
+    const { cambio, nuevoId } = calcularNuevoId(editItem);
+    const idViejo = editItem.id_hype;
+    let moverEgresos = false;
+    if (cambio) {
+      if (!editItem._codCli) { alert('Elegí el cliente de la lista.'); return; }
+      const otrosConIdViejo = ingresos.filter((x: any) => x.id !== editItem.id && x.id_hype === idViejo).length;
+      const { count } = await supabase.from('egresos').select('id', { count: 'exact', head: true }).eq('id_hype', idViejo);
+      const nEgr = count || 0;
+      moverEgresos = otrosConIdViejo === 0 && nEgr > 0;
+      let msg = `El ID va a cambiar:\n\n${idViejo}  →  ${nuevoId}\n\n`;
+      if (moverEgresos) msg += `Los ${nEgr} egreso(s) de este ingreso también pasan al ID nuevo.\n\n`;
+      else if (nEgr > 0) msg += `OJO: hay otros ingresos con el ID ${idViejo}, así que sus ${nEgr} egreso(s) quedan en el ID viejo.\n\n`;
+      msg += 'Si ya imprimiste la etiqueta de este rollo, vas a tener que reimprimirla.\n\n¿Confirmás el cambio?';
+      if (!confirm(msg)) return;
+    }
     setGuardando(true);
-    const { error } = await supabase.from('ingresos').update({
-      fecha: editItem.fecha, remito: editItem.remito, cliente: editItem.cliente,
+    const datos: any = {
+      fecha: editItem.fecha, remito: editItem.remito, cliente: editItem._cliente,
       tela: editItem.tela, color: editItem.color, observaciones: editItem.observaciones,
       bultos: editItem.bultos, mts: editItem.mts, ubicacion: editItem.ubicacion,
       mts_por_rollo: editItem.mts_por_rollo === '' ? null : editItem.mts_por_rollo,
       ramado: editItem.ramado, recibido: editItem.recibido, estado: editItem.estado,
-    }).eq('id', editItem.id);
-    if (error) alert('Error: ' + error.message);
-    else { setEditItem(null); onGuardar(); }
+    };
+    if (cambio) { datos.prop = editItem._prop; datos.cod_cliente = editItem._codCli; datos.id_hype = nuevoId; }
+    const { error } = await supabase.from('ingresos').update(datos).eq('id', editItem.id);
+    if (error) { alert('Error: ' + error.message); setGuardando(false); return; }
+    if (cambio && moverEgresos) {
+      const { error: e2 } = await supabase.from('egresos').update({ id_hype: nuevoId, cliente: editItem._cliente }).eq('id_hype', idViejo);
+      if (e2) alert('El ingreso se guardó, pero no se pudieron mover los egresos: ' + e2.message);
+    }
+    setEditItem(null); onGuardar();
     setGuardando(false);
   }
   const ubicaciones = ['1-A','1-B','1-C','1-D','2-A','2-B','2-C','3-A','3-B','3-C','3-D','4-A','4-B','4-C','5-A','5-B','6-A','6-B','ISLA','PARED','TINTO HYPE','TINTO EXT','ENVIADO A SUBLI'];
@@ -1089,7 +1146,7 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados, fo
                   <td style={td}>{i.ubicacion}</td><td style={td}>{i.ramado}</td><td style={td}>{i.recibido}</td>
                   <td style={td}>
                     <button onClick={() => setEtiquetasData([{ ...i, obs: i.observaciones }])} style={{ ...btn, fontSize: 12, padding: '4px 8px', marginRight: 4, background: '#e8f4ea', color: '#3B6D11', border: '1px solid #97C459' }}>🏷</button>
-                    <button onClick={() => setEditItem({...i})} style={{ ...btn, fontSize: 12, padding: '4px 8px', marginRight: 4 }}>Editar</button>
+                    <button onClick={() => abrirEdicion(i)} style={{ ...btn, fontSize: 12, padding: '4px 8px', marginRight: 4 }}>Editar</button>
                     <button onClick={() => eliminar(i)} style={{ ...btn, fontSize: 12, padding: '4px 8px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>Eliminar</button>
                   </td>
                 </tr>
@@ -1110,7 +1167,26 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados, fo
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div><label style={lbl}>Fecha</label><input type="date" value={editItem.fecha} onChange={e => setEditItem({...editItem, fecha: e.target.value})} style={inp} /></div>
               <div><label style={lbl}>Nro. remito</label><input value={editItem.remito} onChange={e => setEditItem({...editItem, remito: e.target.value})} style={inp} /></div>
-              <div><label style={lbl}>Cliente</label><input value={editItem.cliente} onChange={e => setEditItem({...editItem, cliente: e.target.value})} style={inp} /></div>
+              <div><label style={lbl}>Propiedad</label>
+                <select value={editItem._prop} onChange={e => setEditItem({...editItem, _prop: e.target.value})} style={inp}>
+                  <option value="TC">TC — Tela de cliente</option>
+                  <option value="TH">TH — Tela HYPE</option>
+                </select>
+              </div>
+              <div><label style={lbl}>Cliente</label>
+                <input list="clientes-editar-ingreso" value={editItem._cliente} onChange={e => {
+                  const v = e.target.value;
+                  const c = (clientes || []).find((x: any) => x.nombre === v);
+                  setEditItem({ ...editItem, _cliente: v, _codCli: c ? c.cod : (v === editItem.cliente ? partesId(editItem).codCli : '') });
+                }} placeholder="Escribí para buscar..." style={inp} />
+                <datalist id="clientes-editar-ingreso">
+                  {(clientes || []).map((c: any) => <option key={c.cod} value={c.nombre}>{c.cod}</option>)}
+                </datalist>
+              </div>
+              <div style={{ gridColumn: '1/-1', fontSize: 12, color: '#666' }}>
+                ID: <span style={{ fontFamily: 'monospace', color: '#e85d2f' }}>{editItem.id_hype}</span>
+                {calcularNuevoId(editItem).cambio && <> → <span style={{ fontFamily: 'monospace', color: '#3B6D11', fontWeight: 700 }}>{editItem._codCli ? calcularNuevoId(editItem).nuevoId : '(elegí un cliente de la lista)'}</span></>}
+              </div>
               <div><label style={lbl}>Tela</label><input value={editItem.tela} onChange={e => setEditItem({...editItem, tela: e.target.value})} style={inp} /></div>
               <div><label style={lbl}>Color</label><input value={editItem.color || ''} onChange={e => setEditItem({...editItem, color: e.target.value})} style={inp} /></div>
               <div style={{ gridColumn: '1/-1' }}><label style={lbl}>Observaciones</label><input value={editItem.observaciones || ''} onChange={e => setEditItem({...editItem, observaciones: e.target.value})} style={inp} /></div>
