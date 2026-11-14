@@ -262,6 +262,19 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
       .reduce((t: number, [, v]: any) => t + v.ing - v.egr, 0);
     return { clave: p.clave, tela: p.tela, color: p.color, falta: Math.round((Number(p.mts_pedidos || 0) - disp) * 100) / 100 };
   }).filter((x: any) => x.falta > 0).sort((a: any, b: any) => String(a.tela).localeCompare(String(b.tela)) || String(a.color).localeCompare(String(b.color)));
+  // PRE / POST tratamiento: filas de la planilla sin fecha fin con SI en PRE o POST, consolidadas por OT + cliente + tela
+  const [tratamientos, setTratamientos] = useState<any[]>([]);
+  useEffect(() => {
+    supabase.from('tratamientos_pendientes').select('*').then(({ data }) => setTratamientos(data || []));
+  }, []);
+  const agruparTrat = (filtro: (r: any) => boolean) => Object.values(tratamientos.filter(filtro).reduce((acc: Record<string, any>, r: any) => {
+    const k = (r.nro_ot || '') + '|' + (r.cliente || '') + '|' + (r.tela || '');
+    const g = acc[k] || (acc[k] = { key: k, nro_ot: r.nro_ot, cliente: r.cliente, tela: r.tela, mts: 0 });
+    g.mts += Number(r.mts || 0);
+    return acc;
+  }, {})).sort((a: any, b: any) => String(a.nro_ot).localeCompare(String(b.nro_ot), undefined, { numeric: true }) || String(a.tela).localeCompare(String(b.tela)));
+  const preTrat = agruparTrat((r: any) => r.pre);
+  const postTrat = agruparTrat((r: any) => r.post);
   // Consolidado por Nro de OT, separado por tela (suma los mts pedidos de las filas iguales)
   const tcAgrupado = Object.values(tcSinStock.reduce((acc: Record<string, any>, r: any) => {
     const k = (r.nro_ot || '') + '|' + (r.tela || '').toString().toUpperCase().replace(/\s+/g, ' ').trim();
@@ -329,6 +342,33 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
             </tbody>
           </table>
         </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 20, marginBottom: 20 }}>
+        {[
+          { titulo: 'Pretratamiento', filas: preTrat },
+          { titulo: 'Postratamiento', filas: postTrat },
+        ].map(card => (
+          <div key={card.titulo} style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #eee' }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#e85d2f', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>{card.titulo}</div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>OT sin fecha fin con SI en {card.titulo === 'Pretratamiento' ? 'PRE' : 'POST'} · {card.filas.length} OT / tela · <b>{(Math.round(card.filas.reduce((t: number, r: any) => t + r.mts, 0) * 100) / 100).toLocaleString()} mts</b></div>
+            <div style={{ overflow: 'auto', maxHeight: 420 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead><tr>{['Nro OT','Cliente','Tela','Mts'].map(h => <th key={h} style={{ textAlign: 'left', padding: '8px 10px', borderBottom: '1px solid #eee', fontSize: 11, color: '#888', position: 'sticky', top: 0, background: '#fff' }}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {card.filas.length === 0 && <tr><td colSpan={4} style={{ padding: 20, textAlign: 'center', color: '#888' }}>No hay OT pendientes</td></tr>}
+                  {card.filas.map((r: any) => (
+                    <tr key={r.key}>
+                      <td style={{ padding: '8px 10px', borderBottom: '1px solid #f0f0f0' }}>{r.nro_ot || '—'}</td>
+                      <td style={{ padding: '8px 10px', borderBottom: '1px solid #f0f0f0' }}>{r.cliente || '—'}</td>
+                      <td style={{ padding: '8px 10px', borderBottom: '1px solid #f0f0f0' }}>{r.tela || '—'}</td>
+                      <td style={{ padding: '8px 10px', borderBottom: '1px solid #f0f0f0', fontWeight: 700, whiteSpace: 'nowrap' }}>{(Math.round(r.mts * 100) / 100).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
