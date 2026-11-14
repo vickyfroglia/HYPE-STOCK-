@@ -155,6 +155,7 @@ export default function Home() {
     { id: 'egresos', label: 'Egresos', icon: '↑', roles: ['admin', 'encargado', 'logistica'], sep: false },
     { id: 'stockTH', label: 'Stock TH', icon: '◫', roles: ['admin', 'diseno', 'encargado', 'operario', 'logistica', 'comercial'], sep: false },
     { id: 'stockTC', label: 'Stock TC', icon: '◫', roles: ['admin', 'diseno', 'encargado', 'operario', 'logistica', 'comercial'], sep: false },
+    { id: 'paqMuestras', label: 'Paq. Muestras', icon: '▣', roles: ['admin', 'diseno', 'encargado', 'operario', 'logistica', 'comercial'], sep: false },
     { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰', roles: ['admin', 'encargado', 'logistica'], sep: false },
     { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰', roles: ['admin', 'encargado', 'logistica'], sep: false },
     { id: '__bd__', label: 'BASE DE DATOS', icon: '', roles: ['admin', 'logistica', 'comercial'], sep: true },
@@ -226,6 +227,7 @@ export default function Home() {
             {pagina === 'egresos' && puedeVerStock && <Egresos ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
             {pagina === 'stockTH' && puedeVerStock && <StockTH calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} />}
             {pagina === 'stockTC' && puedeVerStock && <StockTC calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} onGuardar={cargarTodo} />}
+            {pagina === 'paqMuestras' && puedeVerStock && <PaqMuestras clientes={clientes} formatFecha={formatFecha} />}
             {pagina === 'clientes' && puedeVerClientes && <Clientes clientes={clientes} ingresos={ingresos} egresos={egresos} onGuardar={cargarTodo} />}
             {pagina === 'telas' && esBD && <Telas telas={telas} onGuardar={cargarTodo} />}
             {pagina === 'colores' && esBD && <Colores colores={colores} onGuardar={cargarTodo} />}
@@ -369,6 +371,145 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// ===================== PAQ. MUESTRAS =====================
+// Registro de paquetes de muestras (telas varias) que manda cada cliente. Se cuentan por unidad
+// (1 paquete, 2 paquetes...). "Egresar" descuenta paquetes cuando se usan o se devuelven.
+function PaqMuestras({ clientes, formatFecha }: any) {
+  const hoy = () => new Date().toISOString().split('T')[0];
+  const [lista, setLista] = useState<any[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [fecha, setFecha] = useState(hoy());
+  const [cliente, setCliente] = useState('');
+  const [busqCli, setBusqCli] = useState('');
+  const [showCli, setShowCli] = useState(false);
+  const [paquete, setPaquete] = useState('');
+  const [cantidad, setCantidad] = useState('1');
+  const [remito, setRemito] = useState('');
+  const [ubicacion, setUbicacion] = useState('CARRO');
+  const [obs, setObs] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  const [buscar, setBuscar] = useState('');
+  const [soloDisp, setSoloDisp] = useState(true);
+  const ubicaciones = ['CARRO', '1-A','1-B','1-C','1-D','2-A','2-B','2-C','3-A','3-B','3-C','3-D','4-A','4-B','4-C','5-A','5-B','6-A','6-B','ISLA','PARED'];
+
+  async function cargar() {
+    setCargando(true);
+    const { data, error } = await supabase.from('paq_muestras').select('*').order('fecha', { ascending: false }).order('id', { ascending: false });
+    if (error) alert('Error cargando paquetes: ' + error.message);
+    setLista(data || []);
+    setCargando(false);
+  }
+  useEffect(() => { cargar(); }, []);
+
+  async function registrar() {
+    const cant = parseInt(cantidad);
+    if (!fecha || !cliente.trim() || !paquete.trim() || !(cant > 0)) { alert('Completá fecha, cliente, paquete y cantidad.'); return; }
+    setGuardando(true);
+    const { error } = await supabase.from('paq_muestras').insert([{ fecha, cliente: cliente.trim(), paquete: paquete.trim(), cantidad: cant, remito: remito.trim() || null, ubicacion: ubicacion.trim() || 'CARRO', observaciones: obs.trim() || null }]);
+    setGuardando(false);
+    if (error) { alert('Error al guardar: ' + error.message); return; }
+    setPaquete(''); setCantidad('1'); setRemito(''); setObs('');
+    cargar();
+  }
+
+  async function egresar(p: any) {
+    const disp = p.cantidad - p.egresados;
+    const txt = window.prompt(`Egresar paquetes de ${p.cliente} · ${p.paquete}\nDisponibles: ${disp}\n\n¿Cuántos paquetes?`, String(disp));
+    if (txt === null) return;
+    const n = parseInt(txt);
+    if (!(n > 0) || n > disp) { alert('Cantidad inválida (máximo ' + disp + ').'); return; }
+    const { error } = await supabase.from('paq_muestras').update({ egresados: p.egresados + n, fecha_egreso: hoy() }).eq('id', p.id);
+    if (error) { alert('Error: ' + error.message); return; }
+    cargar();
+  }
+
+  async function cambiarUbicacion(p: any, u: string) {
+    const { error } = await supabase.from('paq_muestras').update({ ubicacion: u }).eq('id', p.id);
+    if (error) alert('Error: ' + error.message); else cargar();
+  }
+
+  async function eliminar(p: any) {
+    if (!confirm(`¿Eliminar el registro de ${p.cliente} · ${p.paquete}? No se puede deshacer.`)) return;
+    const { error } = await supabase.from('paq_muestras').delete().eq('id', p.id);
+    if (error) alert('Error: ' + error.message); else cargar();
+  }
+
+  const q = buscar.trim().toLowerCase();
+  const filtrados = lista.filter((p: any) => (!soloDisp || p.cantidad - p.egresados > 0) &&
+    (!q || [p.cliente, p.paquete, p.remito, p.ubicacion, p.observaciones].some((x: any) => (x || '').toString().toLowerCase().includes(q))));
+  const totalDisp = lista.reduce((t: number, p: any) => t + Math.max(0, p.cantidad - p.egresados), 0);
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 18, fontWeight: 500 }}>Paq. Muestras</div>
+        <div style={{ fontSize: 13, color: '#888' }}>Paquetes de muestras de clientes (telas varias) · se cuentan por unidad · {totalDisp} paquetes disponibles</div>
+      </div>
+      <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee', marginBottom: 16 }}>
+        <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>Registrar ingreso de paquete</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10, alignItems: 'end' }}>
+          <div><label style={lbl}>Fecha</label><input type="date" value={fecha} onChange={e => setFecha(e.target.value)} style={inp} /></div>
+          <div style={{ position: 'relative' }}>
+            <label style={lbl}>Cliente</label>
+            <input value={busqCli} onChange={e => { setBusqCli(e.target.value); setCliente(e.target.value); setShowCli(true); }} placeholder="Buscar cliente..." style={inp} />
+            {showCli && busqCli && (
+              <div style={dropdown}>
+                {clientes.filter((c: any) => c.nombre.toLowerCase().includes(busqCli.toLowerCase())).slice(0, 8).map((c: any) => (
+                  <div key={c.cod} onClick={() => { setCliente(c.nombre); setBusqCli(c.nombre); setShowCli(false); }} style={ddItem}>{c.nombre}</div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div><label style={lbl}>Paquete (descripción)</label><input value={paquete} onChange={e => setPaquete(e.target.value)} placeholder="Ej: PAQ BULL TELAS VARIAS" style={inp} /></div>
+          <div><label style={lbl}>Cantidad (paquetes)</label><input type="number" min={1} value={cantidad} onChange={e => setCantidad(e.target.value)} style={inp} /></div>
+          <div><label style={lbl}>Remito (opcional)</label><input value={remito} onChange={e => setRemito(e.target.value)} style={inp} /></div>
+          <div><label style={lbl}>Ubicación</label>
+            <select value={ubicacion} onChange={e => setUbicacion(e.target.value)} style={inp}>{ubicaciones.map(u => <option key={u} value={u}>{u}</option>)}</select>
+          </div>
+          <div><label style={lbl}>Observaciones</label><input value={obs} onChange={e => setObs(e.target.value)} style={inp} /></div>
+          <div><button onClick={registrar} disabled={guardando} style={{ ...btn, width: '100%', background: '#e85d2f', color: '#fff', border: 'none', fontWeight: 600 }}>{guardando ? 'Guardando...' : 'Registrar'}</button></div>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
+        <input placeholder="Buscar por cliente, paquete, remito, ubicación..." value={buscar} onChange={e => setBuscar(e.target.value)} style={{ ...inp, maxWidth: 360 }} />
+        <label style={{ fontSize: 13, color: '#555', display: 'flex', alignItems: 'center', gap: 6 }}><input type="checkbox" checked={soloDisp} onChange={e => setSoloDisp(e.target.checked)} /> Solo con paquetes disponibles</label>
+      </div>
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead><tr>{['Fecha', 'Cliente', 'Paquete', 'Cant.', 'Disp.', 'Remito', 'Ubicación', 'Observaciones', ''].map(h => <th key={h} style={th}>{h}</th>)}</tr></thead>
+          <tbody>
+            {cargando && <tr><td colSpan={9} style={{ padding: 16, textAlign: 'center', color: '#888' }}>Cargando...</td></tr>}
+            {!cargando && filtrados.length === 0 && <tr><td colSpan={9} style={{ padding: 16, textAlign: 'center', color: '#888' }}>No hay paquetes</td></tr>}
+            {filtrados.map((p: any) => {
+              const disp = p.cantidad - p.egresados;
+              return (
+                <tr key={p.id} style={disp <= 0 ? { color: '#999' } : undefined}>
+                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{formatFecha(p.fecha)}</td>
+                  <td style={td}>{p.cliente}</td>
+                  <td style={td}>{p.paquete}</td>
+                  <td style={{ ...td, textAlign: 'center' }}>{p.cantidad}</td>
+                  <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: disp > 0 ? '#3B6D11' : '#999' }}>{disp}{p.fecha_egreso && p.egresados > 0 && <div style={{ fontSize: 10, color: '#888', fontWeight: 400 }}>egr. {formatFecha(p.fecha_egreso)}</div>}</td>
+                  <td style={td}>{p.remito || '—'}</td>
+                  <td style={td}>
+                    <select value={p.ubicacion || 'CARRO'} onChange={e => cambiarUbicacion(p, e.target.value)} style={{ ...inp, fontSize: 12, padding: '3px 6px' }}>
+                      {[...new Set([p.ubicacion || 'CARRO', ...ubicaciones])].map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                  </td>
+                  <td style={td}>{p.observaciones || '—'}</td>
+                  <td style={{ ...td, whiteSpace: 'nowrap' }}>
+                    {disp > 0 && <button onClick={() => egresar(p)} style={{ ...btn, fontSize: 12, padding: '4px 10px', background: '#e85d2f', color: '#fff', border: 'none', fontWeight: 600, marginRight: 6 }}>Egresar</button>}
+                    <button onClick={() => eliminar(p)} style={{ ...btn, fontSize: 12, padding: '4px 10px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>Eliminar</button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
