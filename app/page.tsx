@@ -251,6 +251,18 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
     supabase.from('pedidos_tc_sin_stock').select('*').order('fecha_pedido', { ascending: true }).order('fila', { ascending: true })
       .then(({ data }) => setTcSinStock(data || []));
   }, []);
+  // Telas HYPE (TH) pedidas en la planilla (sin fecha fin) que no alcanzan con el stock: faltante = pedido − disponible
+  const [pedidosTH, setPedidosTH] = useState<any[]>([]);
+  useEffect(() => {
+    supabase.from('pedidos_th').select('clave, id_hype, tela, color, mts_pedidos').then(({ data }) => setPedidosTH(data || []));
+  }, []);
+  const nTH = (x: any) => (x ?? '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const thFaltantes = pedidosTH.map((p: any) => {
+    const disp = Object.entries(stock).filter(([id, v]: any) => id.startsWith('TH') &&
+      ('TH:' + nTH(v.tela) + ':' + nTH(v.color) === p.clave || id.replace(/-\d+$/, '') === p.id_hype))
+      .reduce((t: number, [, v]: any) => t + v.ing - v.egr, 0);
+    return { clave: p.clave, tela: p.tela, color: p.color, falta: Math.round((Number(p.mts_pedidos || 0) - disp) * 100) / 100 };
+  }).filter((x: any) => x.falta > 0).sort((a: any, b: any) => String(a.tela).localeCompare(String(b.tela)) || String(a.color).localeCompare(String(b.color)));
   // Consolidado por Nro de OT, separado por tela (suma los mts pedidos de las filas iguales)
   const tcAgrupado = Object.values(tcSinStock.reduce((acc: Record<string, any>, r: any) => {
     const k = (r.nro_ot || '') + '|' + (r.tela || '').toString().toUpperCase().replace(/\s+/g, ' ').trim();
@@ -311,6 +323,25 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
                   <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{r.cliente || '—'}</td>
                   <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{r.tela}</td>
                   <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0', fontWeight: 700, color: '#c00', whiteSpace: 'nowrap' }}>-{(Math.round(Number(r.mts_pedidos || 0) * 100) / 100).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #eee', marginBottom: 20 }}>
+        <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Telas TH sin stock o con faltante</div>
+        <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>Metros pedidos en la planilla (sin fecha fin) menos el stock disponible · {thFaltantes.length} telas · <span style={{ color: '#c00', fontWeight: 700 }}>-{(Math.round(thFaltantes.reduce((t: number, x: any) => t + x.falta, 0) * 100) / 100).toLocaleString()} mts</span></div>
+        <div style={{ overflow: 'auto', maxHeight: 420 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead><tr>{['Tela','Color','Mts faltantes'].map(h => <th key={h} style={{ textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid #eee', fontSize: 11, color: '#888', position: 'sticky', top: 0, background: '#fff' }}>{h}</th>)}</tr></thead>
+            <tbody>
+              {thFaltantes.length === 0 && <tr><td colSpan={3} style={{ padding: 20, textAlign: 'center', color: '#888' }}>No hay telas HYPE con faltante</td></tr>}
+              {thFaltantes.map((x: any) => (
+                <tr key={x.clave}>
+                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>T HYPE {x.tela}</td>
+                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{x.color || '—'}</td>
+                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0', fontWeight: 700, color: '#c00', whiteSpace: 'nowrap' }}>-{x.falta.toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
