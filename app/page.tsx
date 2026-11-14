@@ -285,83 +285,83 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
   }, {})).sort((a: any, b: any) => (a.fecha_pedido || '').localeCompare(b.fecha_pedido || '') || String(a.nro_ot).localeCompare(String(b.nro_ot), undefined, { numeric: true }) || String(a.tela).localeCompare(String(b.tela)));
   return (
     <div>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 500 }}>Dashboard</div>
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 16, fontWeight: 500 }}>Dashboard</div>
         <div style={{ fontSize: 13, color: '#888' }}>Resumen general</div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 12 }}>
         {[
           { label: 'Clientes', value: clientes.length, sub: 'registrados' },
           { label: 'Stock TC', value: totalTC.toLocaleString(), sub: 'metros disponibles' },
           { label: 'Stock TH', value: totalTH.toLocaleString(), sub: 'metros disponibles' },
           { label: 'Pendientes entrega', value: pendientes, sub: 'egresos en depósito' },
         ].map((m, i) => (
-          <div key={i} style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
-            <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>{m.label}</div>
-            <div style={{ fontSize: 24, fontWeight: 500, marginTop: 4 }}>{m.value}</div>
-            <div style={{ fontSize: 11, color: '#888' }}>{m.sub}</div>
+          <div key={i} style={{ background: '#fff', borderRadius: 10, padding: '8px 12px', border: '1px solid #eee' }}>
+            <div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>{m.label}</div>
+            <div style={{ fontSize: 18, fontWeight: 500, marginTop: 2 }}>{m.value}</div>
+            <div style={{ fontSize: 10, color: '#888' }}>{m.sub}</div>
           </div>
         ))}
       </div>
-      <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #eee', marginBottom: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 800, color: '#e85d2f', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Telas TC sin stock</div>
-        <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>Pedidos de la planilla de producción (sin fecha fin) con tela del cliente que todavía no está en Stock TC · {tcAgrupado.length} OT / tela · <span style={{ color: '#c00', fontWeight: 700 }}>-{(Math.round(tcSinStock.reduce((t: number, r: any) => t + Number(r.mts_pedidos || 0), 0) * 100) / 100).toLocaleString()} mts</span></div>
-        <div style={{ overflow: 'auto', maxHeight: 420 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead><tr>{['Fecha pedido','Nro OT','Cliente','Tela','Mts ped.'].map(h => <th key={h} style={{ textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid #eee', fontSize: 11, color: '#888', position: 'sticky', top: 0, background: '#fff' }}>{h}</th>)}</tr></thead>
+      <div style={{ background: '#fff', borderRadius: 10, padding: 12, border: '1px solid #eee', marginBottom: 12 }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: '#e85d2f', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>Telas TC sin stock</div>
+        <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>Pedidos de la planilla de producción (sin fecha fin) con tela del cliente que todavía no está en Stock TC · {tcAgrupado.length} OT / tela · <span style={{ color: '#c00', fontWeight: 700 }}>-{(Math.round(tcSinStock.reduce((t: number, r: any) => t + Number(r.mts_pedidos || 0), 0) * 100) / 100).toLocaleString()} mts</span></div>
+        <div style={{ overflow: 'auto', maxHeight: 300 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead><tr>{['Fecha pedido','Nro OT','Cliente','Tela','Mts ped.'].map(h => <th key={h} style={{ textAlign: 'left', padding: '4px 8px', borderBottom: '1px solid #eee', fontSize: 10, color: '#888', position: 'sticky', top: 0, background: '#fff' }}>{h}</th>)}</tr></thead>
             <tbody>
-              {tcAgrupado.length === 0 && <tr><td colSpan={5} style={{ padding: 20, textAlign: 'center', color: '#888' }}>No hay telas de clientes pendientes sin stock</td></tr>}
+              {tcAgrupado.length === 0 && <tr><td colSpan={5} style={{ padding: 10, textAlign: 'center', color: '#888' }}>No hay telas de clientes pendientes sin stock</td></tr>}
               {tcAgrupado.map((r: any) => (
                 <tr key={r.key}>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0', whiteSpace: 'nowrap' }}>{formatFecha(r.fecha_pedido)}</td>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{r.nro_ot || '—'}</td>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{r.cliente || '—'}</td>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{r.tela}</td>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0', fontWeight: 700, color: '#c00', whiteSpace: 'nowrap' }}>-{(Math.round(Number(r.mts_pedidos || 0) * 100) / 100).toLocaleString()}</td>
+                  <td style={{ padding: '3px 8px', borderBottom: '1px solid #f0f0f0', whiteSpace: 'nowrap' }}>{formatFecha(r.fecha_pedido)}</td>
+                  <td style={{ padding: '3px 8px', borderBottom: '1px solid #f0f0f0' }}>{r.nro_ot || '—'}</td>
+                  <td style={{ padding: '3px 8px', borderBottom: '1px solid #f0f0f0' }}>{r.cliente || '—'}</td>
+                  <td style={{ padding: '3px 8px', borderBottom: '1px solid #f0f0f0' }}>{r.tela}</td>
+                  <td style={{ padding: '3px 8px', borderBottom: '1px solid #f0f0f0', fontWeight: 700, color: '#c00', whiteSpace: 'nowrap' }}>-{(Math.round(Number(r.mts_pedidos || 0) * 100) / 100).toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
-      <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #eee', marginBottom: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 800, color: '#e85d2f', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Telas TH sin stock</div>
-        <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>Metros pedidos en la planilla (sin fecha fin) menos el stock disponible · {thFaltantes.length} telas · <span style={{ color: '#c00', fontWeight: 700 }}>-{(Math.round(thFaltantes.reduce((t: number, x: any) => t + x.falta, 0) * 100) / 100).toLocaleString()} mts</span></div>
-        <div style={{ overflow: 'auto', maxHeight: 420 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead><tr>{['Tela','Color','Mts faltantes'].map(h => <th key={h} style={{ textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid #eee', fontSize: 11, color: '#888', position: 'sticky', top: 0, background: '#fff' }}>{h}</th>)}</tr></thead>
+      <div style={{ background: '#fff', borderRadius: 10, padding: 12, border: '1px solid #eee', marginBottom: 12 }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: '#e85d2f', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>Telas TH sin stock</div>
+        <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>Metros pedidos en la planilla (sin fecha fin) menos el stock disponible · {thFaltantes.length} telas · <span style={{ color: '#c00', fontWeight: 700 }}>-{(Math.round(thFaltantes.reduce((t: number, x: any) => t + x.falta, 0) * 100) / 100).toLocaleString()} mts</span></div>
+        <div style={{ overflow: 'auto', maxHeight: 300 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead><tr>{['Tela','Color','Mts faltantes'].map(h => <th key={h} style={{ textAlign: 'left', padding: '4px 8px', borderBottom: '1px solid #eee', fontSize: 10, color: '#888', position: 'sticky', top: 0, background: '#fff' }}>{h}</th>)}</tr></thead>
             <tbody>
-              {thFaltantes.length === 0 && <tr><td colSpan={3} style={{ padding: 20, textAlign: 'center', color: '#888' }}>No hay telas HYPE con faltante</td></tr>}
+              {thFaltantes.length === 0 && <tr><td colSpan={3} style={{ padding: 10, textAlign: 'center', color: '#888' }}>No hay telas HYPE con faltante</td></tr>}
               {thFaltantes.map((x: any) => (
                 <tr key={x.clave}>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>T HYPE {x.tela}</td>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{x.color || '—'}</td>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0', fontWeight: 700, color: '#c00', whiteSpace: 'nowrap' }}>-{x.falta.toLocaleString()}</td>
+                  <td style={{ padding: '3px 8px', borderBottom: '1px solid #f0f0f0' }}>T HYPE {x.tela}</td>
+                  <td style={{ padding: '3px 8px', borderBottom: '1px solid #f0f0f0' }}>{x.color || '—'}</td>
+                  <td style={{ padding: '3px 8px', borderBottom: '1px solid #f0f0f0', fontWeight: 700, color: '#c00', whiteSpace: 'nowrap' }}>-{x.falta.toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 20, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 12, marginBottom: 12 }}>
         {[
           { titulo: 'Pretratamiento', filas: preTrat },
           { titulo: 'Postratamiento', filas: postTrat },
         ].map(card => (
-          <div key={card.titulo} style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #eee' }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: '#e85d2f', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>{card.titulo}</div>
-            <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>OT sin fecha fin con SI en {card.titulo === 'Pretratamiento' ? 'PRE' : 'POST'} · {card.filas.length} OT / tela · <b>{(Math.round(card.filas.reduce((t: number, r: any) => t + r.mts, 0) * 100) / 100).toLocaleString()} mts</b></div>
-            <div style={{ overflow: 'auto', maxHeight: 420 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead><tr>{['Nro OT','Cliente','Tela','Mts'].map(h => <th key={h} style={{ textAlign: 'left', padding: '8px 10px', borderBottom: '1px solid #eee', fontSize: 11, color: '#888', position: 'sticky', top: 0, background: '#fff' }}>{h}</th>)}</tr></thead>
+          <div key={card.titulo} style={{ background: '#fff', borderRadius: 10, padding: 12, border: '1px solid #eee' }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#e85d2f', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>{card.titulo}</div>
+            <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>OT sin fecha fin con SI en {card.titulo === 'Pretratamiento' ? 'PRE' : 'POST'} · {card.filas.length} OT / tela · <b>{(Math.round(card.filas.reduce((t: number, r: any) => t + r.mts, 0) * 100) / 100).toLocaleString()} mts</b></div>
+            <div style={{ overflow: 'auto', maxHeight: 300 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead><tr>{['Nro OT','Cliente','Tela','Mts'].map(h => <th key={h} style={{ textAlign: 'left', padding: '4px 8px', borderBottom: '1px solid #eee', fontSize: 10, color: '#888', position: 'sticky', top: 0, background: '#fff' }}>{h}</th>)}</tr></thead>
                 <tbody>
-                  {card.filas.length === 0 && <tr><td colSpan={4} style={{ padding: 20, textAlign: 'center', color: '#888' }}>No hay OT pendientes</td></tr>}
+                  {card.filas.length === 0 && <tr><td colSpan={4} style={{ padding: 10, textAlign: 'center', color: '#888' }}>No hay OT pendientes</td></tr>}
                   {card.filas.map((r: any) => (
                     <tr key={r.key}>
-                      <td style={{ padding: '8px 10px', borderBottom: '1px solid #f0f0f0' }}>{r.nro_ot || '—'}</td>
-                      <td style={{ padding: '8px 10px', borderBottom: '1px solid #f0f0f0' }}>{r.cliente || '—'}</td>
-                      <td style={{ padding: '8px 10px', borderBottom: '1px solid #f0f0f0' }}>{r.tela || '—'}</td>
-                      <td style={{ padding: '8px 10px', borderBottom: '1px solid #f0f0f0', fontWeight: 700, whiteSpace: 'nowrap' }}>{(Math.round(r.mts * 100) / 100).toLocaleString()}</td>
+                      <td style={{ padding: '3px 8px', borderBottom: '1px solid #f0f0f0' }}>{r.nro_ot || '—'}</td>
+                      <td style={{ padding: '3px 8px', borderBottom: '1px solid #f0f0f0' }}>{r.cliente || '—'}</td>
+                      <td style={{ padding: '3px 8px', borderBottom: '1px solid #f0f0f0' }}>{r.tela || '—'}</td>
+                      <td style={{ padding: '3px 8px', borderBottom: '1px solid #f0f0f0', fontWeight: 700, whiteSpace: 'nowrap' }}>{(Math.round(r.mts * 100) / 100).toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
