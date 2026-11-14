@@ -251,6 +251,14 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
     supabase.from('pedidos_tc_sin_stock').select('*').order('fecha_pedido', { ascending: true }).order('fila', { ascending: true })
       .then(({ data }) => setTcSinStock(data || []));
   }, []);
+  // Consolidado por Nro de OT, separado por tela (suma los mts pedidos de las filas iguales)
+  const tcAgrupado = Object.values(tcSinStock.reduce((acc: Record<string, any>, r: any) => {
+    const k = (r.nro_ot || '') + '|' + (r.tela || '').toString().toUpperCase().replace(/\s+/g, ' ').trim();
+    const g = acc[k] || (acc[k] = { key: k, fecha_pedido: r.fecha_pedido, nro_ot: r.nro_ot, cliente: r.cliente, tela: r.tela, mts_pedidos: 0 });
+    g.mts_pedidos += Number(r.mts_pedidos || 0);
+    if (r.fecha_pedido && (!g.fecha_pedido || r.fecha_pedido < g.fecha_pedido)) g.fecha_pedido = r.fecha_pedido;
+    return acc;
+  }, {})).sort((a: any, b: any) => (a.fecha_pedido || '').localeCompare(b.fecha_pedido || '') || String(a.nro_ot).localeCompare(String(b.nro_ot), undefined, { numeric: true }) || String(a.tela).localeCompare(String(b.tela)));
   // Consolidado por ID base (sin el sufijo -2, -3...): suma todos los
   // remitos y observaciones del mismo cliente + tela + color.
   const consMap: Record<string, any> = {};
@@ -290,19 +298,19 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
       </div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #eee', marginBottom: 20 }}>
         <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Telas TC sin stock</div>
-        <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>Pedidos de la planilla de producción (sin fecha fin) con tela del cliente que todavía no está en Stock TC · {tcSinStock.length} pedidos · <span style={{ color: '#c00', fontWeight: 700 }}>-{(Math.round(tcSinStock.reduce((t: number, r: any) => t + Number(r.mts_pedidos || 0), 0) * 100) / 100).toLocaleString()} mts</span></div>
+        <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>Pedidos de la planilla de producción (sin fecha fin) con tela del cliente que todavía no está en Stock TC · {tcAgrupado.length} OT / tela · <span style={{ color: '#c00', fontWeight: 700 }}>-{(Math.round(tcSinStock.reduce((t: number, r: any) => t + Number(r.mts_pedidos || 0), 0) * 100) / 100).toLocaleString()} mts</span></div>
         <div style={{ overflow: 'auto', maxHeight: 420 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead><tr>{['Fecha pedido','Nro OT','Cliente','Tela','Mts ped.'].map(h => <th key={h} style={{ textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid #eee', fontSize: 11, color: '#888', position: 'sticky', top: 0, background: '#fff' }}>{h}</th>)}</tr></thead>
             <tbody>
-              {tcSinStock.length === 0 && <tr><td colSpan={5} style={{ padding: 20, textAlign: 'center', color: '#888' }}>No hay telas de clientes pendientes sin stock</td></tr>}
-              {tcSinStock.map((r: any) => (
-                <tr key={r.fila}>
+              {tcAgrupado.length === 0 && <tr><td colSpan={5} style={{ padding: 20, textAlign: 'center', color: '#888' }}>No hay telas de clientes pendientes sin stock</td></tr>}
+              {tcAgrupado.map((r: any) => (
+                <tr key={r.key}>
                   <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0', whiteSpace: 'nowrap' }}>{formatFecha(r.fecha_pedido)}</td>
                   <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{r.nro_ot || '—'}</td>
                   <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{r.cliente || '—'}</td>
                   <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{r.tela}</td>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0', fontWeight: 700, color: '#c00', whiteSpace: 'nowrap' }}>-{Number(r.mts_pedidos || 0).toLocaleString()}</td>
+                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0', fontWeight: 700, color: '#c00', whiteSpace: 'nowrap' }}>-{(Math.round(Number(r.mts_pedidos || 0) * 100) / 100).toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
