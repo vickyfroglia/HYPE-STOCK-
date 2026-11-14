@@ -225,7 +225,7 @@ export default function Home() {
             {pagina === 'ingresos' && puedeVerStock && <Ingresos clientes={clientes} telas={telas} colores={colores} empleados={empleados} ingresos={ingresos} onGuardar={cargarTodo} />}
             {pagina === 'egresos' && puedeVerStock && <Egresos ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
             {pagina === 'stockTH' && puedeVerStock && <StockTH calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} />}
-            {pagina === 'stockTC' && puedeVerStock && <StockTC calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} />}
+            {pagina === 'stockTC' && puedeVerStock && <StockTC calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} onGuardar={cargarTodo} />}
             {pagina === 'clientes' && puedeVerClientes && <Clientes clientes={clientes} ingresos={ingresos} egresos={egresos} onGuardar={cargarTodo} />}
             {pagina === 'telas' && esBD && <Telas telas={telas} onGuardar={cargarTodo} />}
             {pagina === 'colores' && esBD && <Colores colores={colores} onGuardar={cargarTodo} />}
@@ -374,7 +374,7 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
   );
 }
 
-function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, mostrarFechaRemito, mostrarPedidos }: any) {
+function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, mostrarFechaRemito, mostrarPedidos, onEgresar }: any) {
   const [search, setSearch] = useState('');
   // Búsqueda sin importar mayúsculas, tildes ni espacios ("off white" = "OFFWHITE")
   const normTxt = (x: any) => (x ?? '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -412,12 +412,12 @@ function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, 
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr>{[...(mostrarFechaRemito ? ['Fecha', 'Remito'] : []),'ID','Cliente','Tela','Color','Observaciones','Bultos',...(mostrarPedidos ? ['Mts ped.'] : []),'Mts disp.','Ubicación','Ramado','Proceso'].map(h =>
+              <tr>{[...(mostrarFechaRemito ? ['Fecha', 'Remito'] : []),'ID','Cliente','Tela','Color','Observaciones','Bultos',...(mostrarPedidos ? ['Mts ped.'] : []),'Mts disp.','Ubicación','Ramado','Proceso',...(onEgresar ? [''] : [])].map(h =>
                 <th key={h} style={h === 'Remito' ? { ...th, width: 64, maxWidth: 64, minWidth: 64, padding: '9px 4px', whiteSpace: 'normal', fontSize: 10 } : { ...th, whiteSpace: 'nowrap' }}>{h}</th>
               )}</tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && <tr><td colSpan={(mostrarFechaRemito ? 12 : 10) + (mostrarPedidos ? 1 : 0)} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin stock registrado</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={(mostrarFechaRemito ? 12 : 10) + (mostrarPedidos ? 1 : 0) + (onEgresar ? 1 : 0)} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin stock registrado</td></tr>}
               {filtered.map(([id, s]: any) => {
                 const disp = s.ing - s.egr;
                 const esNegativo = resaltarNegativo && disp < 0;
@@ -450,6 +450,11 @@ function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, 
                     <td style={td}>{s.ubicacion || '—'}</td>
                     <td style={td}>{s.ramado || '—'}</td>
                     <td style={td}>{s.proceso === 'S' ? 'Sublimación' : 'Digital'}</td>
+                    {onEgresar && (
+                      <td style={{ ...td, whiteSpace: 'nowrap' }}>
+                        {disp > 0 && <button onClick={() => onEgresar(id, s, disp)} style={{ ...btn, fontSize: 12, padding: '4px 10px', background: '#e85d2f', color: '#fff', border: 'none', fontWeight: 600 }}>Egresar</button>}
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -497,8 +502,27 @@ function StockTH({ calcStock, ingresos, formatFecha }: any) {
   return <StockTabla entries={entries} titulo="Stock TH — Tela propia HYPE (consolidado por tela)" ingresos={ingresos} formatFecha={formatFecha} resaltarNegativo mostrarPedidos />;
 }
 
-function StockTC({ calcStock, ingresos, formatFecha }: any) {
+function StockTC({ calcStock, ingresos, formatFecha, onGuardar }: any) {
   const stock = calcStock();
+  // Botón "Egresar" de cada fila: crea el egreso en el acto (queda en Historial de egresos)
+  async function egresar(id: string, s: any, disp: number) {
+    const dispR = Math.round(disp * 100) / 100;
+    const txt = window.prompt(`Egresar de ${id}\n${s.cliente} · ${s.tela} · ${s.color || ''}${s.remito ? ' · Rto ' + s.remito : ''}\n\nMetros a egresar (disponible ${dispR.toLocaleString()}):`, String(dispR));
+    if (txt === null) return;
+    const mts = parseFloat(txt.replace(',', '.'));
+    if (!(mts > 0)) { alert('Metros inválidos.'); return; }
+    if (mts > dispR + 0.001 && !confirm(`Vas a egresar ${mts} mts y hay ${dispR} disponibles. ¿Seguir igual?`)) return;
+    const remitoEntrega = window.prompt('Nro. de remito de entrega (opcional, dejalo vacío si no tiene):', '') || '';
+    if (!confirm(`¿Confirmás el egreso de ${mts} mts de ${id}?`)) return;
+    const { error } = await supabase.from('egresos').insert([{
+      fecha: new Date().toISOString().split('T')[0], cliente: s.cliente, tela: s.tela, color: s.color,
+      id_hype: id, mts, bultos: 0, remito_origen: s.remito || null, remito_entrega: remitoEntrega.trim() || null,
+      observaciones: 'EGRESO DESDE STOCK TC', estado: 'En almacén',
+    }]);
+    if (error) { alert('Error al egresar: ' + error.message); return; }
+    alert('✅ Egreso guardado. Lo ves en Historial de egresos.');
+    if (onGuardar) onGuardar();
+  }
   // Desglose por remito: una fila por cada remito de ingreso. Los egresos
   // no tienen remito de origen, así que se descuentan del remito más
   // antiguo primero (FIFO).
@@ -536,7 +560,7 @@ function StockTC({ calcStock, ingresos, formatFecha }: any) {
       if ((s.ing - s.egr) !== 0) entries.push([id, s]);
     });
   });
-  return <StockTabla entries={entries} titulo="Stock TC — Tela de clientes" ingresos={ingresos} formatFecha={formatFecha} mostrarFechaRemito />;
+  return <StockTabla entries={entries} titulo="Stock TC — Tela de clientes" ingresos={ingresos} formatFecha={formatFecha} mostrarFechaRemito onEgresar={egresar} />;
 }
 
 function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGuardar }: any) {
