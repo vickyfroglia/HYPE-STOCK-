@@ -804,14 +804,14 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
   const [recibido, setRecibido] = useState('');
   const [busqCli, setBusqCli] = useState('');
   const [showCli, setShowCli] = useState(false);
-  const [renglones, setRenglones] = useState([{ prop: '', proceso: '', tela: '', codTela: '', color: '', siglaColor: '', obs: '', bultos: '', mtsPorRollo: '', modo: 'KG', kg: '', rinde: '', mts: '', ramado: 'No', ubicacion: '1-A', id_hype: '', busqTela: '', showTela: false, busqColor: '', showColor: false }]);
+  const [renglones, setRenglones] = useState([{ prop: '', proceso: '', tela: '', codTela: '', color: '', siglaColor: '', obs: '', bultos: '', mtsPorRollo: '', modo: 'KG', kg: '', rinde: '', mts: '', ramado: 'No', ubicacion: '1-A', id_hype: '', busqTela: '', showTela: false, busqColor: '', showColor: false, thFijo: false, thManual: false }]);
   const [guardando, setGuardando] = useState(false);
   const [etiquetasData, setEtiquetasData] = useState<any>(null);
   const ubicaciones = ['1-A','1-B','1-C','1-D','2-A','2-B','2-C','3-A','3-B','3-C','3-D','4-A','4-B','4-C','5-A','5-B','6-A','6-B','ISLA','PARED','TINTO HYPE','TINTO EXT','ENVIADO A SUBLI'];
 
   function selCliente(c: any) {
     setCliente(c.nombre); setCodCliente(c.cod); setBusqCli(c.nombre); setShowCli(false);
-    setRenglones(prev => prev.map(r => ({ ...r, id_hype: buildId(r.prop, r.proceso, c.cod, r.codTela, r.siglaColor) })));
+    setRenglones(prev => prev.map(r => r.thFijo ? r : ({ ...r, id_hype: buildId(r.prop, r.proceso, c.cod, r.codTela, r.siglaColor) })));
   }
 
   function buildId(prop: string, proceso: string, codCli: string, codTela: string, siglaColor: string) {
@@ -828,6 +828,10 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
         const rinde = field === 'rinde' ? parseFloat(value) : parseFloat(nr.rinde);
         if (kg && rinde && rinde > 0) nr.mts = (kg * rinde).toFixed(1).toString();
       }
+      // Si cambia Prop., se libera la tela TH elegida del desplegable
+      if (field === 'prop') { nr.thFijo = false; nr.thManual = false; }
+      // Tela TH elegida del desplegable de códigos: el ID queda fijo (el que ya existe)
+      if (nr.thFijo) return nr;
       nr.id_hype = buildId(field === 'prop' ? value : nr.prop, field === 'proceso' ? value : nr.proceso, codCliente, field === 'codTela' ? value : nr.codTela, field === 'siglaColor' ? value : nr.siglaColor);
       return nr;
     }));
@@ -903,6 +907,26 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
       }
       nr.id_hype = buildId(nr.prop, nr.proceso, codCliente, t.cod, nr.siglaColor);
       return nr;
+    }));
+  }
+
+  // Códigos TH que ya existen (uno por ID, sin sufijo -2, -3...), para el
+  // desplegable único de Tela cuando Prop. = TH: trae ID, tela y color juntos.
+  const codigosTH = (() => {
+    const m = new Map<string, any>();
+    (ingresos || []).forEach((i: any) => {
+      const id = (i.id_hype || '').toString().trim().replace(/-\d+$/, '');
+      if (!id.toUpperCase().startsWith('TH') || m.has(id)) return;
+      m.set(id, { id, proceso: i.proceso || id.charAt(2), tela: i.tela || '', codTela: i.cod_tela || '', color: i.color || '', siglaColor: i.sigla_color || '' });
+    });
+    return Array.from(m.values()).sort((a: any, b: any) => String(a.tela).localeCompare(String(b.tela)) || String(a.color).localeCompare(String(b.color)));
+  })();
+
+  function selCodigoTH(idx: number, c: any) {
+    setRenglones(prev => prev.map((r, i) => i !== idx ? r : {
+      ...r, prop: 'TH', proceso: c.proceso || r.proceso, tela: c.tela, codTela: c.codTela, busqTela: c.tela,
+      color: c.color, busqColor: c.color, siglaColor: c.siglaColor, id_hype: c.id, thFijo: true, thManual: false,
+      showTela: false, showColor: false,
     }));
   }
 
@@ -1018,7 +1042,25 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
                   <option value="">Seleccionar</option><option value="S">S - Sublimación</option><option value="D">D - Digital directo</option>
                 </select>
               </div>
-              {cliente.trim().toUpperCase() === 'HYPE' ? (
+              {r.prop === 'TH' && !r.thManual ? (
+                <div style={{ gridColumn: 'span 2' }}><label style={lbl}>Tela (código TH)</label>
+                  <select
+                    value={r.thFijo ? r.id_hype : ''}
+                    onChange={e => {
+                      if (e.target.value === '__nueva__') { setRenglones(prev => prev.map((rr, i) => i === idx ? { ...rr, thManual: true, thFijo: false } : rr)); return; }
+                      const c = codigosTH.find((x: any) => x.id === e.target.value);
+                      if (c) selCodigoTH(idx, c);
+                    }}
+                    style={inp}
+                  >
+                    <option value="">Seleccionar tela HYPE...</option>
+                    {codigosTH.map((c: any) => (
+                      <option key={c.id} value={c.id}>{c.tela} · {c.color || 'SIN COLOR'} · {c.id}</option>
+                    ))}
+                    <option value="__nueva__">+ Tela o color TH nuevo (cargar a mano)</option>
+                  </select>
+                </div>
+              ) : cliente.trim().toUpperCase() === 'HYPE' ? (
                 <div><label style={lbl}>Tela</label>
                   <select
                     value={r.codTela}
@@ -1094,7 +1136,7 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
             </div>
           </div>
         ))}
-        <div onClick={() => setRenglones(prev => [...prev, { prop: '', proceso: '', tela: '', codTela: '', color: '', siglaColor: '', obs: '', bultos: '', mtsPorRollo: '', modo: 'KG', kg: '', rinde: '', mts: '', ramado: 'No', ubicacion: '1-A', id_hype: '', busqTela: '', showTela: false, busqColor: '', showColor: false }])} style={{ padding: '12px 20px', cursor: 'pointer', color: '#e85d2f', fontSize: 13, background: '#fafafa', borderTop: '1px solid #eee' }}>
+        <div onClick={() => setRenglones(prev => [...prev, { prop: '', proceso: '', tela: '', codTela: '', color: '', siglaColor: '', obs: '', bultos: '', mtsPorRollo: '', modo: 'KG', kg: '', rinde: '', mts: '', ramado: 'No', ubicacion: '1-A', id_hype: '', busqTela: '', showTela: false, busqColor: '', showColor: false, thFijo: false, thManual: false }])} style={{ padding: '12px 20px', cursor: 'pointer', color: '#e85d2f', fontSize: 13, background: '#fafafa', borderTop: '1px solid #eee' }}>
           + Agregar renglón
         </div>
       </div>
