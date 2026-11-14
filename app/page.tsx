@@ -333,15 +333,27 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
 
 function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, mostrarFechaRemito }: any) {
   const [search, setSearch] = useState('');
+  // Búsqueda sin importar mayúsculas, tildes ni espacios ("off white" = "OFFWHITE")
+  const normTxt = (x: any) => (x ?? '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const coincide = (texto: any, q: string) => {
+    const t = normTxt(texto);
+    return t.includes(q) || t.replace(/\s+/g, '').includes(q.replace(/\s+/g, ''));
+  };
   const filtered = entries.filter(([id, s]: any) => {
     if (!search) return true;
-    const q = search.toLowerCase();
-    const tieneRemito = ingresos.some((i: any) => i.id_hype === id && (i.remito || '').includes(q));
-    return id.toLowerCase().includes(q) ||
-      (s.cliente || '').toLowerCase().includes(q) ||
-      (s.tela || '').toLowerCase().includes(q) ||
-      (s.color || '').toLowerCase().includes(q) ||
-      tieneRemito;
+    const q = normTxt(search).trim();
+    if (!q) return true;
+    // En Stock TH consolidado el ID puede ser "ID1 + ID2": se busca en todos sus ingresos
+    const ids = String(id).split(' + ');
+    const enIngresos = ingresos.some((i: any) => ids.includes(i.id_hype) &&
+      (coincide(i.remito, q) || coincide(i.observaciones, q) || coincide(i.color, q)));
+    return coincide(id, q) ||
+      coincide(s.cliente, q) ||
+      coincide(s.tela, q) ||
+      coincide(s.color, q) ||
+      coincide(s.observaciones, q) ||
+      coincide(s.remito, q) ||
+      enIngresos;
   });
   const totalMts = filtered.reduce((s: number, [, v]: any) => s + v.ing - v.egr, 0);
   return (
@@ -351,7 +363,7 @@ function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, 
         <div style={{ fontSize: 13, color: '#888' }}>{filtered.length} IDs · {totalMts.toLocaleString()} mts disponibles</div>
       </div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 16 }}>
-        <input placeholder="Buscar por cliente, tela, color, ID o remito..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, maxWidth: 400 }} />
+        <input placeholder="Buscar por cliente, tela, color, observaciones, ID o remito..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, maxWidth: 400 }} />
       </div>
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
