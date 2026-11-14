@@ -360,7 +360,7 @@ function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, 
     <div>
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 18, fontWeight: 500 }}>{titulo}</div>
-        <div style={{ fontSize: 13, color: '#888' }}>{filtered.length} IDs · {totalMts.toLocaleString()} mts disponibles{mostrarPedidos && <> · {filtered.reduce((t: number, [, v]: any) => t + Number(v.ped || 0), 0).toLocaleString()} mts pedidos (sin fecha fin)</>}</div>
+        <div style={{ fontSize: 13, color: '#888' }}>{filtered.length} IDs · {totalMts.toLocaleString()} mts disponibles{mostrarPedidos && <> · <span style={{ color: '#c00' }}>-{(Math.round(filtered.reduce((t: number, [, v]: any) => t + Math.max(0, Number(v.ped || 0) - (v.ing - v.egr)), 0) * 100) / 100).toLocaleString()} mts faltantes (pedidos sin fecha fin)</span></>}</div>
       </div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 16 }}>
         <input placeholder="Buscar por cliente, tela, color, observaciones, ID o remito..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, maxWidth: 400 }} />
@@ -390,12 +390,9 @@ function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, 
                     <td style={{ ...td, textAlign: 'center' }}>{s.bultos}</td>
                     {mostrarPedidos && (
                       <td style={{ ...td, textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        {Number(s.ped || 0) > 0 ? (
-                          <>
-                            <span style={{ fontWeight: 700 }}>{Number(s.ped).toLocaleString()}</span>
-                            {Number(s.ped) - disp > 0 && <div style={{ fontSize: 11, color: '#c00', fontWeight: 700 }}>faltan {(Math.round((Number(s.ped) - disp) * 100) / 100).toLocaleString()}</div>}
-                          </>
-                        ) : '—'}
+                        {Number(s.ped || 0) - disp > 0
+                          ? <span style={{ fontWeight: 700, color: '#c00' }}>-{(Math.round((Number(s.ped) - disp) * 100) / 100).toLocaleString()}</span>
+                          : '—'}
                       </td>
                     )}
                     <td style={{ ...td, textAlign: 'center' }}>
