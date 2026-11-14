@@ -244,7 +244,6 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
   const totalTC = Object.entries(stock).filter(([id]: any) => id.startsWith('TC')).reduce((s: number, [, v]: any) => s + v.ing - v.egr, 0);
   const totalTH = Object.entries(stock).filter(([id]: any) => id.startsWith('TH')).reduce((s: number, [, v]: any) => s + v.ing - v.egr, 0);
   const pendientes = egresos.filter((e: any) => e.estado === 'En almacén').length;
-  const [busqCons, setBusqCons] = useState('');
   // Telas de clientes pedidas en la planilla (sin fecha fin) que todavía no están en Stock TC
   const [tcSinStock, setTcSinStock] = useState<any[]>([]);
   useEffect(() => {
@@ -271,23 +270,6 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
     if (r.fecha_pedido && (!g.fecha_pedido || r.fecha_pedido < g.fecha_pedido)) g.fecha_pedido = r.fecha_pedido;
     return acc;
   }, {})).sort((a: any, b: any) => (a.fecha_pedido || '').localeCompare(b.fecha_pedido || '') || String(a.nro_ot).localeCompare(String(b.nro_ot), undefined, { numeric: true }) || String(a.tela).localeCompare(String(b.tela)));
-  // Consolidado por ID base (sin el sufijo -2, -3...): suma todos los
-  // remitos y observaciones del mismo cliente + tela + color.
-  const consMap: Record<string, any> = {};
-  Object.entries(stock).forEach(([id, v]: any) => {
-    const base = id.replace(/-\d+$/, '');
-    const c = consMap[base] || (consMap[base] = { id: base, cliente: v.cliente, tela: v.tela, color: v.color, mts: 0, bultos: 0, remitos: new Set<string>() });
-    c.mts += v.ing - v.egr;
-    c.bultos += v.bultos;
-    (v.remitos || []).forEach((r: string) => c.remitos.add(r));
-  });
-  const consolidado = Object.values(consMap)
-    .map((c: any) => ({ ...c, mts: Math.round(c.mts * 100) / 100, remitos: c.remitos.size }))
-    .filter((c: any) => c.mts !== 0)
-    .sort((a: any, b: any) => b.mts - a.mts);
-  const qc = busqCons.trim().toLowerCase();
-  const consolidadoFiltrado = qc ? consolidado.filter((c: any) =>
-    [c.id, c.cliente, c.tela, c.color].some((x: any) => (x || '').toString().toLowerCase().includes(qc))) : consolidado;
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
@@ -309,7 +291,7 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
         ))}
       </div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #eee', marginBottom: 20 }}>
-        <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Telas TC sin stock</div>
+        <div style={{ fontSize: 18, fontWeight: 800, color: '#e85d2f', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Telas TC sin stock</div>
         <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>Pedidos de la planilla de producción (sin fecha fin) con tela del cliente que todavía no está en Stock TC · {tcAgrupado.length} OT / tela · <span style={{ color: '#c00', fontWeight: 700 }}>-{(Math.round(tcSinStock.reduce((t: number, r: any) => t + Number(r.mts_pedidos || 0), 0) * 100) / 100).toLocaleString()} mts</span></div>
         <div style={{ overflow: 'auto', maxHeight: 420 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -330,7 +312,7 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
         </div>
       </div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #eee', marginBottom: 20 }}>
-        <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Telas TH sin stock o con faltante</div>
+        <div style={{ fontSize: 18, fontWeight: 800, color: '#e85d2f', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Telas TH sin stock</div>
         <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>Metros pedidos en la planilla (sin fecha fin) menos el stock disponible · {thFaltantes.length} telas · <span style={{ color: '#c00', fontWeight: 700 }}>-{(Math.round(thFaltantes.reduce((t: number, x: any) => t + x.falta, 0) * 100) / 100).toLocaleString()} mts</span></div>
         <div style={{ overflow: 'auto', maxHeight: 420 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -342,51 +324,6 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
                   <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>T HYPE {x.tela}</td>
                   <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{x.color || '—'}</td>
                   <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0', fontWeight: 700, color: '#c00', whiteSpace: 'nowrap' }}>-{x.falta.toLocaleString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #eee', marginBottom: 20 }}>
-        <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Stock consolidado por ID</div>
-        <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>Suma de todos los remitos y observaciones de cada ID base ({consolidado.length} IDs con stock)</div>
-        <input placeholder="Buscar por cliente, tela, color o ID..." value={busqCons} onChange={e => setBusqCons(e.target.value)} style={{ ...inp, maxWidth: 360, marginBottom: 12 }} />
-        <div style={{ overflow: 'auto', maxHeight: 420 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead><tr>{['ID','Cliente','Tela','Color','Remitos','Bultos','Mts disp.'].map(h => <th key={h} style={{ textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid #eee', fontSize: 11, color: '#888', position: 'sticky', top: 0, background: '#fff' }}>{h}</th>)}</tr></thead>
-            <tbody>
-              {consolidadoFiltrado.length === 0 && <tr><td colSpan={7} style={{ padding: 20, textAlign: 'center', color: '#888' }}>Sin stock</td></tr>}
-              {consolidadoFiltrado.map((c: any) => (
-                <tr key={c.id}>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0', fontFamily: 'monospace', color: '#e85d2f', fontSize: 12, whiteSpace: 'nowrap' }}>{c.id}</td>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{c.cliente}</td>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{c.tela}</td>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{c.color || '—'}</td>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{c.remitos}</td>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{c.bultos}</td>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0', fontWeight: 700, color: c.mts > 0 ? '#3B6D11' : '#c00' }}>{c.mts.toLocaleString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #eee' }}>
-        <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>Últimos ingresos</div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead><tr>{['Fecha','Cliente','Tela','Color','ID','Mts','Estado'].map(h => <th key={h} style={{ textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid #eee', fontSize: 11, color: '#888' }}>{h}</th>)}</tr></thead>
-            <tbody>
-              {ingresos.slice(0, 8).map((i: any, idx: number) => (
-                <tr key={idx}>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{formatFecha(i.fecha)}</td>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.cliente}</td>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.tela}</td>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.color}</td>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0', fontFamily: 'monospace', color: '#e85d2f', fontSize: 12 }}>{i.id_hype}</td>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.mts} mts</td>
-                  <td style={{ padding: '9px 12px', borderBottom: '1px solid #f0f0f0' }}>{i.estado}</td>
                 </tr>
               ))}
             </tbody>
