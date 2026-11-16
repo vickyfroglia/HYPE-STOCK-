@@ -7,7 +7,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export default function Login({ onLogin }: { onLogin: (rol: string, nombre: string) => void }) {
+export default function Login({ onLogin }: { onLogin: (rol: string, nombre: string, email?: string) => void }) {
   const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -28,9 +28,10 @@ export default function Login({ onLogin }: { onLogin: (rol: string, nombre: stri
       // Buscar rol en tabla usuarios
       const { data: userData } = await supabase.from('usuarios').select('*').eq('email', usuario).single();
       if (userData) {
-        onLogin(userData.rol.trim(), userData.nombre);
+        onLogin(userData.rol.trim(), userData.nombre, usuario.trim().toLowerCase());
       } else {
-        onLogin('admin', 'Usuario');
+        // Sin fila en la tabla usuarios: entra solo para consultar (antes entraba como admin)
+        onLogin('consulta', usuario.trim().toLowerCase(), usuario.trim().toLowerCase());
       }
     } else {
       // Login con usuario/contraseña para operarios
