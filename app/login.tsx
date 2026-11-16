@@ -34,13 +34,8 @@ export default function Login({ onLogin }: { onLogin: (rol: string, nombre: stri
         onLogin('consulta', usuario.trim().toLowerCase(), usuario.trim().toLowerCase());
       }
     } else {
-      // Login con usuario/contraseña para operarios
-      const { data: operario } = await supabase.from('operarios').select('*').eq('usuario', usuario.toLowerCase()).eq('password', password).single();
-      if (operario) {
-        onLogin(operario.rol.trim(), operario.nombre);
-      } else {
-        setError('Usuario o contraseña incorrectos.');
-      }
+      // Ya no se entra con usuario sin mail: cada persona usa su mail de HYPE
+      setError('Entrá con tu mail de HYPE (por ejemplo produccion@hypearg.com).');
     }
     setLoading(false);
   }
@@ -53,12 +48,12 @@ export default function Login({ onLogin }: { onLogin: (rol: string, nombre: stri
           <div style={{ fontSize: 11, color: '#888', letterSpacing: 3, textTransform: 'uppercase', marginTop: 4 }}>Stock & Producción</div>
         </div>
         <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 4 }}>Usuario o Email</label>
+          <label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 4 }}>Email</label>
           <input
             type="text"
             value={usuario}
             onChange={e => setUsuario(e.target.value)}
-            placeholder="usuario o email@hype.com"
+            placeholder="tu-mail@hypearg.com"
             style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' as const }}
           />
         </div>
