@@ -959,13 +959,13 @@ function PanelEtiquetas({ rows, onCerrar }: any) {
                   <div style={{ width: '38mm', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                     <div id={`qr-panel-${rIdx}-${i}`} style={{ width: 132, height: 132 }}></div>
                     <div style={{ fontSize: 9, fontWeight: 700, textAlign: 'center', textTransform: 'uppercase' }}>Escanear para ver stock</div>
+                    {r.remito && <div style={{ textAlign: 'center', marginTop: 4 }}><div style={chicoPie}>Remito ingreso</div><div style={{ fontSize: 28, fontWeight: 900, lineHeight: 1.05 }}>{r.remito}</div></div>}
                   </div>
                 </div>
                 {/* Pie */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderTop: '3px solid #000', paddingTop: 5 }}>
                   <div style={{ display: 'flex', gap: 10, whiteSpace: 'nowrap' }}>
-                    <div><div style={chicoPie}>Fecha</div><div style={{ fontSize: 14, fontWeight: 800 }}>{fechaTxt(r.fecha)}</div></div>
-                    {r.remito && <div><div style={chicoPie}>Rto. ingreso</div><div style={{ fontSize: 14, fontWeight: 800 }}>{r.remito}</div></div>}
+                    <div><div style={chicoPie}>Fecha ingreso</div><div style={{ fontSize: 22, fontWeight: 900, lineHeight: 1.05 }}>{fechaTxt(r.fecha)}</div></div>
                     <div><div style={chicoPie}>Ubicación</div><div style={{ fontSize: 14, fontWeight: 800 }}>{r.ubicacion || '—'}</div></div>
                     {(r.mtsPorRollo || r.mts_por_rollo) && <div><div style={chicoPie}>Mts x rollo</div><div style={{ fontSize: 14, fontWeight: 800 }}>{r.mtsPorRollo || r.mts_por_rollo}</div></div>}
                   </div>
