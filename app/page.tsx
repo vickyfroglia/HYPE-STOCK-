@@ -881,6 +881,10 @@ function AutocompleteEmpleado({ label, value, onChange, empleados }: any) {
 // todo en negro (sin fondos, que las térmicas imprimen punteados) y con el QR grande.
 function PanelEtiquetas({ rows, onCerrar }: any) {
   const [qrListo, setQrListo] = useState(false);
+  // Escala de impresión (%): algunas impresoras achican la hoja; se ajusta una vez y queda guardada en esta PC
+  const [escala, setEscala] = useState<number>(() => { try { return Number(localStorage.getItem('escalaEtiquetas')) || 133; } catch { return 133; } });
+  const cambiarEscala = (v: number) => { const n = Math.min(200, Math.max(50, Math.round(v) || 133)); setEscala(n); try { localStorage.setItem('escalaEtiquetas', String(n)); } catch {} };
+  const k = escala / 100;
   useEffect(() => {
     // La librería del QR se carga una sola vez (con <script> dentro de React no se ejecuta)
     // @ts-ignore
@@ -908,12 +912,15 @@ function PanelEtiquetas({ rows, onCerrar }: any) {
   const fechaTxt = (f: any) => { const [y, m, d] = String(f || '').split('-'); return y && m && d ? `${d}/${m}/${y}` : (f || ''); };
   const chico: React.CSSProperties = { fontSize: 9, color: '#000', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700 };
   const chicoPie: React.CSSProperties = { ...chico, letterSpacing: 0 };
-  const grande: React.CSSProperties = { fontSize: 30, lineHeight: 1.05, fontWeight: 800, textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#000' };
+  // Letra grande que se achica sola si el texto es largo (hasta 2 líneas, sin cortarse con "...")
+  const grande = (txt: any): React.CSSProperties => { const n = String(txt || '').length;
+    return { fontSize: n <= 14 ? 30 : n <= 18 ? 26 : n <= 24 ? 21 : 17, lineHeight: 1.05, fontWeight: 800, textTransform: 'uppercase', color: '#000',
+      overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', wordBreak: 'break-word' }; };
 
   return createPortal(
     <div className="etiquetas-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 999, overflowY: 'auto', padding: '20px 0' }}>
       <style>{`
-        @page { size: 150mm 100mm; margin: 0; }
+        @page { size: ${150 * k}mm ${100 * k}mm; margin: 0; }
         @media print {
           html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
           body > *:not(.etiquetas-overlay) { display: none !important; }
@@ -934,11 +941,19 @@ function PanelEtiquetas({ rows, onCerrar }: any) {
             </div>
           </div>
           <div style={{ fontSize: 12, color: '#888', marginTop: 6 }}>Etiqueta de 10 × 15 cm. Al imprimir elegí el papel <b>10 × 15 cm (4 × 6 in)</b>, márgenes <b>Ninguno</b> y escala <b>100%</b>.</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, color: '#555' }}>
+            <span>Escala de impresión:</span>
+            <button onClick={() => cambiarEscala(escala - 5)} style={{ ...btn, padding: '2px 10px' }}>−</button>
+            <input type="number" value={escala} onChange={e => cambiarEscala(Number(e.target.value))} style={{ ...inp, width: 70, padding: '4px 6px' }} />
+            <span>%</span>
+            <button onClick={() => cambiarEscala(escala + 5)} style={{ ...btn, padding: '2px 10px' }}>+</button>
+            <span style={{ color: '#888' }}>Si sale chica, subila (ej. 133%). Si sale cortada, bajala. Queda guardada en esta PC.</span>
+          </div>
         </div>
         <div id="etiquetas-print">
           {rows.map((r: any, rIdx: number) =>
             Array.from({ length: parseInt(r.bultos) || 1 }).map((_, i) => (
-              <div key={`${rIdx}-${i}`} className="etiqueta" style={{ width: '150mm', height: '100mm', boxSizing: 'border-box', background: '#fff', border: '1px solid #bbb', padding: '5mm 6mm', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: 'Arial, Helvetica, sans-serif', color: '#000', marginBottom: 16 }}>
+              <div key={`${rIdx}-${i}`} className="etiqueta" style={{ zoom: k, width: '150mm', height: '100mm', boxSizing: 'border-box', background: '#fff', border: '1px solid #bbb', padding: '5mm 6mm', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: 'Arial, Helvetica, sans-serif', color: '#000', marginBottom: 16 }}>
                 {/* Encabezado */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '3px solid #000', paddingBottom: 6 }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
@@ -951,9 +966,9 @@ function PanelEtiquetas({ rows, onCerrar }: any) {
                 <div style={{ display: 'flex', flex: 1, minHeight: 0, paddingTop: 6, gap: 10 }}>
                   <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <div style={{ fontSize: 18, fontWeight: 800, fontFamily: 'Courier New, monospace', letterSpacing: 1 }}>{r.id_hype}</div>
-                    <div><div style={chico}>Cliente</div><div style={grande}>{r.cliente}</div></div>
-                    <div><div style={chico}>Tela</div><div style={grande}>{r.tela}</div></div>
-                    {r.color && <div><div style={chico}>Color</div><div style={grande}>{r.color}</div></div>}
+                    <div><div style={chico}>Cliente</div><div style={grande(r.cliente)}>{r.cliente}</div></div>
+                    <div><div style={chico}>Tela</div><div style={grande(r.tela)}>{r.tela}</div></div>
+                    {r.color && <div><div style={chico}>Color</div><div style={grande(r.color)}>{r.color}</div></div>}
                     {r.obs && <div><div style={chico}>Observaciones</div><div style={{ fontSize: 15, lineHeight: 1.15, fontWeight: 700, textTransform: 'uppercase', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{r.obs}</div></div>}
                   </div>
                   <div style={{ width: '38mm', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
