@@ -907,6 +907,7 @@ function PanelEtiquetas({ rows, onCerrar }: any) {
 
   const fechaTxt = (f: any) => { const [y, m, d] = String(f || '').split('-'); return y && m && d ? `${d}/${m}/${y}` : (f || ''); };
   const chico: React.CSSProperties = { fontSize: 9, color: '#000', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700 };
+  const chicoPie: React.CSSProperties = { ...chico, letterSpacing: 0 };
   const grande: React.CSSProperties = { fontSize: 30, lineHeight: 1.05, fontWeight: 800, textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#000' };
 
   return createPortal(
@@ -962,13 +963,13 @@ function PanelEtiquetas({ rows, onCerrar }: any) {
                 </div>
                 {/* Pie */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderTop: '3px solid #000', paddingTop: 5 }}>
-                  <div style={{ display: 'flex', gap: 14 }}>
-                    <div><div style={chico}>Fecha</div><div style={{ fontSize: 14, fontWeight: 800 }}>{fechaTxt(r.fecha)}</div></div>
-                    {r.remito && <div><div style={chico}>Remito ingreso</div><div style={{ fontSize: 14, fontWeight: 800 }}>{r.remito}</div></div>}
-                    <div><div style={chico}>Ubicación</div><div style={{ fontSize: 14, fontWeight: 800 }}>{r.ubicacion || '—'}</div></div>
-                    {(r.mtsPorRollo || r.mts_por_rollo) && <div><div style={chico}>Mts x rollo</div><div style={{ fontSize: 14, fontWeight: 800 }}>{r.mtsPorRollo || r.mts_por_rollo}</div></div>}
+                  <div style={{ display: 'flex', gap: 10, whiteSpace: 'nowrap' }}>
+                    <div><div style={chicoPie}>Fecha</div><div style={{ fontSize: 14, fontWeight: 800 }}>{fechaTxt(r.fecha)}</div></div>
+                    {r.remito && <div><div style={chicoPie}>Rto. ingreso</div><div style={{ fontSize: 14, fontWeight: 800 }}>{r.remito}</div></div>}
+                    <div><div style={chicoPie}>Ubicación</div><div style={{ fontSize: 14, fontWeight: 800 }}>{r.ubicacion || '—'}</div></div>
+                    {(r.mtsPorRollo || r.mts_por_rollo) && <div><div style={chicoPie}>Mts x rollo</div><div style={{ fontSize: 14, fontWeight: 800 }}>{r.mtsPorRollo || r.mts_por_rollo}</div></div>}
                   </div>
-                  <div style={{ fontSize: 24, fontWeight: 900 }}>{r.mts} MTS TOTALES</div>
+                  <div style={{ fontSize: 20, fontWeight: 900, whiteSpace: 'nowrap', marginLeft: 8 }}>{r.mts} MTS TOTALES</div>
                 </div>
               </div>
             ))
