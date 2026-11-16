@@ -1,6 +1,7 @@
 // Administración de usuarios de la app (solo ventas@ y matias@).
 // Corre en el servidor de Vercel con la clave secreta de Supabase (SUPABASE_SERVICE_ROLE_KEY),
 // que nunca llega al navegador.
+// La clave se carga en Vercel → hype-stock → Settings → Environment Variables.
 import { createClient } from '@supabase/supabase-js';
 
 const ADMINS_USUARIOS = ['ventas@hypearg.com', 'matias@hypearg.com'];
