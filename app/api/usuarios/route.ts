@@ -16,11 +16,13 @@ function admin() {
 async function verificar(request: Request) {
   const token = (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
   if (!token) return { error: 'Sin sesión.' };
-  const sb = admin();
-  const { data, error } = await sb.auth.getUser(token);
-  const email = (data?.user?.email || '').toLowerCase();
-  if (error || !ADMINS_USUARIOS.includes(email)) return { error: 'No tenés permiso para administrar usuarios.' };
-  return { sb, email };
+  // La sesión se valida con la clave pública (no depende de la clave secreta)
+  const pub = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data, error } = await pub.auth.getUser(token);
+  if (error || !data?.user) return { error: 'Tu sesión venció o no es válida. Cerrá sesión y volvé a entrar. (' + (error?.message || 'sin usuario') + ')' };
+  const email = (data.user.email || '').toLowerCase();
+  if (!ADMINS_USUARIOS.includes(email)) return { error: 'La cuenta ' + email + ' no tiene permiso para administrar usuarios.' };
+  return { sb: admin(), email };
 }
 
 const mal = (msg: string, status = 400) => Response.json({ error: msg }, { status });
