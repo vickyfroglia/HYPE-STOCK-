@@ -71,6 +71,8 @@ const PERMISOS: Record<string, string[]> = {
   baseDatos: ['jefeproduccion@hypearg.com', 'ventas@hypearg.com', 'contacto@hypearg.com', 'administracion@hypearg.com', 'administracion2@hypearg.com', 'matias@hypearg.com'],
   // Empleados (ver y editar)
   empleados: ['ventas@hypearg.com', 'matias@hypearg.com'],
+  // Usuarios de la app: crear, cambiar contraseñas, dar de baja
+  usuarios: ['ventas@hypearg.com', 'matias@hypearg.com'],
 };
 function puede(email: string, permiso: string) {
   return (PERMISOS[permiso] || []).includes((email || '').trim().toLowerCase());
@@ -161,6 +163,7 @@ export default function Home() {
   const pMuestras = puede(emailUsuario, 'muestras');
   const pBD = puede(emailUsuario, 'baseDatos');
   const pEmp = puede(emailUsuario, 'empleados');
+  const pUsu = puede(emailUsuario, 'usuarios');
 
   function formatFecha(fecha: string) {
     if (!fecha) return '—';
@@ -180,11 +183,12 @@ export default function Home() {
     { id: 'paqMuestras', label: 'Paq. Muestras', icon: '▣', ver: true, sep: false },
     { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰', ver: pMov, sep: false },
     { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰', ver: pMov, sep: false },
-    { id: '__bd__', label: 'BASE DE DATOS', icon: '', ver: pBD || pEmp, sep: true },
+    { id: '__bd__', label: 'BASE DE DATOS', icon: '', ver: pBD || pEmp || pUsu, sep: true },
     { id: 'clientes', label: 'Clientes', icon: '♟', ver: pBD, sep: false },
     { id: 'telas', label: 'Telas', icon: '≡', ver: pBD, sep: false },
     { id: 'colores', label: 'Colores', icon: '◉', ver: pBD, sep: false },
     { id: 'empleados', label: 'Empleados', icon: '👤', ver: pEmp, sep: false },
+    { id: 'usuarios', label: 'Usuarios', icon: '🔑', ver: pUsu, sep: false },
   ];
   const navItems = navTodos.filter(n => n.ver);
 
@@ -255,6 +259,7 @@ export default function Home() {
             {pagina === 'telas' && pBD && <Telas telas={telas} onGuardar={cargarTodo} />}
             {pagina === 'colores' && pBD && <Colores colores={colores} onGuardar={cargarTodo} />}
             {pagina === 'empleados' && pEmp && <Empleados empleados={empleados} onGuardar={cargarTodo} />}
+            {pagina === 'usuarios' && pUsu && <Usuarios formatFecha={formatFecha} />}
             {pagina === 'historialIngresos' && pMov && <HistorialIngresos ingresos={ingresos} onGuardar={cargarTodo} clientes={clientes} telas={telas} empleados={empleados} formatFecha={formatFecha} />}
             {pagina === 'historialEgresos' && pMov && <HistorialEgresos egresos={egresos} onGuardar={cargarTodo} formatFecha={formatFecha} />}
           </>
@@ -2015,6 +2020,119 @@ function Empleados({ empleados, onGuardar }: any) {
           </div>
         </div>
       </div>}
+    </div>
+  );
+}
+
+// ===== USUARIOS DE LA APP (solo ventas@ y matias@) =====
+// Habla con /api/usuarios, que corre en el servidor con la clave secreta de Supabase.
+const ROLES_APP = ['admin', 'encargado', 'logistica', 'comercial', 'diseno', 'administrativo', 'operario'];
+function Usuarios({ formatFecha }: any) {
+  const [lista, setLista] = useState<any[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState('');
+  const [nuevo, setNuevo] = useState({ email: '', nombre: '', rol: 'comercial', password: '' });
+  const [guardando, setGuardando] = useState(false);
+  const [claveDe, setClaveDe] = useState<string | null>(null);
+  const [clave, setClave] = useState('');
+
+  async function api(metodo: string, cuerpo?: any) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const r = await fetch('/api/usuarios', {
+      method: metodo,
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (session?.access_token || '') },
+      body: cuerpo ? JSON.stringify(cuerpo) : undefined,
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || 'Error ' + r.status);
+    return j;
+  }
+  async function cargar() {
+    setCargando(true); setError('');
+    try { const j = await api('GET'); setLista(j.usuarios || []); } catch (e: any) { setError(e.message); }
+    setCargando(false);
+  }
+  useEffect(() => { cargar(); }, []);
+
+  async function crear() {
+    if (!nuevo.email.trim() || !nuevo.nombre.trim()) { alert('Completá mail y nombre.'); return; }
+    if (nuevo.password.length < 10) { alert('La contraseña tiene que tener al menos 10 caracteres.'); return; }
+    setGuardando(true);
+    try { await api('POST', nuevo); setNuevo({ email: '', nombre: '', rol: 'comercial', password: '' }); alert('✅ Usuario creado.'); cargar(); }
+    catch (e: any) { alert('Error: ' + e.message); }
+    setGuardando(false);
+  }
+  async function guardarClave(u: any) {
+    if (clave.length < 10) { alert('La contraseña tiene que tener al menos 10 caracteres.'); return; }
+    try { await api('PATCH', { id: u.id, password: clave }); setClaveDe(null); setClave(''); alert('✅ Contraseña cambiada para ' + u.email); }
+    catch (e: any) { alert('Error: ' + e.message); }
+  }
+  async function cambiarRol(u: any, rol: string) {
+    try { await api('PATCH', { id: u.id, rol }); cargar(); } catch (e: any) { alert('Error: ' + e.message); }
+  }
+  async function cambiarNombre(u: any) {
+    const n = window.prompt('Nombre para ' + u.email, u.nombre || '');
+    if (n === null) return;
+    try { await api('PATCH', { id: u.id, nombre: n }); cargar(); } catch (e: any) { alert('Error: ' + e.message); }
+  }
+  async function baja(u: any) {
+    if (!confirm(`¿Dar de baja a ${u.email}? Ya no va a poder entrar a la app. No se puede deshacer.`)) return;
+    try { await api('DELETE', { id: u.id }); cargar(); } catch (e: any) { alert('Error: ' + e.message); }
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 18, fontWeight: 500 }}>Usuarios</div>
+        <div style={{ fontSize: 13, color: '#888' }}>Quién puede entrar a la app. Lo que ve cada uno depende de su mail (permisos). Contraseñas de 10 caracteres o más.</div>
+      </div>
+      {error && <div style={{ marginBottom: 16, padding: '10px 14px', background: '#fee', color: '#c00', borderRadius: 8, fontSize: 13 }}>{error}</div>}
+      <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee', marginBottom: 16 }}>
+        <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>Crear usuario</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 10, alignItems: 'end' }}>
+          <div><label style={lbl}>Mail</label><input value={nuevo.email} onChange={e => setNuevo({ ...nuevo, email: e.target.value })} placeholder="nombre@hypearg.com" style={inp} /></div>
+          <div><label style={lbl}>Nombre</label><input value={nuevo.nombre} onChange={e => setNuevo({ ...nuevo, nombre: e.target.value })} style={inp} /></div>
+          <div><label style={lbl}>Rol (lo usa HYPE Producción)</label>
+            <select value={nuevo.rol} onChange={e => setNuevo({ ...nuevo, rol: e.target.value })} style={inp}>{ROLES_APP.map(r => <option key={r} value={r}>{r}</option>)}</select>
+          </div>
+          <div><label style={lbl}>Contraseña</label><input type="password" autoComplete="new-password" value={nuevo.password} onChange={e => setNuevo({ ...nuevo, password: e.target.value })} style={inp} /></div>
+          <div><button onClick={crear} disabled={guardando} style={{ ...btn, width: '100%', background: '#e85d2f', color: '#fff', border: 'none', fontWeight: 600 }}>{guardando ? 'Creando...' : 'Crear'}</button></div>
+        </div>
+      </div>
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead><tr>{['Mail', 'Nombre', 'Rol', 'Último ingreso', ''].map(h => <th key={h} style={th}>{h}</th>)}</tr></thead>
+          <tbody>
+            {cargando && <tr><td colSpan={5} style={{ padding: 16, textAlign: 'center', color: '#888' }}>Cargando...</td></tr>}
+            {!cargando && lista.map((u: any) => (
+              <tr key={u.id}>
+                <td style={td}>{u.email}</td>
+                <td style={td}><span onClick={() => cambiarNombre(u)} style={{ cursor: 'pointer', borderBottom: '1px dashed #bbb' }} title="Cambiar nombre">{u.nombre || '—'}</span></td>
+                <td style={td}>
+                  <select value={u.rol || ''} onChange={e => cambiarRol(u, e.target.value)} style={{ ...inp, fontSize: 12, padding: '3px 6px', width: 'auto' }}>
+                    {[...new Set([u.rol || '', ...ROLES_APP])].map(r => <option key={r} value={r}>{r || '—'}</option>)}
+                  </select>
+                </td>
+                <td style={{ ...td, whiteSpace: 'nowrap' }}>{u.ultimoIngreso ? formatFecha(String(u.ultimoIngreso).slice(0, 10)) : 'Nunca'}</td>
+                <td style={{ ...td, whiteSpace: 'nowrap' }}>
+                  {claveDe === u.id ? (
+                    <span style={{ display: 'inline-flex', gap: 6 }}>
+                      <input type="password" autoComplete="new-password" autoFocus placeholder="Nueva contraseña" value={clave} onChange={e => setClave(e.target.value)} onKeyDown={e => e.key === 'Enter' && guardarClave(u)} style={{ ...inp, fontSize: 12, padding: '4px 8px', width: 170 }} />
+                      <button onClick={() => guardarClave(u)} style={{ ...btn, fontSize: 12, padding: '4px 10px', background: '#e85d2f', color: '#fff', border: 'none' }}>Guardar</button>
+                      <button onClick={() => { setClaveDe(null); setClave(''); }} style={{ ...btn, fontSize: 12, padding: '4px 10px' }}>Cancelar</button>
+                    </span>
+                  ) : (
+                    <>
+                      <button onClick={() => { setClaveDe(u.id); setClave(''); }} style={{ ...btn, fontSize: 12, padding: '4px 10px', marginRight: 6 }}>Cambiar contraseña</button>
+                      <button onClick={() => baja(u)} style={{ ...btn, fontSize: 12, padding: '4px 10px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>Dar de baja</button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
