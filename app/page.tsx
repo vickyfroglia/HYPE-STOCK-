@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { createClient } from '@supabase/supabase-js';
 import Login from './login';
 
@@ -876,8 +877,21 @@ function AutocompleteEmpleado({ label, value, onChange, empleados }: any) {
   );
 }
 
+// Etiquetas para impresora térmica de 10 × 15 cm: una etiqueta por rollo, ocupando toda la hoja,
+// todo en negro (sin fondos, que las térmicas imprimen punteados) y con el QR grande.
 function PanelEtiquetas({ rows, onCerrar }: any) {
+  const [qrListo, setQrListo] = useState(false);
   useEffect(() => {
+    // La librería del QR se carga una sola vez (con <script> dentro de React no se ejecuta)
+    // @ts-ignore
+    if (window.QRCode) { setQrListo(true); return; }
+    const sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+    sc.onload = () => setQrListo(true);
+    document.head.appendChild(sc);
+  }, []);
+  useEffect(() => {
+    if (!qrListo) return;
     rows.forEach((r: any, rIdx: number) => {
       const cantidad = parseInt(r.bultos) || 1;
       for (let i = 0; i < cantidad; i++) {
@@ -885,79 +899,84 @@ function PanelEtiquetas({ rows, onCerrar }: any) {
         if (el && el.childElementCount === 0) {
           const qrData = JSON.stringify({ id: r.id_hype, cliente: r.cliente, tela: r.tela, color: r.color, obs: r.obs, fecha: r.fecha, ubicacion: r.ubicacion, mts: r.mts });
           // @ts-ignore
-          if (window.QRCode) new window.QRCode(el, { text: qrData, width: 62, height: 62, colorDark: '#1a1a2e', colorLight: '#ffffff' });
+          new window.QRCode(el, { text: qrData, width: 132, height: 132, colorDark: '#000000', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.M });
         }
       }
     });
-  }, [rows]);
-  return (
+  }, [rows, qrListo]);
+
+  const fechaTxt = (f: any) => { const [y, m, d] = String(f || '').split('-'); return y && m && d ? `${d}/${m}/${y}` : (f || ''); };
+  const chico: React.CSSProperties = { fontSize: 9, color: '#000', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700 };
+  const grande: React.CSSProperties = { fontSize: 30, lineHeight: 1.05, fontWeight: 800, textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#000' };
+
+  return createPortal(
     <div className="etiquetas-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 999, overflowY: 'auto', padding: '20px 0' }}>
       <style>{`
+        @page { size: 150mm 100mm; margin: 0; }
         @media print {
-          body * { visibility: hidden; }
-          .etiquetas-overlay, .etiquetas-overlay * { visibility: visible; }
-          .etiquetas-overlay {
-            position: static !important;
-            background: none !important;
-            padding: 0 !important;
-            display: block !important;
-          }
-          .etiquetas-card {
-            width: auto !important;
-            max-width: none !important;
-            border-radius: 0 !important;
-            padding: 0 !important;
-            background: none !important;
-          }
+          html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
+          body > *:not(.etiquetas-overlay) { display: none !important; }
+          .etiquetas-overlay { position: static !important; inset: auto !important; background: none !important; padding: 0 !important; display: block !important; overflow: visible !important; }
+          .etiquetas-card { width: auto !important; max-width: none !important; border-radius: 0 !important; padding: 0 !important; background: none !important; }
           .etiquetas-toolbar { display: none !important; }
+          .etiqueta { margin: 0 !important; border: none !important; box-shadow: none !important; break-after: page; page-break-after: always; }
+          .etiqueta:last-child { break-after: auto; page-break-after: auto; }
         }
       `}</style>
-      <div className="etiquetas-card" style={{ background: '#f5f5f7', borderRadius: 16, padding: 24, width: '90%', maxWidth: 700 }}>
-        <div className="etiquetas-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <div style={{ fontSize: 16, fontWeight: 500 }}>Etiquetas para imprimir</div>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={() => window.print()} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>🖨 Imprimir</button>
-            <button onClick={onCerrar} style={btn}>Cerrar</button>
+      <div className="etiquetas-card" style={{ background: '#f5f5f7', borderRadius: 16, padding: 24, width: '90%', maxWidth: 680 }}>
+        <div className="etiquetas-toolbar" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: 16, fontWeight: 500 }}>Etiquetas para imprimir ({rows.reduce((t: number, r: any) => t + (parseInt(r.bultos) || 1), 0)})</div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => window.print()} disabled={!qrListo} style={{ ...btn, background: '#e85d2f', color: '#fff', border: '1px solid #e85d2f' }}>{qrListo ? '🖨 Imprimir' : 'Cargando QR...'}</button>
+              <button onClick={onCerrar} style={btn}>Cerrar</button>
+            </div>
           </div>
+          <div style={{ fontSize: 12, color: '#888', marginTop: 6 }}>Etiqueta de 10 × 15 cm. Al imprimir elegí el papel <b>10 × 15 cm (4 × 6 in)</b>, márgenes <b>Ninguno</b> y escala <b>100%</b>.</div>
         </div>
         <div id="etiquetas-print">
           {rows.map((r: any, rIdx: number) =>
             Array.from({ length: parseInt(r.bultos) || 1 }).map((_, i) => (
-                <div key={`${rIdx}-${i}`} style={{ width: 491, height: 321, background: '#fff', border: '1.5px solid #bbb', borderRadius: 6, display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: 'Arial, sans-serif', marginBottom: 16, pageBreakAfter: 'always' }}>
-                <div style={{ background: '#1a1a2e', padding: '6px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ color: '#fff', fontSize: 20, fontWeight: 700, letterSpacing: 3 }}>HYPE</div>
-                  <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 9, textTransform: 'uppercase', letterSpacing: 1 }}>{r.proceso === 'S' ? 'Sublimación' : 'Digital directo'}</div>
-                  <div style={{ color: '#e85d2f', fontSize: 13, fontWeight: 700 }}>ROLLO {i + 1}/{parseInt(r.bultos) || 1}</div>
-                </div>
-                <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-                  <div style={{ flex: 1, padding: '5px 10px', display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: '#1a1a2e', letterSpacing: 1, fontFamily: 'Courier New, monospace', borderBottom: '1.5px solid #e0e0e0', paddingBottom: 2 }}>{r.id_hype}</div>
-                    <div><div style={{ fontSize: 7, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Cliente</div><div style={{ fontSize: 24, lineHeight: 1.0, fontWeight: 700, textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.cliente}</div></div>
-                    <div><div style={{ fontSize: 7, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Tela</div><div style={{ fontSize: 24, lineHeight: 1.0, fontWeight: 700, textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.tela}</div></div>
-                    {r.color && <div><div style={{ fontSize: 7, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Color</div><div style={{ fontSize: 24, lineHeight: 1.0, fontWeight: 700, textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.color}</div></div>}
-                    {r.obs && <div><div style={{ fontSize: 7, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Observaciones</div><div style={{ fontSize: 14, lineHeight: 1.1, fontWeight: 700, textTransform: 'uppercase', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{r.obs}</div></div>}
-                    <div style={{ display: 'flex', gap: 10, marginTop: 'auto' }}>
-                      <div><div style={{ fontSize: 7, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Fecha</div><div style={{ fontSize: 10, fontWeight: 700 }}>{r.fecha}</div></div>
-                      <div><div style={{ fontSize: 7, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Ubicación</div><div style={{ fontSize: 10, fontWeight: 700 }}>{r.ubicacion}</div></div>
-                      {(r.mtsPorRollo || r.mts_por_rollo) && <div><div style={{ fontSize: 7, color: '#999', textTransform: 'uppercase', letterSpacing: 1 }}>Mts x rollo</div><div style={{ fontSize: 10, fontWeight: 700 }}>{r.mtsPorRollo || r.mts_por_rollo}</div></div>}
-                    </div>
+              <div key={`${rIdx}-${i}`} className="etiqueta" style={{ width: '150mm', height: '100mm', boxSizing: 'border-box', background: '#fff', border: '1px solid #bbb', padding: '5mm 6mm', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: 'Arial, Helvetica, sans-serif', color: '#000', marginBottom: 16 }}>
+                {/* Encabezado */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '3px solid #000', paddingBottom: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+                    <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: 4 }}>HYPE</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>{r.proceso === 'S' ? 'Sublimación' : 'Digital directo'}</div>
                   </div>
-                  <div style={{ width: 78, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 6, borderLeft: '1px solid #eee', gap: 3, flexShrink: 0 }}>
-                    <div id={`qr-panel-${rIdx}-${i}`}></div>
-                    <div style={{ fontSize: 7, color: '#aaa', textAlign: 'center', lineHeight: 1.1 }}>Escanear para ver stock</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, border: '3px solid #000', borderRadius: 6, padding: '2px 10px' }}>ROLLO {i + 1}/{parseInt(r.bultos) || 1}</div>
+                </div>
+                {/* Cuerpo */}
+                <div style={{ display: 'flex', flex: 1, minHeight: 0, paddingTop: 6, gap: 10 }}>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <div style={{ fontSize: 18, fontWeight: 800, fontFamily: 'Courier New, monospace', letterSpacing: 1 }}>{r.id_hype}</div>
+                    <div><div style={chico}>Cliente</div><div style={grande}>{r.cliente}</div></div>
+                    <div><div style={chico}>Tela</div><div style={grande}>{r.tela}</div></div>
+                    {r.color && <div><div style={chico}>Color</div><div style={grande}>{r.color}</div></div>}
+                    {r.obs && <div><div style={chico}>Observaciones</div><div style={{ fontSize: 15, lineHeight: 1.15, fontWeight: 700, textTransform: 'uppercase', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{r.obs}</div></div>}
+                  </div>
+                  <div style={{ width: '38mm', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                    <div id={`qr-panel-${rIdx}-${i}`} style={{ width: 132, height: 132 }}></div>
+                    <div style={{ fontSize: 9, fontWeight: 700, textAlign: 'center', textTransform: 'uppercase' }}>Escanear para ver stock</div>
                   </div>
                 </div>
-                <div style={{ background: '#f0f0f0', borderTop: '1px solid #ddd', padding: '3px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: 8, color: '#888' }}>HYPE Estampación · {r.fecha}</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#e85d2f' }}>{r.mts} MTS TOTALES</div>
+                {/* Pie */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderTop: '3px solid #000', paddingTop: 5 }}>
+                  <div style={{ display: 'flex', gap: 14 }}>
+                    <div><div style={chico}>Fecha</div><div style={{ fontSize: 14, fontWeight: 800 }}>{fechaTxt(r.fecha)}</div></div>
+                    {r.remito && <div><div style={chico}>Remito ingreso</div><div style={{ fontSize: 14, fontWeight: 800 }}>{r.remito}</div></div>}
+                    <div><div style={chico}>Ubicación</div><div style={{ fontSize: 14, fontWeight: 800 }}>{r.ubicacion || '—'}</div></div>
+                    {(r.mtsPorRollo || r.mts_por_rollo) && <div><div style={chico}>Mts x rollo</div><div style={{ fontSize: 14, fontWeight: 800 }}>{r.mtsPorRollo || r.mts_por_rollo}</div></div>}
+                  </div>
+                  <div style={{ fontSize: 24, fontWeight: 900 }}>{r.mts} MTS TOTALES</div>
                 </div>
               </div>
             ))
           )}
         </div>
       </div>
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" />
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -1159,7 +1178,7 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
     if (error) { alert('Error al guardar: ' + error.message); } else {
       onGuardar();
       const imprimir = confirm('✅ Ingreso guardado correctamente.\n\n¿Querés imprimir las etiquetas ahora?');
-      if (imprimir) setEtiquetasData(rowsFinal.map(r => ({ ...r, cliente, fecha })));
+      if (imprimir) setEtiquetasData(rowsFinal.map(r => ({ ...r, cliente, fecha, remito })));
     }
     setGuardando(false);
   }
