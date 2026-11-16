@@ -59,6 +59,23 @@ async function fetchColumnas(table: string, columnas: string, orderBy: string) {
   return all;
 }
 
+// ===== PERMISOS POR MAIL =====
+// Quién puede hacer qué en la app. La base de datos (Supabase) tiene las mismas listas,
+// así que aunque alguien se saltee el menú, no puede guardar nada que no le corresponda.
+const PERMISOS: Record<string, string[]> = {
+  // Ingresos, Egresos, Historiales y botón Egresar de Stock TC
+  movimientos: ['ventas@hypearg.com', 'jefeproduccion@hypearg.com', 'logistica@hypearg.com'],
+  // Cargar / egresar / mover / eliminar paquetes de muestras
+  muestras: ['ventas@hypearg.com', 'contacto@hypearg.com', 'contacto2@hypearg.com', 'contacto03@hypearg.com', 'jefeproduccion@hypearg.com'],
+  // Clientes, Telas y Colores (ver y editar)
+  baseDatos: ['jefeproduccion@hypearg.com', 'ventas@hypearg.com', 'contacto@hypearg.com', 'administracion@hypearg.com', 'administracion2@hypearg.com', 'matias@hypearg.com'],
+  // Empleados (ver y editar)
+  empleados: ['ventas@hypearg.com', 'matias@hypearg.com'],
+};
+function puede(email: string, permiso: string) {
+  return (PERMISOS[permiso] || []).includes((email || '').trim().toLowerCase());
+}
+
 export default function Home() {
   const [pagina, setPagina] = useState('dashboard');
   const [clientes, setClientes] = useState<any[]>([]);
@@ -77,10 +94,12 @@ export default function Home() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [rol, setRol] = useState('');
   const [nombreUsuario, setNombreUsuario] = useState('');
+  const [emailUsuario, setEmailUsuario] = useState('');
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
+        setEmailUsuario((session.user.email || '').toLowerCase());
         const { data: userData } = await supabase.from('usuarios').select('*').eq('email', session.user.email).single();
         if (userData) {
           setRol(userData.rol);
@@ -121,12 +140,13 @@ export default function Home() {
 
   async function cerrarSesion() {
     await supabase.auth.signOut();
-    setLogueado(false); setRol(''); setNombreUsuario('');
+    setLogueado(false); setRol(''); setNombreUsuario(''); setEmailUsuario(''); setPagina('dashboard');
   }
 
-  function handleLogin(rolUsuario: string, nombre: string) {
+  function handleLogin(rolUsuario: string, nombre: string, email?: string) {
     setRol(rolUsuario);
     setNombreUsuario(nombre);
+    setEmailUsuario((email || '').toLowerCase());
     setLogueado(true);
     if (['operario'].includes(rolUsuario)) {
       setPagina('stockTC');
@@ -137,10 +157,10 @@ export default function Home() {
   if (checkingAuth) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a1a2e', color: '#fff' }}>Cargando...</div>;
   if (!logueado) return <Login onLogin={handleLogin} />;
 
-  const esAdmin = rol === 'admin';
-  const esBD = ['admin', 'logistica'].includes(rol);
-  const puedeVerClientes = ['admin', 'logistica', 'comercial'].includes(rol.trim());
-  const puedeVerStock = ['admin', 'diseno', 'encargado', 'operario', 'logistica', 'comercial'].includes(rol.trim());
+  const pMov = puede(emailUsuario, 'movimientos');
+  const pMuestras = puede(emailUsuario, 'muestras');
+  const pBD = puede(emailUsuario, 'baseDatos');
+  const pEmp = puede(emailUsuario, 'empleados');
 
   function formatFecha(fecha: string) {
     if (!fecha) return '—';
@@ -149,22 +169,24 @@ export default function Home() {
     return `${d}/${m}/${y}`;
   }
 
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '▦', roles: ['admin', 'diseno', 'comercial', 'administrativo', 'encargado', 'logistica', 'operario'], sep: false },
-    { id: '__stock__', label: 'STOCK', icon: '', roles: ['admin', 'diseno', 'encargado', 'operario', 'logistica', 'comercial'], sep: true },
-    { id: 'ingresos', label: 'Ingresos', icon: '↓', roles: ['admin', 'encargado', 'logistica'], sep: false },
-    { id: 'egresos', label: 'Egresos', icon: '↑', roles: ['admin', 'encargado', 'logistica'], sep: false },
-    { id: 'stockTH', label: 'Stock TH', icon: '◫', roles: ['admin', 'diseno', 'encargado', 'operario', 'logistica', 'comercial'], sep: false },
-    { id: 'stockTC', label: 'Stock TC', icon: '◫', roles: ['admin', 'diseno', 'encargado', 'operario', 'logistica', 'comercial'], sep: false },
-    { id: 'paqMuestras', label: 'Paq. Muestras', icon: '▣', roles: ['admin', 'diseno', 'encargado', 'operario', 'logistica', 'comercial'], sep: false },
-    { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰', roles: ['admin', 'encargado', 'logistica'], sep: false },
-    { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰', roles: ['admin', 'encargado', 'logistica'], sep: false },
-    { id: '__bd__', label: 'BASE DE DATOS', icon: '', roles: ['admin', 'logistica', 'comercial'], sep: true },
-    { id: 'clientes', label: 'Clientes', icon: '♟', roles: ['admin', 'logistica', 'comercial'], sep: false },
-    { id: 'telas', label: 'Telas', icon: '≡', roles: ['admin', 'logistica'], sep: false },
-    { id: 'colores', label: 'Colores', icon: '◉', roles: ['admin', 'logistica'], sep: false },
-    { id: 'empleados', label: 'Empleados', icon: '👤', roles: ['admin', 'logistica'], sep: false },
-  ].filter(n => n.roles.includes(rol.trim()));
+  // Dashboard, Stock TH, Stock TC y Paq. Muestras los ven todos (solo consulta si no tienen permiso)
+  const navTodos = [
+    { id: 'dashboard', label: 'Dashboard', icon: '▦', ver: true, sep: false },
+    { id: '__stock__', label: 'STOCK', icon: '', ver: true, sep: true },
+    { id: 'ingresos', label: 'Ingresos', icon: '↓', ver: pMov, sep: false },
+    { id: 'egresos', label: 'Egresos', icon: '↑', ver: pMov, sep: false },
+    { id: 'stockTH', label: 'Stock TH', icon: '◫', ver: true, sep: false },
+    { id: 'stockTC', label: 'Stock TC', icon: '◫', ver: true, sep: false },
+    { id: 'paqMuestras', label: 'Paq. Muestras', icon: '▣', ver: true, sep: false },
+    { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰', ver: pMov, sep: false },
+    { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰', ver: pMov, sep: false },
+    { id: '__bd__', label: 'BASE DE DATOS', icon: '', ver: pBD || pEmp, sep: true },
+    { id: 'clientes', label: 'Clientes', icon: '♟', ver: pBD, sep: false },
+    { id: 'telas', label: 'Telas', icon: '≡', ver: pBD, sep: false },
+    { id: 'colores', label: 'Colores', icon: '◉', ver: pBD, sep: false },
+    { id: 'empleados', label: 'Empleados', icon: '👤', ver: pEmp, sep: false },
+  ];
+  const navItems = navTodos.filter(n => n.ver);
 
   function calcStock() {
     const stockMap: any = {};
@@ -224,17 +246,17 @@ export default function Home() {
         {!loading && (
           <>
             {pagina === 'dashboard' && <Dashboard ingresos={ingresos} egresos={egresos} clientes={clientes} calcStock={calcStock} formatFecha={formatFecha} />}
-            {pagina === 'ingresos' && puedeVerStock && <Ingresos clientes={clientes} telas={telas} colores={colores} empleados={empleados} ingresos={ingresos} onGuardar={cargarTodo} />}
-            {pagina === 'egresos' && puedeVerStock && <Egresos ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
-            {pagina === 'stockTH' && puedeVerStock && <StockTH calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} />}
-            {pagina === 'stockTC' && puedeVerStock && <StockTC calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} onGuardar={cargarTodo} />}
-            {pagina === 'paqMuestras' && puedeVerStock && <PaqMuestras clientes={clientes} formatFecha={formatFecha} />}
-            {pagina === 'clientes' && puedeVerClientes && <Clientes clientes={clientes} ingresos={ingresos} egresos={egresos} onGuardar={cargarTodo} />}
-            {pagina === 'telas' && esBD && <Telas telas={telas} onGuardar={cargarTodo} />}
-            {pagina === 'colores' && esBD && <Colores colores={colores} onGuardar={cargarTodo} />}
-            {pagina === 'empleados' && esBD && <Empleados empleados={empleados} onGuardar={cargarTodo} />}
-            {pagina === 'historialIngresos' && puedeVerStock && <HistorialIngresos ingresos={ingresos} onGuardar={cargarTodo} clientes={clientes} telas={telas} empleados={empleados} formatFecha={formatFecha} />}
-            {pagina === 'historialEgresos' && puedeVerStock && <HistorialEgresos egresos={egresos} onGuardar={cargarTodo} formatFecha={formatFecha} />}
+            {pagina === 'ingresos' && pMov && <Ingresos clientes={clientes} telas={telas} colores={colores} empleados={empleados} ingresos={ingresos} onGuardar={cargarTodo} />}
+            {pagina === 'egresos' && pMov && <Egresos ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
+            {pagina === 'stockTH' && <StockTH calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} />}
+            {pagina === 'stockTC' && <StockTC calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} onGuardar={cargarTodo} puedeEgresar={pMov} />}
+            {pagina === 'paqMuestras' && <PaqMuestras clientes={clientes} formatFecha={formatFecha} puedeEditar={pMuestras} />}
+            {pagina === 'clientes' && pBD && <Clientes clientes={clientes} ingresos={ingresos} egresos={egresos} onGuardar={cargarTodo} />}
+            {pagina === 'telas' && pBD && <Telas telas={telas} onGuardar={cargarTodo} />}
+            {pagina === 'colores' && pBD && <Colores colores={colores} onGuardar={cargarTodo} />}
+            {pagina === 'empleados' && pEmp && <Empleados empleados={empleados} onGuardar={cargarTodo} />}
+            {pagina === 'historialIngresos' && pMov && <HistorialIngresos ingresos={ingresos} onGuardar={cargarTodo} clientes={clientes} telas={telas} empleados={empleados} formatFecha={formatFecha} />}
+            {pagina === 'historialEgresos' && pMov && <HistorialEgresos egresos={egresos} onGuardar={cargarTodo} formatFecha={formatFecha} />}
           </>
         )}
       </div>
@@ -380,7 +402,7 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
 // ===================== PAQ. MUESTRAS =====================
 // Registro de paquetes de muestras (telas varias) que manda cada cliente. Se cuentan por unidad
 // (1 paquete, 2 paquetes...). "Egresar" descuenta paquetes cuando se usan o se devuelven.
-function PaqMuestras({ clientes, formatFecha }: any) {
+function PaqMuestras({ clientes, formatFecha, puedeEditar }: any) {
   const hoy = () => new Date().toISOString().split('T')[0];
   const [lista, setLista] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -451,7 +473,7 @@ function PaqMuestras({ clientes, formatFecha }: any) {
         <div style={{ fontSize: 18, fontWeight: 500 }}>Paq. Muestras</div>
         <div style={{ fontSize: 13, color: '#888' }}>Paquetes de muestras de clientes (telas varias) · se cuentan por unidad · {totalDisp} paquetes disponibles</div>
       </div>
-      <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee', marginBottom: 16 }}>
+      {puedeEditar && <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee', marginBottom: 16 }}>
         <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>Registrar ingreso de paquete</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10, alignItems: 'end' }}>
           <div><label style={lbl}>Fecha</label><input type="date" value={fecha} onChange={e => setFecha(e.target.value)} style={inp} /></div>
@@ -475,7 +497,7 @@ function PaqMuestras({ clientes, formatFecha }: any) {
           <div><label style={lbl}>Observaciones</label><input value={obs} onChange={e => setObs(e.target.value)} style={inp} /></div>
           <div><button onClick={registrar} disabled={guardando} style={{ ...btn, width: '100%', background: '#e85d2f', color: '#fff', border: 'none', fontWeight: 600 }}>{guardando ? 'Guardando...' : 'Registrar'}</button></div>
         </div>
-      </div>
+      </div>}
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
         <input placeholder="Buscar por cliente, paquete, remito, ubicación..." value={buscar} onChange={e => setBuscar(e.target.value)} style={{ ...inp, maxWidth: 360 }} />
         <label style={{ fontSize: 13, color: '#555', display: 'flex', alignItems: 'center', gap: 6 }}><input type="checkbox" checked={soloDisp} onChange={e => setSoloDisp(e.target.checked)} /> Solo con paquetes disponibles</label>
@@ -497,14 +519,16 @@ function PaqMuestras({ clientes, formatFecha }: any) {
                   <td style={{ ...td, textAlign: 'center', fontWeight: 700, color: disp > 0 ? '#3B6D11' : '#999' }}>{disp}{p.fecha_egreso && p.egresados > 0 && <div style={{ fontSize: 10, color: '#888', fontWeight: 400 }}>egr. {formatFecha(p.fecha_egreso)}</div>}</td>
                   <td style={td}>{p.remito || '—'}</td>
                   <td style={td}>
-                    <select value={p.ubicacion || 'CARRO'} onChange={e => cambiarUbicacion(p, e.target.value)} style={{ ...inp, fontSize: 12, padding: '3px 6px' }}>
-                      {[...new Set([p.ubicacion || 'CARRO', ...ubicaciones])].map(u => <option key={u} value={u}>{u}</option>)}
-                    </select>
+                    {puedeEditar ? (
+                      <select value={p.ubicacion || 'CARRO'} onChange={e => cambiarUbicacion(p, e.target.value)} style={{ ...inp, fontSize: 12, padding: '3px 6px' }}>
+                        {[...new Set([p.ubicacion || 'CARRO', ...ubicaciones])].map(u => <option key={u} value={u}>{u}</option>)}
+                      </select>
+                    ) : (p.ubicacion || 'CARRO')}
                   </td>
                   <td style={td}>{p.observaciones || '—'}</td>
                   <td style={{ ...td, whiteSpace: 'nowrap' }}>
-                    {disp > 0 && <button onClick={() => egresar(p)} style={{ ...btn, fontSize: 12, padding: '4px 10px', background: '#e85d2f', color: '#fff', border: 'none', fontWeight: 600, marginRight: 6 }}>Egresar</button>}
-                    <button onClick={() => eliminar(p)} style={{ ...btn, fontSize: 12, padding: '4px 10px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>Eliminar</button>
+                    {puedeEditar && disp > 0 && <button onClick={() => egresar(p)} style={{ ...btn, fontSize: 12, padding: '4px 10px', background: '#e85d2f', color: '#fff', border: 'none', fontWeight: 600, marginRight: 6 }}>Egresar</button>}
+                    {puedeEditar && <button onClick={() => eliminar(p)} style={{ ...btn, fontSize: 12, padding: '4px 10px', background: '#fee', color: '#c00', border: '1px solid #fcc' }}>Eliminar</button>}
                   </td>
                 </tr>
               );
@@ -531,13 +555,16 @@ function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, 
     // En Stock TH consolidado el ID puede ser "ID1 + ID2": se busca en todos sus ingresos
     const ids = String(id).split(' + ');
     const enIngresos = ingresos.some((i: any) => ids.includes(i.id_hype) &&
-      (coincide(i.remito, q) || coincide(i.observaciones, q) || coincide(i.color, q)));
+      (coincide(i.remito, q) || coincide(i.observaciones, q) || coincide(i.color, q) || coincide(i.ubicacion, q) ||
+       coincide(i.fecha, q) || coincide(formatFecha(i.fecha), q)));
     return coincide(id, q) ||
       coincide(s.cliente, q) ||
       coincide(s.tela, q) ||
       coincide(s.color, q) ||
       coincide(s.observaciones, q) ||
       coincide(s.remito, q) ||
+      coincide(s.ubicacion, q) ||
+      coincide(s.fecha, q) || coincide(formatFecha(s.fecha), q) ||
       enIngresos;
   });
   const totalMts = filtered.reduce((s: number, [, v]: any) => s + v.ing - v.egr, 0);
@@ -548,7 +575,7 @@ function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, 
         <div style={{ fontSize: 13, color: '#888' }}>{filtered.length} IDs · {totalMts.toLocaleString()} mts disponibles{mostrarPedidos && <> · <span style={{ color: '#c00' }}>-{(Math.round(filtered.reduce((t: number, [, v]: any) => t + Math.max(0, Number(v.ped || 0) - (v.ing - v.egr)), 0) * 100) / 100).toLocaleString()} mts faltantes (pedidos sin fecha fin)</span></>}</div>
       </div>
       <div style={{ background: '#fff', borderRadius: 12, padding: 12, border: '1px solid #eee', marginBottom: 16 }}>
-        <input placeholder="Buscar por cliente, tela, color, observaciones, ID o remito..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, maxWidth: 400 }} />
+        <input placeholder="Buscar por cliente, tela, color, observaciones, ID, remito, fecha (dd/mm/aaaa) o ubicación..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, maxWidth: 400 }} />
       </div>
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
@@ -644,7 +671,7 @@ function StockTH({ calcStock, ingresos, formatFecha }: any) {
   return <StockTabla entries={entries} titulo="Stock TH — Tela propia HYPE (consolidado por tela)" ingresos={ingresos} formatFecha={formatFecha} resaltarNegativo mostrarPedidos />;
 }
 
-function StockTC({ calcStock, ingresos, formatFecha, onGuardar }: any) {
+function StockTC({ calcStock, ingresos, formatFecha, onGuardar, puedeEgresar }: any) {
   const stock = calcStock();
   // Botón "Egresar" de cada fila: crea el egreso en el acto (queda en Historial de egresos)
   async function egresar(id: string, s: any, disp: number) {
@@ -702,7 +729,7 @@ function StockTC({ calcStock, ingresos, formatFecha, onGuardar }: any) {
       if ((s.ing - s.egr) !== 0) entries.push([id, s]);
     });
   });
-  return <StockTabla entries={entries} titulo="Stock TC — Tela de clientes" ingresos={ingresos} formatFecha={formatFecha} mostrarFechaRemito onEgresar={egresar} />;
+  return <StockTabla entries={entries} titulo="Stock TC — Tela de clientes" ingresos={ingresos} formatFecha={formatFecha} mostrarFechaRemito onEgresar={puedeEgresar ? egresar : undefined} />;
 }
 
 function Egresos({ ingresos, egresos, clientes, telas, colores, empleados, onGuardar }: any) {
