@@ -434,7 +434,7 @@ function PaqMuestras({ clientes, formatFecha, puedeEditar }: any) {
   const [guardando, setGuardando] = useState(false);
   const [buscar, setBuscar] = useState('');
   const [soloDisp, setSoloDisp] = useState(true);
-  const ubicaciones = ['CARRO', '1-A','1-B','1-C','1-D','2-A','2-B','2-C','3-A','3-B','3-C','3-D','4-A','4-B','4-C','5-A','5-B','6-A','6-B','ISLA','PARED'];
+  const ubicaciones = ['CARRO', '1-A','1-B','1-C','1-D','2-A','2-B','2-C','3-A','3-B','3-C','3-D','4-A','4-B','4-C','5-A','5-B','6-A','6-B','ISLA','PARED','ENVIADO A SUBLI'];
 
   async function cargar() {
     setCargando(true);
