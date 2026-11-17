@@ -557,7 +557,7 @@ function PaqMuestras({ clientes, formatFecha, puedeEditar }: any) {
 }
 
 function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, mostrarFechaRemito, mostrarPedidos, onEgresar, soloTelaColor }: any) {
-  // soloTelaColor: en Stock TH se ve solo tela y color (sin cliente ni observaciones/proveedor)
+  // soloTelaColor: en Stock TH no se muestra la columna Cliente (siempre es HYPE)
   const [search, setSearch] = useState('');
   // Búsqueda sin importar mayúsculas, tildes ni espacios ("off white" = "OFFWHITE")
   const normTxt = (x: any) => (x ?? '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -598,12 +598,12 @@ function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, 
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr>{[...(mostrarFechaRemito ? ['Fecha', 'Remito'] : []),'ID',...(soloTelaColor ? [] : ['Cliente']),'Tela','Color',...(soloTelaColor ? [] : ['Observaciones']),'Bultos',...(mostrarPedidos ? ['Mts ped.'] : []),'Mts disp.','Ubicación','Ramado','Proceso',...(onEgresar ? [''] : [])].map(h =>
+              <tr>{[...(mostrarFechaRemito ? ['Fecha', 'Remito'] : []),'ID',...(soloTelaColor ? [] : ['Cliente']),'Tela','Color','Observaciones','Bultos',...(mostrarPedidos ? ['Mts ped.'] : []),'Mts disp.','Ubicación','Ramado','Proceso',...(onEgresar ? [''] : [])].map(h =>
                 <th key={h} style={h === 'Remito' ? { ...th, width: 64, maxWidth: 64, minWidth: 64, padding: '9px 4px', whiteSpace: 'normal', fontSize: 10 } : { ...th, whiteSpace: 'nowrap' }}>{h}</th>
               )}</tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && <tr><td colSpan={(mostrarFechaRemito ? 12 : 10) - (soloTelaColor ? 2 : 0) + (mostrarPedidos ? 1 : 0) + (onEgresar ? 1 : 0)} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin stock registrado</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={(mostrarFechaRemito ? 12 : 10) - (soloTelaColor ? 1 : 0) + (mostrarPedidos ? 1 : 0) + (onEgresar ? 1 : 0)} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Sin stock registrado</td></tr>}
               {filtered.map(([id, s]: any) => {
                 const disp = s.ing - s.egr;
                 const esNegativo = resaltarNegativo && disp < 0;
@@ -615,7 +615,7 @@ function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, 
                     {!soloTelaColor && <td style={{ ...td, whiteSpace: 'nowrap' }}>{s.cliente}</td>}
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>{s.tela}</td>
                     <td style={td}>{s.color || '—'}</td>
-                    {!soloTelaColor && <td style={{ ...td, whiteSpace: 'normal', minWidth: 150 }}>{s.observaciones || '—'}</td>}
+                    <td style={{ ...td, whiteSpace: 'normal', minWidth: 150 }}>{s.observaciones || '—'}</td>
                     <td style={{ ...td, textAlign: 'center' }}>{s.bultos}</td>
                     {mostrarPedidos && (
                       <td style={{ ...td, textAlign: 'center', whiteSpace: 'nowrap' }}>
