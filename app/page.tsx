@@ -67,8 +67,10 @@ const PERMISOS: Record<string, string[]> = {
   movimientos: ['ventas@hypearg.com', 'jefeproduccion@hypearg.com', 'logistica@hypearg.com'],
   // Cargar / egresar / mover / eliminar paquetes de muestras
   muestras: ['ventas@hypearg.com', 'contacto@hypearg.com', 'contacto2@hypearg.com', 'contacto03@hypearg.com', 'jefeproduccion@hypearg.com'],
-  // Clientes, Telas y Colores (ver y editar)
+  // Telas y Colores (ver y editar)
   baseDatos: ['jefeproduccion@hypearg.com', 'ventas@hypearg.com', 'contacto@hypearg.com', 'administracion@hypearg.com', 'administracion2@hypearg.com', 'matias@hypearg.com'],
+  // Clientes (ver y editar): los de Base de Datos + los comerciales
+  clientes: ['jefeproduccion@hypearg.com', 'ventas@hypearg.com', 'contacto@hypearg.com', 'contacto2@hypearg.com', 'contacto03@hypearg.com', 'administracion@hypearg.com', 'administracion2@hypearg.com', 'matias@hypearg.com'],
   // Empleados (ver y editar)
   empleados: ['ventas@hypearg.com', 'matias@hypearg.com'],
   // Usuarios de la app: crear, cambiar contraseñas, dar de baja
@@ -163,6 +165,7 @@ export default function Home() {
   const pMuestras = puede(emailUsuario, 'muestras');
   const pBD = puede(emailUsuario, 'baseDatos');
   const pEmp = puede(emailUsuario, 'empleados');
+  const pCli = puede(emailUsuario, 'clientes');
   const pUsu = puede(emailUsuario, 'usuarios');
 
   function formatFecha(fecha: string) {
@@ -183,8 +186,8 @@ export default function Home() {
     { id: 'paqMuestras', label: 'Paq. Muestras', icon: '▣', ver: true, sep: false },
     { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰', ver: pMov, sep: false },
     { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰', ver: pMov, sep: false },
-    { id: '__bd__', label: 'BASE DE DATOS', icon: '', ver: pBD || pEmp || pUsu, sep: true },
-    { id: 'clientes', label: 'Clientes', icon: '♟', ver: pBD, sep: false },
+    { id: '__bd__', label: 'BASE DE DATOS', icon: '', ver: pBD || pCli || pEmp || pUsu, sep: true },
+    { id: 'clientes', label: 'Clientes', icon: '♟', ver: pCli, sep: false },
     { id: 'telas', label: 'Telas', icon: '≡', ver: pBD, sep: false },
     { id: 'colores', label: 'Colores', icon: '◉', ver: pBD, sep: false },
     { id: 'empleados', label: 'Empleados', icon: '👤', ver: pEmp, sep: false },
@@ -255,7 +258,7 @@ export default function Home() {
             {pagina === 'stockTH' && <StockTH calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} />}
             {pagina === 'stockTC' && <StockTC calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} onGuardar={cargarTodo} puedeEgresar={pMov} />}
             {pagina === 'paqMuestras' && <PaqMuestras clientes={clientes} formatFecha={formatFecha} puedeEditar={pMuestras} />}
-            {pagina === 'clientes' && pBD && <Clientes clientes={clientes} ingresos={ingresos} egresos={egresos} onGuardar={cargarTodo} />}
+            {pagina === 'clientes' && pCli && <Clientes clientes={clientes} ingresos={ingresos} egresos={egresos} onGuardar={cargarTodo} />}
             {pagina === 'telas' && pBD && <Telas telas={telas} onGuardar={cargarTodo} />}
             {pagina === 'colores' && pBD && <Colores colores={colores} onGuardar={cargarTodo} />}
             {pagina === 'empleados' && pEmp && <Empleados empleados={empleados} onGuardar={cargarTodo} />}
