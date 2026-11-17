@@ -99,6 +99,7 @@ export default function Home() {
   const [rol, setRol] = useState('');
   const [nombreUsuario, setNombreUsuario] = useState('');
   const [emailUsuario, setEmailUsuario] = useState('');
+  const [menuAbierto, setMenuAbierto] = useState(false);   // menú ☰ en el celular
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -220,7 +221,14 @@ export default function Home() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'Arial, sans-serif' }}>
-      <div style={{ width: 200, background: '#1a1a2e', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, height: '100vh', overflowY: 'auto' }}>
+      {/* Barra de arriba con el botón ☰ (solo se ve en el celular) */}
+      <div className="hs-topbar">
+        <button onClick={() => setMenuAbierto(true)} aria-label="Abrir menú" style={{ background: 'none', border: 'none', color: '#fff', fontSize: 24, lineHeight: 1, padding: '2px 6px', cursor: 'pointer' }}>☰</button>
+        <img src="/logo.png" alt="HYPE printlab" style={{ height: 26, display: 'block' }} />
+        <div style={{ marginLeft: 'auto', fontSize: 12, color: 'rgba(255,255,255,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{navItems.find(n => n.id === pagina)?.label || ''}</div>
+      </div>
+      <div className={'hs-overlay' + (menuAbierto ? ' abierto' : '')} onClick={() => setMenuAbierto(false)} />
+      <div className={'hs-sidebar' + (menuAbierto ? ' abierto' : '')} style={{ width: 200, background: '#1a1a2e', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, height: '100vh', overflowY: 'auto' }}>
         <div style={{ padding: '18px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
           <img src="/logo.png" alt="HYPE printlab" style={{ width: '100%', maxWidth: 160, display: 'block' }} />
           <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: 3, marginTop: 6 }}>STOCK & PRODUCCIÓN</div>
@@ -233,7 +241,7 @@ export default function Home() {
           n.sep ? (
             <div key={n.id} style={{ padding: '12px 16px 4px', fontSize: 9, color: 'rgba(255,255,255,0.3)', letterSpacing: 2, textTransform: 'uppercase', marginTop: 8, borderTop: '1px solid rgba(255,255,255,0.05)' }}>{n.label}</div>
           ) : (
-            <div key={n.id} onClick={() => setPagina(n.id)} style={{
+            <div key={n.id} onClick={() => { setPagina(n.id); setMenuAbierto(false); }} style={{
               padding: '10px 16px', cursor: 'pointer', color: pagina === n.id ? '#fff' : 'rgba(255,255,255,0.55)',
               background: pagina === n.id ? 'rgba(255,255,255,0.1)' : 'transparent',
               borderLeft: pagina === n.id ? '2px solid #e85d2f' : '2px solid transparent',
@@ -248,7 +256,7 @@ export default function Home() {
         </div>
       </div>
 
-      <div style={{ marginLeft: 200, padding: 24, flex: 1, background: '#f5f5f7', minHeight: '100vh' }}>
+      <div className="hs-main" style={{ marginLeft: 200, padding: 24, flex: 1, background: '#f5f5f7', minHeight: '100vh' }}>
         {loading && <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>Cargando...</div>}
         {!loading && (
           <>
