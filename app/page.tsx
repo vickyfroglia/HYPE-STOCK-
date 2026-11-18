@@ -221,6 +221,8 @@ export default function Home() {
         stockMap[e.id_hype].bultos -= Number(e.bultos || 0);
       }
     });
+    // Redondeo a 2 decimales: evita saldos "fantasma" como -0,00000001 por sumas con decimales
+    Object.values(stockMap).forEach((s: any) => { s.ing = Math.round(s.ing * 100) / 100; s.egr = Math.round(s.egr * 100) / 100; });
     return stockMap;
   }
 
