@@ -746,11 +746,12 @@ function StockTC({ calcStock, ingresos, formatFecha, onGuardar, puedeEgresar }: 
       const ultimo = k === subs.length - 1;
       const tomaM = ultimo ? restoM : Math.min(restoM, s.ing);
       const tomaB = ultimo ? restoB : Math.min(restoB, s.bultosIng);
-      restoM -= tomaM; restoB -= tomaB;
-      s.egr = tomaM;
+      restoM = Math.round((restoM - tomaM) * 100) / 100; restoB -= tomaB;
+      s.ing = Math.round(s.ing * 100) / 100;
+      s.egr = Math.round(tomaM * 100) / 100;
       s.bultos = s.bultosIng - tomaB;
       s.remitos = s.remito ? [s.remito] : [];
-      if ((s.ing - s.egr) !== 0) entries.push([id, s]);
+      if (Math.abs(s.ing - s.egr) >= 0.005) entries.push([id, s]);   // saldo 0 (o -0 por redondeo): no se muestra
     });
   });
   return <StockTabla entries={entries} titulo="Stock TC — Tela de clientes" ingresos={ingresos} formatFecha={formatFecha} mostrarFechaRemito onEgresar={puedeEgresar ? egresar : undefined} />;
