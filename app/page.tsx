@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { createClient } from '@supabase/supabase-js';
 import Login from './login';
@@ -100,6 +100,9 @@ export default function Home() {
   const [nombreUsuario, setNombreUsuario] = useState('');
   const [emailUsuario, setEmailUsuario] = useState('');
   const [menuAbierto, setMenuAbierto] = useState(false);   // menú ☰ en el celular
+  // Después de la primera carga, al guardar algo (ingreso, egreso, etc.) los datos se actualizan
+  // por detrás sin mostrar "Cargando...": así la pantalla sigue en el mismo lugar.
+  const yaCargo = useRef(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -121,7 +124,7 @@ export default function Home() {
   }, []);
 
   async function cargarTodo() {
-    setLoading(true);
+    if (!yaCargo.current) setLoading(true);
     const [cls, tls, cols, ings, egs, emps, pedidos, muestras] = await Promise.all([
       fetchAll('clientes', 'id'),
       fetchAll('telas', 'id'),
@@ -141,10 +144,12 @@ export default function Home() {
     setPedidosProduccion(pedidos);
     setMuestrasProduccion(muestras);
     setLoading(false);
+    yaCargo.current = true;
   }
 
   async function cerrarSesion() {
     await supabase.auth.signOut();
+    yaCargo.current = false;
     setLogueado(false); setRol(''); setNombreUsuario(''); setEmailUsuario(''); setPagina('dashboard');
   }
 
