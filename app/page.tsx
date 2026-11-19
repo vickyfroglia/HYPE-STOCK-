@@ -189,6 +189,7 @@ export default function Home() {
     { id: 'egresos', label: 'Egresos', icon: '↑', ver: pMov, sep: false },
     { id: 'stockTH', label: 'Stock TH', icon: '◫', ver: true, sep: false },
     { id: 'stockTC', label: 'Stock TC', icon: '◫', ver: true, sep: false },
+    { id: 'stockTienda', label: 'Stock Tienda', icon: '◫', ver: true, sep: false },
     { id: 'paqMuestras', label: 'Paq. Muestras', icon: '▣', ver: true, sep: false },
     { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰', ver: pMov, sep: false },
     { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰', ver: pMov, sep: false },
@@ -271,6 +272,7 @@ export default function Home() {
             {pagina === 'ingresos' && pMov && <Ingresos clientes={clientes} telas={telas} colores={colores} empleados={empleados} ingresos={ingresos} onGuardar={cargarTodo} />}
             {pagina === 'egresos' && pMov && <Egresos ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
             {pagina === 'stockTH' && <StockTH calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} onGuardar={cargarTodo} puedeEgresar={pMov} />}
+            {pagina === 'stockTienda' && <StockTH prefijo="TT" calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} onGuardar={cargarTodo} puedeEgresar={pMov} />}
             {pagina === 'stockTC' && <StockTC calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} onGuardar={cargarTodo} puedeEgresar={pMov} />}
             {pagina === 'paqMuestras' && <PaqMuestras clientes={clientes} formatFecha={formatFecha} puedeEditar={pMuestras} />}
             {pagina === 'clientes' && pCli && <Clientes clientes={clientes} ingresos={ingresos} egresos={egresos} onGuardar={cargarTodo} />}
@@ -291,6 +293,7 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
   const stock = calcStock();
   const totalTC = Object.entries(stock).filter(([id]: any) => id.startsWith('TC')).reduce((s: number, [, v]: any) => s + v.ing - v.egr, 0);
   const totalTH = Object.entries(stock).filter(([id]: any) => id.startsWith('TH')).reduce((s: number, [, v]: any) => s + v.ing - v.egr, 0);
+  const totalTienda = Object.entries(stock).filter(([id]: any) => id.startsWith('TT')).reduce((s: number, [, v]: any) => s + v.ing - v.egr, 0);
   const pendientes = egresos.filter((e: any) => e.estado === 'En almacén').length;
   // Telas de clientes pedidas en la planilla (sin fecha fin) que todavía no están en Stock TC
   const [tcSinStock, setTcSinStock] = useState<any[]>([]);
@@ -337,11 +340,12 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
         <div style={{ fontSize: 16, fontWeight: 500 }}>Dashboard</div>
         <div style={{ fontSize: 13, color: '#888' }}>Resumen general</div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10, marginBottom: 12 }}>
         {[
           { label: 'Clientes', value: clientes.length, sub: 'registrados' },
           { label: 'Stock TC', value: totalTC.toLocaleString(), sub: 'metros disponibles' },
           { label: 'Stock TH', value: totalTH.toLocaleString(), sub: 'metros disponibles' },
+          { label: 'Stock Tienda', value: (Math.round(totalTienda * 100) / 100).toLocaleString(), sub: 'metros disponibles' },
           { label: 'Pendientes entrega', value: pendientes, sub: 'egresos en depósito' },
         ].map((m, i) => (
           <div key={i} style={{ background: '#fff', borderRadius: 10, padding: '8px 12px', border: '1px solid #eee' }}>
@@ -659,8 +663,11 @@ function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, 
   );
 }
 
-function StockTH({ calcStock, ingresos, formatFecha, onGuardar, puedeEgresar }: any) {
+// prefijo 'TH' = Stock TH (tela HYPE) · prefijo 'TT' = Stock Tienda (mismas telas,
+// unidad de negocio aparte con su propio stock)
+function StockTH({ calcStock, ingresos, formatFecha, onGuardar, puedeEgresar, prefijo = 'TH' }: any) {
   const stock = calcStock();
+  const esTienda = prefijo === 'TT';
   // Botón "Egresar" (igual que en Stock TC). La fila junta varios IDs de la
   // misma tela + color: los metros se descuentan del ID más antiguo primero.
   async function egresar(idFila: string, s: any, disp: number) {
@@ -685,7 +692,7 @@ function StockTH({ calcStock, ingresos, formatFecha, onGuardar, puedeEgresar }: 
       filas.push({
         fecha: new Date().toISOString().split('T')[0], cliente: stock[id]?.cliente || s.cliente || 'HYPE', tela: s.tela, color: s.color,
         id_hype: id, mts: Math.round(toma * 100) / 100, bultos: 0, remito_origen: null, remito_entrega: remitoEntrega.trim() || null,
-        observaciones: 'EGRESO DESDE STOCK TH', estado: 'En almacén',
+        observaciones: esTienda ? 'EGRESO DESDE STOCK TIENDA' : 'EGRESO DESDE STOCK TH', estado: 'En almacén',
       });
     });
     const { error } = await supabase.from('egresos').insert(filas);
@@ -697,8 +704,9 @@ function StockTH({ calcStock, ingresos, formatFecha, onGuardar, puedeEgresar }: 
   // que manda la planilla cada 5 minutos a la tabla pedidos_th.
   const [pedidos, setPedidos] = useState<any[]>([]);
   useEffect(() => {
+    if (esTienda) return;   // Stock Tienda no tiene pedidos de la planilla
     supabase.from('pedidos_th').select('clave, id_hype, mts_pedidos').then(({ data }) => setPedidos(data || []));
-  }, []);
+  }, [esTienda]);
   const claveTH = (tela: any, color: any) => {
     const n = (x: any) => (x ?? '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     return 'TH:' + n(tela) + ':' + n(color);
@@ -707,7 +715,7 @@ function StockTH({ calcStock, ingresos, formatFecha, onGuardar, puedeEgresar }: 
   // remitos de esa misma tela HYPE (ej: todo el LINO OFF WHITE junto).
   const norm = (x: any) => (x || '').toString().toUpperCase().replace(/\s+/g, '');
   const grupos: Record<string, any> = {};
-  Object.entries(stock).filter(([id]: any) => id.startsWith('TH')).forEach(([id, s]: any) => {
+  Object.entries(stock).filter(([id]: any) => id.startsWith(prefijo)).forEach(([id, s]: any) => {
     const k = norm(s.tela) + '|' + norm(s.color);
     if (!grupos[k]) grupos[k] = { ...s, ing: 0, egr: 0, bultos: 0, ids: [] as string[], remitos: [] as string[] };
     const g = grupos[k];
@@ -724,7 +732,83 @@ function StockTH({ calcStock, ingresos, formatFecha, onGuardar, puedeEgresar }: 
   const entries = Object.values(grupos)
     .map((g: any) => [g.ids.join(' + '), g])
     .sort((a: any, b: any) => String(a[1].tela).localeCompare(String(b[1].tela)));
-  return <StockTabla entries={entries} titulo="Stock TH — Tela propia HYPE (consolidado por tela)" ingresos={ingresos} formatFecha={formatFecha} resaltarNegativo mostrarPedidos soloTelaColor onEgresar={puedeEgresar ? egresar : undefined} />;
+  const tabla = <StockTabla entries={entries} titulo={esTienda ? 'Stock Tienda — Telas de la tienda (consolidado por tela)' : 'Stock TH — Tela propia HYPE (consolidado por tela)'} ingresos={ingresos} formatFecha={formatFecha} resaltarNegativo mostrarPedidos={!esTienda} soloTelaColor onEgresar={puedeEgresar ? egresar : undefined} />;
+  if (!esTienda) return tabla;
+  return (
+    <div>
+      {puedeEgresar && <IngresoTienda ingresos={ingresos} onGuardar={onGuardar} />}
+      {tabla}
+    </div>
+  );
+}
+
+// Ingreso directo en Stock Tienda: se elige una tela HYPE (mismo catálogo que
+// Stock TH) y se carga con el código TT, que es un stock aparte.
+function IngresoTienda({ ingresos, onGuardar }: any) {
+  const hoy = new Date().toISOString().split('T')[0];
+  const [abierto, setAbierto] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [f, setF] = useState({ fecha: hoy, idTT: '', mts: '', bultos: '', remito: '', ubicacion: '', obs: '' });
+  const catalogo = (() => {
+    const m = new Map<string, any>();
+    (ingresos || []).forEach((i: any) => {
+      const id = (i.id_hype || '').toString().trim().replace(/-\d+$/, '');
+      const pre = id.slice(0, 2).toUpperCase();
+      if (pre !== 'TH' && pre !== 'TT') return;
+      const idTT = 'TT' + id.slice(2);
+      if (m.has(idTT)) return;
+      m.set(idTT, { idTT, proceso: i.proceso || id.charAt(2), tela: i.tela || '', codTela: i.cod_tela || '', color: i.color || '', siglaColor: i.sigla_color || '', codCliente: i.cod_cliente || '', cliente: i.cliente || 'HYPE' });
+    });
+    return Array.from(m.values()).sort((a: any, b: any) => String(a.tela).localeCompare(String(b.tela)) || String(a.color).localeCompare(String(b.color)));
+  })();
+  async function guardar() {
+    const c = catalogo.find((x: any) => x.idTT === f.idTT);
+    const mts = parseFloat(String(f.mts).replace(',', '.'));
+    if (!c) { alert('Elegí la tela.'); return; }
+    if (!(mts > 0)) { alert('Completá los metros.'); return; }
+    if (!f.fecha) { alert('Completá la fecha.'); return; }
+    setGuardando(true);
+    const { error } = await supabase.from('ingresos').insert([{
+      fecha: f.fecha, remito: f.remito.trim() || 'TIENDA', cliente: c.cliente || 'HYPE', cod_cliente: c.codCliente,
+      prop: 'TT', proceso: c.proceso, tela: c.tela, cod_tela: c.codTela, color: c.color, sigla_color: c.siglaColor,
+      observaciones: f.obs.trim(), bultos: parseInt(f.bultos) || 0, mts, ramado: 'No', ubicacion: f.ubicacion.trim(),
+      id_hype: c.idTT, estado: 'En almacén',
+    }]);
+    setGuardando(false);
+    if (error) { alert('Error al guardar: ' + error.message); return; }
+    alert('✅ Ingreso guardado en Stock Tienda.');
+    setF({ fecha: hoy, idTT: '', mts: '', bultos: '', remito: '', ubicacion: '', obs: '' });
+    setAbierto(false);
+    if (onGuardar) onGuardar();
+  }
+  if (!abierto) return (
+    <div style={{ marginBottom: 14 }}>
+      <button onClick={() => setAbierto(true)} style={{ ...btn, background: '#e85d2f', color: '#fff', border: 'none', fontWeight: 600 }}>+ Ingresar a Stock Tienda</button>
+    </div>
+  );
+  return (
+    <div style={{ background: '#fff', border: '1px solid #eee', borderRadius: 10, padding: 16, marginBottom: 16 }}>
+      <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 12 }}>Ingresar a Stock Tienda</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 12 }}>
+        <div><label style={lbl}>Fecha</label><input type="date" value={f.fecha} onChange={e => setF({ ...f, fecha: e.target.value })} style={inp} /></div>
+        <div style={{ gridColumn: 'span 2' }}><label style={lbl}>Tela</label>
+          <select value={f.idTT} onChange={e => setF({ ...f, idTT: e.target.value })} style={inp}>
+            <option value="">Seleccionar tela...</option>
+            {catalogo.map((c: any) => <option key={c.idTT} value={c.idTT}>{c.tela} · {c.color || 'SIN COLOR'}</option>)}
+          </select>
+        </div>
+        <div><label style={lbl}>Metros</label><input type="number" value={f.mts} onChange={e => setF({ ...f, mts: e.target.value })} placeholder="0" style={inp} /></div>
+        <div><label style={lbl}>Bultos</label><input type="number" value={f.bultos} onChange={e => setF({ ...f, bultos: e.target.value })} placeholder="0" style={inp} /></div>
+        <div><label style={lbl}>Nro. remito (opcional)</label><input value={f.remito} onChange={e => setF({ ...f, remito: e.target.value })} style={inp} /></div>
+        <div><label style={lbl}>Ubicación</label><input value={f.ubicacion} onChange={e => setF({ ...f, ubicacion: e.target.value })} style={inp} /></div>
+        <div style={{ gridColumn: 'span 2' }}><label style={lbl}>Observaciones</label><input value={f.obs} onChange={e => setF({ ...f, obs: e.target.value })} style={inp} /></div>
+      </div>
+      <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
+        <button onClick={guardar} disabled={guardando} style={{ ...btn, background: '#e85d2f', color: '#fff', border: 'none', fontWeight: 600 }}>{guardando ? 'Guardando...' : 'Guardar ingreso'}</button>
+        <button onClick={() => setAbierto(false)} style={btn}>Cancelar</button>
+      </div>
+    </div>
+  );
 }
 
 function StockTC({ calcStock, ingresos, formatFecha, onGuardar, puedeEgresar }: any) {
@@ -1181,6 +1265,12 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
       const esHype = cliente.trim().toUpperCase() === 'HYPE';
       const historial = esHype ? buscarStockTH(t.nombre) : null;
       if (historial) {
+        if (nr.prop === 'TT') {
+          nr.proceso = historial.proceso || nr.proceso;
+          nr.color = historial.color || ''; nr.busqColor = historial.color || ''; nr.siglaColor = historial.siglaColor || '';
+          nr.id_hype = 'TT' + String(historial.id_hype).slice(2);
+          return nr;
+        }
         nr.prop = historial.prop || nr.prop;
         nr.proceso = historial.proceso || nr.proceso;
         nr.color = historial.color || '';
@@ -1206,9 +1296,24 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
     return Array.from(m.values()).sort((a: any, b: any) => String(a.tela).localeCompare(String(b.tela)) || String(a.color).localeCompare(String(b.color)));
   })();
 
-  function selCodigoTH(idx: number, c: any) {
+  // Stock Tienda (TT): las mismas telas HYPE, con el mismo código pero empezando con TT
+  function codigosPara(prop: string) {
+    if (prop !== 'TT') return codigosTH;
+    const m = new Map<string, any>();
+    (ingresos || []).forEach((i: any) => {
+      const id = (i.id_hype || '').toString().trim().replace(/-\d+$/, '');
+      const pre = id.slice(0, 2).toUpperCase();
+      if (pre !== 'TH' && pre !== 'TT') return;
+      const idTT = 'TT' + id.slice(2);
+      if (m.has(idTT)) return;
+      m.set(idTT, { id: idTT, proceso: i.proceso || id.charAt(2), tela: i.tela || '', codTela: i.cod_tela || '', color: i.color || '', siglaColor: i.sigla_color || '' });
+    });
+    return Array.from(m.values()).sort((a: any, b: any) => String(a.tela).localeCompare(String(b.tela)) || String(a.color).localeCompare(String(b.color)));
+  }
+
+  function selCodigoTH(idx: number, c: any, prop: string = 'TH') {
     setRenglones(prev => prev.map((r, i) => i !== idx ? r : {
-      ...r, prop: 'TH', proceso: c.proceso || r.proceso, tela: c.tela, codTela: c.codTela, busqTela: c.tela,
+      ...r, prop, proceso: c.proceso || r.proceso, tela: c.tela, codTela: c.codTela, busqTela: c.tela,
       color: c.color, busqColor: c.color, siglaColor: c.siglaColor, id_hype: c.id, thFijo: true, thManual: false,
       showTela: false, showColor: false,
     }));
@@ -1247,7 +1352,7 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
       const base = baseId(r.id_hype);
       // Telas HYPE (TH): siempre el mismo ID, sin sufijo -2, -3...,
       // para que Stock TH quede consolidado por tela + color.
-      if (base.toUpperCase().startsWith('TH')) return { ...r, id_hype: base };
+      if (base.toUpperCase().startsWith('TH') || base.toUpperCase().startsWith('TT')) return { ...r, id_hype: base };
       const obs = normObs(r.obs);
       const rem = normRem(remito);
       const mismos = conocidos.filter(c => baseId(c.id) === base);
@@ -1318,7 +1423,7 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 12 }}>
               <div><label style={lbl}>Prop.</label>
                 <select value={r.prop} onChange={e => updateRenglon(idx, 'prop', e.target.value)} style={inp}>
-                  <option value="">Seleccionar</option><option value="TC">TC - Tela cliente</option><option value="TH">TH - Tela propia</option>
+                  <option value="">Seleccionar</option><option value="TC">TC - Tela cliente</option><option value="TH">TH - Tela propia</option><option value="TT">TT - Stock Tienda</option>
                 </select>
               </div>
               <div><label style={lbl}>Proceso</label>
@@ -1326,22 +1431,22 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
                   <option value="">Seleccionar</option><option value="S">S - Sublimación</option><option value="D">D - Digital directo</option>
                 </select>
               </div>
-              {r.prop === 'TH' && !r.thManual ? (
-                <div style={{ gridColumn: 'span 2' }}><label style={lbl}>Tela (código TH)</label>
+              {(r.prop === 'TH' || r.prop === 'TT') && !r.thManual ? (
+                <div style={{ gridColumn: 'span 2' }}><label style={lbl}>{r.prop === 'TT' ? 'Tela (Stock Tienda)' : 'Tela (código TH)'}</label>
                   <select
                     value={r.thFijo ? r.id_hype : ''}
                     onChange={e => {
                       if (e.target.value === '__nueva__') { setRenglones(prev => prev.map((rr, i) => i === idx ? { ...rr, thManual: true, thFijo: false } : rr)); return; }
-                      const c = codigosTH.find((x: any) => x.id === e.target.value);
-                      if (c) selCodigoTH(idx, c);
+                      const c = codigosPara(r.prop).find((x: any) => x.id === e.target.value);
+                      if (c) selCodigoTH(idx, c, r.prop);
                     }}
                     style={inp}
                   >
                     <option value="">Seleccionar tela HYPE...</option>
-                    {codigosTH.map((c: any) => (
+                    {codigosPara(r.prop).map((c: any) => (
                       <option key={c.id} value={c.id}>{c.tela} · {c.color || 'SIN COLOR'} · {c.id}</option>
                     ))}
-                    <option value="__nueva__">+ Tela o color TH nuevo (cargar a mano)</option>
+                    <option value="__nueva__">+ Tela o color {r.prop} nuevo (cargar a mano)</option>
                   </select>
                 </div>
               ) : cliente.trim().toUpperCase() === 'HYPE' ? (
@@ -1475,7 +1580,7 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados, fo
     const cambio = item._prop !== p.prop || item._codCli !== p.codCli;
     if (!cambio) return { cambio: false, nuevoId: item.id_hype };
     const base = item._prop + p.proceso + item._codCli + p.codTela + p.sigla;
-    if (item._prop === 'TH') return { cambio: true, nuevoId: base }; // telas HYPE: siempre el mismo ID
+    if (item._prop === 'TH' || item._prop === 'TT') return { cambio: true, nuevoId: base }; // telas HYPE: siempre el mismo ID
     // Tela de cliente: si ya existe ese ID con otro remito/obs, usa sufijo -2, -3...
     const normObs = (x: any) => (x || '').toString().trim().toLowerCase().replace(/\s+/g, ' ');
     const otros = ingresos.filter((x: any) => x.id !== item.id && String(x.id_hype || '').replace(/-\d+$/, '') === base);
@@ -1574,6 +1679,7 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados, fo
                 <select value={editItem._prop} onChange={e => setEditItem({...editItem, _prop: e.target.value})} style={inp}>
                   <option value="TC">TC — Tela de cliente</option>
                   <option value="TH">TH — Tela HYPE</option>
+                  <option value="TT">TT — Stock Tienda</option>
                 </select>
               </div>
               <div><label style={lbl}>Cliente</label>
