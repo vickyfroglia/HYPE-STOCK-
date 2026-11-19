@@ -270,7 +270,7 @@ export default function Home() {
             {pagina === 'dashboard' && <Dashboard ingresos={ingresos} egresos={egresos} clientes={clientes} calcStock={calcStock} formatFecha={formatFecha} />}
             {pagina === 'ingresos' && pMov && <Ingresos clientes={clientes} telas={telas} colores={colores} empleados={empleados} ingresos={ingresos} onGuardar={cargarTodo} />}
             {pagina === 'egresos' && pMov && <Egresos ingresos={ingresos} egresos={egresos} clientes={clientes} telas={telas} colores={colores} empleados={empleados} onGuardar={cargarTodo} />}
-            {pagina === 'stockTH' && <StockTH calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} />}
+            {pagina === 'stockTH' && <StockTH calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} onGuardar={cargarTodo} puedeEgresar={pMov} />}
             {pagina === 'stockTC' && <StockTC calcStock={calcStock} ingresos={ingresos} formatFecha={formatFecha} onGuardar={cargarTodo} puedeEgresar={pMov} />}
             {pagina === 'paqMuestras' && <PaqMuestras clientes={clientes} formatFecha={formatFecha} puedeEditar={pMuestras} />}
             {pagina === 'clientes' && pCli && <Clientes clientes={clientes} ingresos={ingresos} egresos={egresos} onGuardar={cargarTodo} />}
@@ -659,8 +659,40 @@ function StockTabla({ entries, titulo, ingresos, formatFecha, resaltarNegativo, 
   );
 }
 
-function StockTH({ calcStock, ingresos, formatFecha }: any) {
+function StockTH({ calcStock, ingresos, formatFecha, onGuardar, puedeEgresar }: any) {
   const stock = calcStock();
+  // Botón "Egresar" (igual que en Stock TC). La fila junta varios IDs de la
+  // misma tela + color: los metros se descuentan del ID más antiguo primero.
+  async function egresar(idFila: string, s: any, disp: number) {
+    const dispR = Math.round(disp * 100) / 100;
+    const txt = window.prompt(`Egresar de ${s.tela} · ${s.color || ''}\n${idFila}\n\nMetros a egresar (disponible ${dispR.toLocaleString()}):`, String(dispR));
+    if (txt === null) return;
+    const mts = parseFloat(txt.replace(',', '.'));
+    if (!(mts > 0)) { alert('Metros inválidos.'); return; }
+    if (mts > dispR + 0.001 && !confirm(`Vas a egresar ${mts} mts y hay ${dispR} disponibles. ¿Seguir igual?`)) return;
+    const remitoEntrega = window.prompt('Nro. de remito de entrega (opcional, dejalo vacío si no tiene):', '') || '';
+    if (!confirm(`¿Confirmás el egreso de ${mts} mts de ${s.tela} ${s.color || ''}?`)) return;
+    const ids: string[] = (s.ids && s.ids.length ? s.ids : [idFila]).slice()
+      .sort((a: string, b: string) => ((stock[a]?.fecha || '') < (stock[b]?.fecha || '') ? -1 : (stock[a]?.fecha || '') > (stock[b]?.fecha || '') ? 1 : 0));
+    let resto = mts;
+    const filas: any[] = [];
+    ids.forEach((id, k) => {
+      if (resto <= 0.0001) return;
+      const d = Math.max(0, Math.round(((stock[id]?.ing || 0) - (stock[id]?.egr || 0)) * 100) / 100);
+      const toma = k === ids.length - 1 ? resto : Math.min(resto, d);
+      if (toma <= 0.0001) return;
+      resto = Math.round((resto - toma) * 100) / 100;
+      filas.push({
+        fecha: new Date().toISOString().split('T')[0], cliente: stock[id]?.cliente || s.cliente || 'HYPE', tela: s.tela, color: s.color,
+        id_hype: id, mts: Math.round(toma * 100) / 100, bultos: 0, remito_origen: null, remito_entrega: remitoEntrega.trim() || null,
+        observaciones: 'EGRESO DESDE STOCK TH', estado: 'En almacén',
+      });
+    });
+    const { error } = await supabase.from('egresos').insert(filas);
+    if (error) { alert('Error al egresar: ' + error.message); return; }
+    alert('✅ Egreso guardado. Lo ves en Historial de egresos.');
+    if (onGuardar) onGuardar();
+  }
   // Metros pedidos pendientes (filas de la planilla de producción sin fecha fin),
   // que manda la planilla cada 5 minutos a la tabla pedidos_th.
   const [pedidos, setPedidos] = useState<any[]>([]);
@@ -692,7 +724,7 @@ function StockTH({ calcStock, ingresos, formatFecha }: any) {
   const entries = Object.values(grupos)
     .map((g: any) => [g.ids.join(' + '), g])
     .sort((a: any, b: any) => String(a[1].tela).localeCompare(String(b[1].tela)));
-  return <StockTabla entries={entries} titulo="Stock TH — Tela propia HYPE (consolidado por tela)" ingresos={ingresos} formatFecha={formatFecha} resaltarNegativo mostrarPedidos soloTelaColor />;
+  return <StockTabla entries={entries} titulo="Stock TH — Tela propia HYPE (consolidado por tela)" ingresos={ingresos} formatFecha={formatFecha} resaltarNegativo mostrarPedidos soloTelaColor onEgresar={puedeEgresar ? egresar : undefined} />;
 }
 
 function StockTC({ calcStock, ingresos, formatFecha, onGuardar, puedeEgresar }: any) {
