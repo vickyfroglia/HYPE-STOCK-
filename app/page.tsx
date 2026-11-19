@@ -189,7 +189,7 @@ export default function Home() {
     { id: 'egresos', label: 'Egresos', icon: '↑', ver: pMov, sep: false },
     { id: 'stockTH', label: 'Stock TH', icon: '◫', ver: true, sep: false },
     { id: 'stockTC', label: 'Stock TC', icon: '◫', ver: true, sep: false },
-    { id: 'stockTienda', label: 'Stock Tienda', icon: '◫', ver: true, sep: false },
+    { id: 'stockTienda', label: 'Stock TIENDA', icon: '◫', ver: true, sep: false },
     { id: 'paqMuestras', label: 'Paq. Muestras', icon: '▣', ver: true, sep: false },
     { id: 'historialIngresos', label: 'Hist. Ingresos', icon: '☰', ver: pMov, sep: false },
     { id: 'historialEgresos', label: 'Hist. Egresos', icon: '☰', ver: pMov, sep: false },
@@ -345,7 +345,7 @@ function Dashboard({ ingresos, egresos, clientes, calcStock, formatFecha }: any)
           { label: 'Clientes', value: clientes.length, sub: 'registrados' },
           { label: 'Stock TC', value: totalTC.toLocaleString(), sub: 'metros disponibles' },
           { label: 'Stock TH', value: totalTH.toLocaleString(), sub: 'metros disponibles' },
-          { label: 'Stock Tienda', value: (Math.round(totalTienda * 100) / 100).toLocaleString(), sub: 'metros disponibles' },
+          { label: 'Stock TIENDA', value: (Math.round(totalTienda * 100) / 100).toLocaleString(), sub: 'metros disponibles' },
           { label: 'Pendientes entrega', value: pendientes, sub: 'egresos en depósito' },
         ].map((m, i) => (
           <div key={i} style={{ background: '#fff', borderRadius: 10, padding: '8px 12px', border: '1px solid #eee' }}>
@@ -732,7 +732,7 @@ function StockTH({ calcStock, ingresos, formatFecha, onGuardar, puedeEgresar, pr
   const entries = Object.values(grupos)
     .map((g: any) => [g.ids.join(' + '), g])
     .sort((a: any, b: any) => String(a[1].tela).localeCompare(String(b[1].tela)));
-  const tabla = <StockTabla entries={entries} titulo={esTienda ? 'Stock Tienda — Telas de la tienda (consolidado por tela)' : 'Stock TH — Tela propia HYPE (consolidado por tela)'} ingresos={ingresos} formatFecha={formatFecha} resaltarNegativo mostrarPedidos={!esTienda} soloTelaColor onEgresar={puedeEgresar ? egresar : undefined} />;
+  const tabla = <StockTabla entries={entries} titulo={esTienda ? 'Stock TIENDA — Telas de la TIENDA (consolidado por tela)' : 'Stock TH — Tela propia HYPE (consolidado por tela)'} ingresos={ingresos} formatFecha={formatFecha} resaltarNegativo mostrarPedidos={!esTienda} soloTelaColor onEgresar={puedeEgresar ? egresar : undefined} />;
   if (!esTienda) return tabla;
   return (
     <div>
@@ -776,19 +776,19 @@ function IngresoTienda({ ingresos, onGuardar }: any) {
     }]);
     setGuardando(false);
     if (error) { alert('Error al guardar: ' + error.message); return; }
-    alert('✅ Ingreso guardado en Stock Tienda.');
+    alert('✅ Ingreso guardado en Stock TIENDA.');
     setF({ fecha: hoy, idTT: '', mts: '', bultos: '', remito: '', ubicacion: '', obs: '' });
     setAbierto(false);
     if (onGuardar) onGuardar();
   }
   if (!abierto) return (
     <div style={{ marginBottom: 14 }}>
-      <button onClick={() => setAbierto(true)} style={{ ...btn, background: '#e85d2f', color: '#fff', border: 'none', fontWeight: 600 }}>+ Ingresar a Stock Tienda</button>
+      <button onClick={() => setAbierto(true)} style={{ ...btn, background: '#e85d2f', color: '#fff', border: 'none', fontWeight: 600 }}>+ Ingresar a Stock TIENDA</button>
     </div>
   );
   return (
     <div style={{ background: '#fff', border: '1px solid #eee', borderRadius: 10, padding: 16, marginBottom: 16 }}>
-      <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 12 }}>Ingresar a Stock Tienda</div>
+      <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 12 }}>Ingresar a Stock TIENDA</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 12 }}>
         <div><label style={lbl}>Fecha</label><input type="date" value={f.fecha} onChange={e => setF({ ...f, fecha: e.target.value })} style={inp} /></div>
         <div style={{ gridColumn: 'span 2' }}><label style={lbl}>Tela</label>
@@ -1423,7 +1423,7 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 12 }}>
               <div><label style={lbl}>Prop.</label>
                 <select value={r.prop} onChange={e => updateRenglon(idx, 'prop', e.target.value)} style={inp}>
-                  <option value="">Seleccionar</option><option value="TC">TC - Tela cliente</option><option value="TH">TH - Tela propia</option><option value="TT">TT - Stock Tienda</option>
+                  <option value="">Seleccionar</option><option value="TC">TC - Tela cliente</option><option value="TH">TH - Tela propia</option><option value="TT">TT - Stock TIENDA</option>
                 </select>
               </div>
               <div><label style={lbl}>Proceso</label>
@@ -1432,7 +1432,7 @@ function Ingresos({ clientes, telas, colores, empleados, ingresos, onGuardar }: 
                 </select>
               </div>
               {(r.prop === 'TH' || r.prop === 'TT') && !r.thManual ? (
-                <div style={{ gridColumn: 'span 2' }}><label style={lbl}>{r.prop === 'TT' ? 'Tela (Stock Tienda)' : 'Tela (código TH)'}</label>
+                <div style={{ gridColumn: 'span 2' }}><label style={lbl}>{r.prop === 'TT' ? 'Tela (Stock TIENDA)' : 'Tela (código TH)'}</label>
                   <select
                     value={r.thFijo ? r.id_hype : ''}
                     onChange={e => {
@@ -1679,7 +1679,7 @@ function HistorialIngresos({ ingresos, onGuardar, clientes, telas, empleados, fo
                 <select value={editItem._prop} onChange={e => setEditItem({...editItem, _prop: e.target.value})} style={inp}>
                   <option value="TC">TC — Tela de cliente</option>
                   <option value="TH">TH — Tela HYPE</option>
-                  <option value="TT">TT — Stock Tienda</option>
+                  <option value="TT">TT — Stock TIENDA</option>
                 </select>
               </div>
               <div><label style={lbl}>Cliente</label>
